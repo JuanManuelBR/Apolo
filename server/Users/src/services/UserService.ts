@@ -1,73 +1,51 @@
-import { RouteError } from '@src/common/util/route-errors';
-import HttpStatusCodes from '@src/common/constants/HttpStatusCodes';
+import { AppDataSource } from "@src/data-source/AppDataSource";
+import { User } from "@src/models/User";
+import { add_user_dto } from "@src/types/user";
+import bcrypt from "bcrypt";
 
-import UserRepo from '@src/repos/UserRepo';
-import { IUser } from '@src/models/User';
+export class UserService {
+  private user_repository = AppDataSource.getRepository(User);
 
+  async AddUser(data: add_user_dto): Promise<User> {
+    try {
+      const requiredFields = [
+        "primer_nombre",
+        "primer_apellido",
+        "tipo",
+        "email",
+        "contrasena",
+      ];
 
-/******************************************************************************
-                                Constants
-******************************************************************************/
+      for (const field of requiredFields) {
+        if (
+          data[field as keyof add_user_dto] === undefined ||
+          data[field as keyof add_user_dto] === null
+        ) {
+          throw new Error(`Falta el campo obligatorio del usuario: ${field}`);
+        }
+      }
 
-export const USER_NOT_FOUND_ERR = 'User not found';
+      const existingUser = await this.user_repository.findOne({
+        where: { email: data.email },
+      });
 
+      if (existingUser) {
+        throw new Error("El correo electrónico ya está en uso");
+      }
 
-/******************************************************************************
-                                Functions
-******************************************************************************/
+      const salt = 10;
+      const hashed_password = await bcrypt.hash(data.contrasena, salt);
+      data.contrasena = hashed_password;
 
-/**
- * Get all users.
- */
-function getAll(): Promise<IUser[]> {
-  return UserRepo.getAll();
-}
+      const user = this.user_repository.create(data);
 
-/**
- * Add one user.
- */
-function addOne(user: IUser): Promise<void> {
-  return UserRepo.add(user);
-}
+      const usuario_nuevo = await this.user_repository.save(user);
 
-/**
- * Update one user.
- */
-async function updateOne(user: IUser): Promise<void> {
-  const persists = await UserRepo.persists(user.id);
-  if (!persists) {
-    throw new RouteError(
-      HttpStatusCodes.NOT_FOUND,
-      USER_NOT_FOUND_ERR,
-    );
+      return usuario_nuevo;
+    } catch (error: any) {
+      console.error("No se pudo crear el nuevo usuario", error.message);
+
+      throw error;
+    }
   }
-  // Return user
-  return UserRepo.update(user);
 }
-
-/**
- * Delete a user by their id.
- */
-async function _delete(id: number): Promise<void> {
-  const persists = await UserRepo.persists(id);
-  if (!persists) {
-    throw new RouteError(
-      HttpStatusCodes.NOT_FOUND,
-      USER_NOT_FOUND_ERR,
-    );
-  }
-  // Delete user
-  return UserRepo.delete(id);
-}
-
-
-/******************************************************************************
-                                Export default
-******************************************************************************/
-
-export default {
-  getAll,
-  addOne,
-  updateOne,
-  delete: _delete,
-} as const;

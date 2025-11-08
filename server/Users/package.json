@@ -15,7 +15,10 @@
     "node": ">=16.0.0"
   },
   "dependencies": {
+    "bcrypt": "^6.0.0",
+    "class-transformer": "^0.5.1",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
@@ -37,7 +40,9 @@
     "@stylistic/eslint-plugin-js": "^4.4.1",
     "@stylistic/eslint-plugin-ts": "^4.4.1",
     "@swc/core": "^1.15.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/cookie-parser": "^1.4.10",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.5",
     "@types/find": "^0.2.4",
     "@types/fs-extra": "^11.0.4",
