@@ -1,10 +1,55 @@
 import { AppDataSource } from "@src/data-source/AppDataSource";
 import { User } from "@src/models/User";
 import { add_user_dto, edit_user_dto } from "@src/types/user";
+
+import { JWT_EXPIRES } from "config/config";
+import { JWT_SECRET } from "config/config";
+
+import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 
 export class UserService {
   private user_repository = AppDataSource.getRepository(User);
+
+  async login(email: string, contrasena: string) {
+    if (!email || !contrasena) {
+      throw new Error("Por favor ingrese Correo y contraseña");
+    }
+    const usuario = await this.user_repository.findOne({
+      where: { email },
+    });
+
+    if (!usuario) {
+      throw new Error("No se encontró un usuario con ese correo");
+    }
+
+    const contrasena_valida = await bcrypt.compare(
+      contrasena,
+      usuario.contrasena
+    );
+
+    if (!contrasena_valida) {
+      throw new Error("Contraseñla incorrecta");
+    }
+
+    // Validar que JWT_SECRET esté definido
+    if (!JWT_SECRET) {
+      throw new Error("JWT_SECRET no está configurado");
+    }
+
+    const payload = {
+      id: usuario.id,
+      email: usuario.email,
+    };
+
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+
+    return {
+      message: "Login exitoso",
+      token,
+      usuario: payload,
+    };
+  }
 
   async AddUser(data: add_user_dto): Promise<User> {
     try {
