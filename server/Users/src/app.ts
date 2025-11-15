@@ -3,10 +3,11 @@ import { AppDataSource } from "./data-source/AppDataSource";
 import cors from "cors";
 
 import UserRoutes from "./routes/UserRoutes";
+import cookieParser from "cookie-parser";
 
 // Llamar express
 const app = express();
-
+app.use(cookieParser());
 //importar express.json para poder manejar json
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
