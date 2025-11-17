@@ -86,10 +86,9 @@ export class UserController {
         data.contrasena
       );
 
-
       res.cookie("token", token, {
-        httpOnly: true, 
-        secure: false, 
+        httpOnly: true,
+        secure: false,
         sameSite: "lax",
         maxAge: 3600000,
       });
@@ -104,17 +103,16 @@ export class UserController {
   }
 
   static async logout(req: Request, res: Response) {
-  try {
-    res.clearCookie("token", {
-      httpOnly: true,
-      secure: false,   // en producción true
-      sameSite: "lax",
-    });
+    try {
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: false, // en producción true
+        sameSite: "lax",
+      });
 
-    return res.status(200).json({ message: "Logout exitoso" });
-  } catch (error: any) {
-    return res.status(500).json({ message: "Error al cerrar sesión" });
+      return res.status(200).json({ message: "Logout exitoso" });
+    } catch (error: any) {
+      return res.status(500).json({ message: "Error al cerrar sesión" });
+    }
   }
-}
-
 }
