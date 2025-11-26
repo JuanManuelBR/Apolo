@@ -10,7 +10,6 @@ export class ExamService {
 
   async addExam(data: add_exam_dto, cookies?: string) {
     try {
-      // 1️⃣ Validar campos obligatorios
       const requiredFields = [
         "nombre",
         "clave",
@@ -29,18 +28,18 @@ export class ExamService {
       }
 
       const id_profesor = Number(data.id_profesor);
-
-      // 2️⃣ Validar que el profesor existe en UserService
-      const response = await axios.get(`${USER_MS_URL}/api/users/${id_profesor}`, {
-        headers: { Cookie: cookies || "" }, // enviar cookie para auth
-      });
+      const response = await axios.get(
+        `${USER_MS_URL}/api/users/${id_profesor}`,
+        {
+          headers: { Cookie: cookies || "" }, // enviar cookie para auth
+        }
+      );
 
       const profesor = response.data;
       if (!profesor || !profesor.id) {
         throw new Error("No se encontró el profesor con el id proporcionado");
       }
 
-      // 3️⃣ Validar que no exista un examen con mismo nombre para ese profesor
       const examen_existente = await this.examRepo.findOne({
         where: { nombre: data.nombre, id_profesor: id_profesor },
       });
@@ -49,7 +48,7 @@ export class ExamService {
         throw new Error("No puedes tener 2 exámenes con el mismo nombre");
       }
 
-      // 4️⃣ Crear y guardar el examen
+
       const nuevo_examen = this.examRepo.create({
         ...data,
         id_profesor: id_profesor,
@@ -61,6 +60,24 @@ export class ExamService {
       return examen_guardado;
     } catch (error: any) {
       throw new Error("Ocurrió un error: " + error.message);
+    }
+  }
+
+  async listExams() {
+    try {
+      const examenes = await this.examRepo.find({
+        select: [
+          "id",
+          "nombre",
+          "clave",
+          "fecha_creacion",
+          "estado",
+          "id_profesor",
+        ],
+      });
+      return examenes;
+    } catch (error: any) {
+      throw new Error("Ocurrió un error inesperado: " + error.message);
     }
   }
 }

@@ -19,6 +19,9 @@ export abstract class Question {
   @Column({ type: "float", default: 1 })
   puntaje!: number;
 
+  @Column()
+  type!: string;  
+  
   @ManyToOne(() => Exam)
   exam!: Exam;
 }
