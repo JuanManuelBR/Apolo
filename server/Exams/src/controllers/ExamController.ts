@@ -21,7 +21,7 @@ export class ExamsController {
     }
   }
 
-  static async listExams(res: Response) {
+  static async listExams(req:Request,res: Response) {
     try {
       const profesores = await exam_service.listExams();
 

@@ -8,6 +8,6 @@ export class TestQuestion extends Question {
   @Column()
   shuffleOptions!: boolean;
 
-  @OneToMany(() => TestOption, (option) => option.question, { cascade: true })
+  @OneToMany(() => TestOption, (option) => option.question, { cascade: true, eager: true })
   options!: TestOption[];
 }
