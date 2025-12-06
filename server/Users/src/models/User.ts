@@ -17,7 +17,6 @@ export class User {
   @Column({ type: "varchar", length: 50, nullable: true })
   segundo_apellido?: string;
 
-
   @Column({ type: "varchar", length: 100, unique: true })
   email!: string;
 

@@ -16,7 +16,7 @@ export class Exam {
   @Column({ type: "varchar", length: 255 })
   nombre!: string;
 
-  @Column({ type: "varchar", length: 255, unique: true })
+  @Column({ type: "varchar", length: 255 })
   clave!: string;
 
   @CreateDateColumn()
@@ -28,6 +28,6 @@ export class Exam {
   @Column()
   id_profesor!: number;
 
-  @OneToMany(() => Question, (question) => question.exam, { cascade: true })
+  @OneToMany(() => Question, (question) => question.exam, { cascade: true, eager: true})
   questions!: Question[];
 }

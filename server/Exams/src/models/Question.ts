@@ -20,8 +20,8 @@ export abstract class Question {
   puntaje!: number;
 
   @Column()
-  type!: string;  
+  type!: string;
 
-  @ManyToOne("Exam","questions")
+  @ManyToOne("Exam", "questions", { onDelete: "CASCADE" })
   exam!: Exam;
 }
