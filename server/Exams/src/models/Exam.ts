@@ -28,6 +28,6 @@ export class Exam {
   @Column()
   id_profesor!: number;
 
-  @OneToMany(() => Question, (question) => question.exam, { cascade: true, eager: true})
+  @OneToMany(() => Question, (question) => question.exam, { cascade: true, eager: false})
   questions!: Question[];
 }

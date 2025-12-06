@@ -13,7 +13,6 @@ const USER_MS_URL = process.env.USER_MS_URL;
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
-  private questionRepo = AppDataSource.getRepository(Question);
 
   async addExam(rawData: any, cookies?: string) {
     try {
@@ -39,7 +38,7 @@ export class ExamService {
         if (data.questions && data.questions.length > 0) {
           const preguntas = QuestionValidator.crearPreguntasDesdeDto(
             data.questions,
-            examen_guardado.id!
+            examen_guardado.id
           );
 
           // Guardar las preguntas como objetos planos
@@ -57,16 +56,21 @@ export class ExamService {
 
   async listExams() {
     try {
-      const examenes = await this.examRepo.find({
-        select: [
-          "id",
-          "nombre",
-          "clave",
-          "fecha_creacion",
-          "estado",
-          "id_profesor",
-        ],
-      });
+      const examenes = await this.examRepo
+        .createQueryBuilder("exam")
+        .select([
+          "exam.id",
+          "exam.nombre",
+          "exam.clave",
+          "exam.fecha_creacion",
+          "exam.estado",
+          "exam.id_profesor",
+        ])
+        .leftJoinAndSelect("exam.questions", "question")
+        .leftJoinAndSelect("question.options", "option")
+        .orderBy("exam.fecha_creacion", "DESC")
+        .getMany();
+
       return examenes;
     } catch (error: any) {
       throw new Error("Ocurrió un error inesperado: " + error.message);

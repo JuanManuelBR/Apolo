@@ -4,6 +4,7 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  JoinColumn,
 } from "typeorm";
 import { Exam } from "./Exam";
 
@@ -22,6 +23,10 @@ export abstract class Question {
   @Column()
   type!: string;
 
+  @Column({ type: "int", name: "examId" })
+  examId!: number;
+  
   @ManyToOne("Exam", "questions", { onDelete: "CASCADE" })
+  @JoinColumn({ name: "examId" })
   exam!: Exam;
 }
