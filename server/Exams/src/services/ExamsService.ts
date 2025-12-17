@@ -9,11 +9,9 @@ import { Question } from "@src/models/Question";
 import { examenValidator } from "@src/validators/examen-validator";
 
 import { QuestionValidator } from "@src/validators/question-validator";
-const USER_MS_URL = process.env.USER_MS_URL;
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
-  private questionRepo = AppDataSource.getRepository(Question);
 
   async addExam(rawData: any, cookies?: string) {
     try {
@@ -39,13 +37,16 @@ export class ExamService {
         if (data.questions && data.questions.length > 0) {
           const preguntas = QuestionValidator.crearPreguntasDesdeDto(
             data.questions,
-            examen_guardado.id!
+            examen_guardado
           );
 
           // Guardar las preguntas como objetos planos
           const preguntas_guardadas = await manager.save(Question, preguntas);
 
           examen_guardado.questions = preguntas_guardadas;
+          examen_guardado.questions.forEach((q) => {
+            delete (q as any).exam;
+          });
         }
 
         return examen_guardado;
@@ -57,16 +58,7 @@ export class ExamService {
 
   async listExams() {
     try {
-      const examenes = await this.examRepo.find({
-        select: [
-          "id",
-          "nombre",
-          "clave",
-          "fecha_creacion",
-          "estado",
-          "id_profesor",
-        ],
-      });
+      const examenes = await this.examRepo.find({ relations: ["questions"] });
       return examenes;
     } catch (error: any) {
       throw new Error("Ocurrió un error inesperado: " + error.message);

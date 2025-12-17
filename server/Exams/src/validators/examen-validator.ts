@@ -4,7 +4,6 @@ import axios from "axios";
 const USER_MS_URL = process.env.USER_MS_URL;
 
 export class examenValidator {
-  private examRepo = AppDataSource.getRepository(Exam);
 
   static async verificarProfesor(id_profesor: number, cookies?: string) {
     try {

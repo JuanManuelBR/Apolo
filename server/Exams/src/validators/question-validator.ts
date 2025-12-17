@@ -1,12 +1,15 @@
+import { Exam } from "@src/models/Exam";
+import { Question } from "@src/models/Question";
+
 export class QuestionValidator {
-  static crearPreguntasDesdeDto(questionsDto: any[], examId: number): any[] {
+  static crearPreguntasDesdeDto(questionsDto: any[], exam: Exam): Question[] {
     return questionsDto.map((questionDto) => {
       // Crear objeto plano con los campos comunes
       const preguntaBase: any = {
         enunciado: questionDto.enunciado,
         type: questionDto.type,
         puntaje: questionDto.puntaje,
-        examId: examId,
+        exam: exam,
       };
 
       // Agregar campos específicos según el tipo de pregunta
