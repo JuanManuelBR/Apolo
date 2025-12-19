@@ -43,7 +43,7 @@ export class add_exam_dto {
   })
   id_profesor!: number;
 
-  @IsOptional()
+  @IsNotEmpty()
   @IsArray({ message: "Las preguntas deben ser un array" })
   @ValidateNested({ each: true })
   @Type(() => BaseQuestionDto, {
@@ -56,5 +56,5 @@ export class add_exam_dto {
     },
     keepDiscriminatorProperty: true,
   })
-  questions?: BaseQuestionDto[];
+  questions!: BaseQuestionDto[];
 }

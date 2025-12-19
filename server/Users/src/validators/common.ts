@@ -3,13 +3,10 @@ import { validate, ValidationError } from "class-validator";
 import { throwHttpError } from "@src/utils/errors";
 
 export class CommonValidator {
-
   // Función recursiva para obtener todos los errores, incluidos los anidados
   private flattenValidationErrors(errors: ValidationError[]): string[] {
     return errors.flatMap((err) => {
-      const constraints = err.constraints
-        ? Object.values(err.constraints)
-        : [];
+      const constraints = err.constraints ? Object.values(err.constraints) : [];
 
       const children =
         err.children && err.children.length > 0
@@ -25,7 +22,6 @@ export class CommonValidator {
     dtoClass: new (...args: any[]) => T,
     rawData: any
   ): Promise<T> {
-
     const dto = plainToInstance(dtoClass, rawData, {
       enableImplicitConversion: true,
     });
@@ -40,13 +36,9 @@ export class CommonValidator {
     if (errors.length > 0) {
       const messages = this.flattenValidationErrors(errors).join(", ");
 
-      throwHttpError(
-        `Errores de validación: ${messages}`,
-        400
-      );
+      throwHttpError(`Errores de validación: ${messages}`, 400);
     }
 
     return dto;
   }
-  
 }
