@@ -20,6 +20,6 @@ export const AppDataSource = new DataSource({
   port: DB_PORT,
   username: DB_USER,
   synchronize: true,
-  logging: true,
+  logging: false,
   entities: [User],
 });

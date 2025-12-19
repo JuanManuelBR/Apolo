@@ -1,5 +1,5 @@
 import { ExamenState } from "@src/types/Exam";
-import { Transform, Type } from "class-transformer";
+import { Type } from "class-transformer";
 import {
   IsArray,
   IsIn,
@@ -12,8 +12,6 @@ import {
 
 import { BaseQuestionDto } from "./base-question.dto";
 import { QUESTION_DTO_MAP } from "./question-dto-map";
-import { QuestionType } from "@src/types/Question";
-import { Question } from "@src/models/Question";
 
 export class add_exam_dto {
   @IsString({ message: "Nombre debe ser string" })

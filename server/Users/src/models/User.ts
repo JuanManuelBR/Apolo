@@ -9,13 +9,13 @@ export class User {
   primer_nombre!: string;
 
   @Column({ type: "varchar", length: 50, nullable: true })
-  segundo_nombre?: string;
+  segundo_nombre?: string | null;
 
   @Column({ type: "varchar", length: 50 })
   primer_apellido!: string;
 
   @Column({ type: "varchar", length: 50, nullable: true })
-  segundo_apellido?: string;
+  segundo_apellido?: string | null;
 
   @Column({ type: "varchar", length: 100, unique: true })
   email!: string;

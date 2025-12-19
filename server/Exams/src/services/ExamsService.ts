@@ -9,59 +9,72 @@ import { Question } from "@src/models/Question";
 import { examenValidator } from "@src/validators/examen-validator";
 
 import { QuestionValidator } from "@src/validators/question-validator";
+import { throwHttpError } from "@src/utils/errors";
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
 
   async addExam(rawData: any, cookies?: string) {
-    try {
-      const validator = new CommonValidator();
-      const data = await validator.validateDto(add_exam_dto, rawData);
+    const validator = new CommonValidator();
+    const data = await validator.validateDto(add_exam_dto, rawData);
 
-      const id_profesor = Number(data.id_profesor);
-      await examenValidator.verificarProfesor(id_profesor, cookies);
-      await examenValidator.verificarExamenDuplicado(data.nombre, id_profesor);
-
-      return await AppDataSource.transaction(async (manager) => {
-        const nuevo_examen = manager.create(Exam, {
-          nombre: data.nombre,
-          clave: data.clave,
-          estado: data.estado,
-          id_profesor,
-          fecha_creacion: new Date(data.fecha_creacion),
-        });
-
-        const examen_guardado = await manager.save(Exam, nuevo_examen);
-
-        // Si hay preguntas, procesarlas y guardarlas
-        if (data.questions && data.questions.length > 0) {
-          const preguntas = QuestionValidator.crearPreguntasDesdeDto(
-            data.questions,
-            examen_guardado
-          );
-
-          // Guardar las preguntas como objetos planos
-          const preguntas_guardadas = await manager.save(Question, preguntas);
-
-          examen_guardado.questions = preguntas_guardadas;
-          examen_guardado.questions.forEach((q) => {
-            delete (q as any).exam;
-          });
-        }
-
-        return examen_guardado;
-      });
-    } catch (error: any) {
-      throw new Error("Ocurrió un error: " + error.message);
+    const id_profesor = Number(data.id_profesor);
+    if (isNaN(id_profesor)) {
+      throwHttpError("ID de profesor inválido", 400);
     }
+
+    await examenValidator.verificarProfesor(id_profesor, cookies);
+    await examenValidator.verificarExamenDuplicado(data.nombre, id_profesor);
+
+    return await AppDataSource.transaction(async (manager) => {
+      const nuevo_examen = manager.create(Exam, {
+        nombre: data.nombre,
+        clave: data.clave,
+        estado: data.estado,
+        id_profesor,
+        fecha_creacion: new Date(data.fecha_creacion),
+      });
+
+      const examen_guardado = await manager.save(Exam, nuevo_examen);
+
+      if (data.questions?.length) {
+        const preguntas = QuestionValidator.crearPreguntasDesdeDto(
+          data.questions,
+          examen_guardado
+        );
+
+        const preguntas_guardadas = await manager.save(Question, preguntas);
+
+        examen_guardado.questions = preguntas_guardadas;
+        examen_guardado.questions.forEach((q) => delete (q as any).exam);
+      }
+
+      return examen_guardado;
+    });
   }
 
   async listExams() {
-    try {
-      const examenes = await this.examRepo.find({ relations: ["questions"] });
-      return examenes;
-    } catch (error: any) {
-      throw new Error("Ocurrió un error inesperado: " + error.message);
-    }
+    const examenes = await this.examRepo.find({
+      relations: ["questions"],
+    });
+
+    return examenes;
+  }
+
+  async getExamsByUser(userId: number, cookies?: string) {
+    await examenValidator.verificarProfesor(userId, cookies);
+
+    return await this.examRepo.find({
+      where: { id_profesor: userId },
+      relations: ["questions"],
+    });
+  }
+
+  async deleteExamsByUser(userId: number, cookies?: string) {
+    await examenValidator.verificarProfesor(userId, cookies);
+
+    await this.examRepo.delete({
+      id_profesor: userId,
+    });
   }
 }

@@ -4,6 +4,7 @@ import cors from "cors";
 
 import UserRoutes from "./routes/UserRoutes";
 import cookieParser from "cookie-parser";
+import { errorHandler } from "./middlewares/errorHandler";
 
 // Llamar express
 const app = express();
@@ -15,6 +16,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 app.use("/api/users", UserRoutes);
+
+app.use(errorHandler);
 AppDataSource.initialize()
 
   .then(() => console.log("Base de datos conectada correctamente"))

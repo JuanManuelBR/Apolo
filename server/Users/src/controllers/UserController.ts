@@ -1,49 +1,55 @@
 import { UserService } from "@src/services/UserService";
 
-import { Request, Response } from "express";
+import { throwHttpError } from "@src/utils/errors";
+
+import { NextFunction, Request, Response } from "express";
 
 const user_service = new UserService();
 
 export class UserController {
-  static async AddUser(req: Request, res: Response) {
+  static async AddUser(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = req.body;
-      const usuario_nuevo = await user_service.AddUser(data);
+      const usuario_nuevo = await user_service.AddUser(req.body);
+
       return res.status(201).json(usuario_nuevo);
-    } catch (error: any) {
-      return res.status(400).json({ message: error.message });
+    } catch (error) {
+      next(error);
     }
   }
 
-  static async deleteUser(req: Request, res: Response) {
+  static async deleteUser(req: Request, res: Response, next: NextFunction) {
+    try {
+      const cookies = req.headers.cookie;
+      const id = Number(req.params.id);
+
+      if (isNaN(id)) {
+        throwHttpError("ID inválido", 400);
+      }
+
+      const result = await user_service.deleteUser(id, cookies);
+
+      return res.status(200).json(result);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async editUser(req: Request, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
-      const message = await user_service.deleteUser(Number(id));
-      return res.status(200).json({ message });
-    } catch (error: any) {
-      if (error.message.includes("No se encontró")) {
-        return res.status(404).json({
-          message: "No se encontró un usuario con el id especificado",
-        });
+
+      if (isNaN(id)) {
+        throwHttpError("ID inválido", 400);
       }
-      return res.status(400).json({ message: error.message });
-    }
-  }
+      if (!req.body || Object.keys(req.body).length === 0) {
+        throwHttpError("Debe enviar al menos un campo para actualizar", 400);
+      }
 
-  static async editUser(req: Request, res: Response) {
-    try {
-      const data = req.body;
-      const id = req.params.id;
-      console.log(id);
-      await user_service.editUser(data, Number(id));
+      const usuario = await user_service.editUser(req.body, id);
 
-      return res
-        .status(200)
-        .json({ message: "Usuario actualizado correctamente:" });
-    } catch (error: any) {
-      return res.status(400).json({
-        message: "No se pudo actualizar el usuario: " + error.message,
-      });
+      return res.status(200).json(usuario);
+    } catch (error) {
+      next(error);
     }
   }
 
@@ -107,7 +113,7 @@ export class UserController {
     try {
       res.clearCookie("token", {
         httpOnly: true,
-        secure: false, // en producción true
+        secure: false, 
         sameSite: "lax",
       });
 
