@@ -10,8 +10,6 @@ export class OpenQuestion extends Question {
   @Column({ type: "text", nullable: true })
   textoRespuesta?: string;
 
-  @Column({ type: "boolean", nullable: true })
-  debeContenerTodasPalabrasClave?: boolean;
 
   @OneToMany(() => OpenQuestionKeyword, (keyword) => keyword.question, {
     cascade: true,

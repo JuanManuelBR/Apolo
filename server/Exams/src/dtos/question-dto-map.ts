@@ -5,8 +5,7 @@ import { BaseQuestionDto } from "./base-question.dto";
 import { OpenQuestionDto } from "./add-open-question.dto";
 import { FillBlanksQuestionDto } from "./add-fill-blanks-question.dto";
 import { MatchingQuestionDto } from "./add-matching-question.dto";
-//import { OpenQuestionDto } from "./add-open-question.dto";
-//import { TrueFalseQuestionDto } from "./add-true-false-question.dto";
+
 
 export const QUESTION_DTO_MAP: Record<QuestionType, new () => BaseQuestionDto> =
   {

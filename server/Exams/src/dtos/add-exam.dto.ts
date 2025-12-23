@@ -12,6 +12,9 @@ import {
 
 import { BaseQuestionDto } from "./base-question.dto";
 import { QUESTION_DTO_MAP } from "./question-dto-map";
+import { TestQuestionDto } from "./add-test-question.dto";
+import { OpenQuestionDto } from "./add-open-question.dto";
+import { FillBlankQuestionDto } from "./add-blank-question.dto";
 
 export class add_exam_dto {
   @IsString({ message: "Nombre debe ser string" })
@@ -47,14 +50,16 @@ export class add_exam_dto {
   @IsArray({ message: "Las preguntas deben ser un array" })
   @ValidateNested({ each: true })
   @Type(() => BaseQuestionDto, {
+    keepDiscriminatorProperty: true,
     discriminator: {
       property: "type",
-      subTypes: Object.entries(QUESTION_DTO_MAP).map(([name, value]) => ({
-        value: value,
-        name: name,
-      })),
+      subTypes: [
+        { value: TestQuestionDto, name: "test" },
+        { value: OpenQuestionDto, name: "open" },
+        { value: FillBlankQuestionDto, name: "fill_blanks" },
+
+      ],
     },
-    keepDiscriminatorProperty: true,
   })
   questions!: BaseQuestionDto[];
 }

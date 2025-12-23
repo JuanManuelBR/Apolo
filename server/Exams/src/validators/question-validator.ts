@@ -1,4 +1,8 @@
 import { Exam } from "@src/models/Exam";
+import { BlankAnswer } from "@src/models/FillBlankAnswer";
+import { FillBlankQuestion } from "@src/models/FillBlankQuestion";
+import { OpenQuestion } from "@src/models/OpenQuestion";
+import { OpenQuestionKeyword } from "@src/models/OpenQuestionKeyWord";
 import { Question } from "@src/models/Question";
 import { throwHttpError } from "@src/utils/errors";
 
@@ -14,6 +18,14 @@ export class QuestionValidator {
       }
 
       const preguntaBase: Partial<Question> = {
+        enunciado: questionDto.enunciado,
+        type: questionDto.type,
+        puntaje: questionDto.puntaje,
+        calificacionParcial: questionDto.calificacionParcial,
+        exam,
+      };
+
+      const preguntaBaseData = {
         enunciado: questionDto.enunciado,
         type: questionDto.type,
         puntaje: questionDto.puntaje,
@@ -42,16 +54,102 @@ export class QuestionValidator {
               }) || [],
           } as Question;
         case "open":
-          return {
-            ...preguntaBase,
+          const openQ = new OpenQuestion();
+          Object.assign(openQ, preguntaBaseData);
 
-            palabrasClave: questionDto.palabrasClave ?? null,
+          // 1. VALIDACIÓN DE EXCLUSIVIDAD (Prioridad)
+          const tieneTexto =
+            questionDto.textoRespuesta &&
+            questionDto.textoRespuesta.trim() !== "";
+          const tieneKeywords =
+            questionDto.palabrasClave &&
+            Array.isArray(questionDto.palabrasClave) &&
+            questionDto.palabrasClave.length > 0;
 
-            textoRespuesta: questionDto.textoRespuesta ?? null,
+          if (tieneTexto && tieneKeywords) {
+            throwHttpError(
+              `Error en pregunta ${index}: No se puede definir 'textoRespuesta' y 'palabrasClave' al mismo tiempo. Elige un método de calificación.`,
+              400
+            );
+          }
 
-            debeContenerTodasPalabrasClave:
-              questionDto.debeContenerTodasPalabrasClave ?? null,
-          } as Question;
+          // 2. ASIGNACIÓN DE TEXTO RESPUESTA
+          openQ.textoRespuesta = questionDto.textoRespuesta ?? null;
+
+          // 3. VALIDACIÓN Y ASIGNACIÓN DE KEYWORDS
+          if (tieneKeywords) {
+            openQ.keywords = questionDto.palabrasClave.map(
+              (kwDto: any, kwIndex: number) => {
+                const keyword = new OpenQuestionKeyword();
+
+                // Verificamos que los campos existan antes de usarlos
+                if (
+                  !kwDto?.texto ||
+                  typeof kwDto?.esObligatoria !== "boolean"
+                ) {
+                  throwHttpError(
+                    `Palabra clave inválida en pregunta ${index}, posición ${kwIndex}. Debe tener 'texto' y 'esObligatoria'.`,
+                    400
+                  );
+                }
+
+                keyword.texto = kwDto.texto;
+
+                return keyword;
+              }
+            );
+          } else {
+            openQ.keywords = [];
+          }
+
+          return openQ;
+
+        case "fill_blanks":
+          const fillQ = new FillBlankQuestion();
+          Object.assign(fillQ, preguntaBaseData);
+
+          // Validar campos requeridos
+          if (!questionDto.textoCorrecto) {
+            throwHttpError(
+              `La pregunta ${index} (Rellenar) requiere el texto base.`,
+              400
+            );
+          }
+
+          fillQ.textoCorrecto = questionDto.textoCorrecto;
+
+          if (questionDto.respuestas && Array.isArray(questionDto.respuestas)) {
+            fillQ.respuestas = questionDto.respuestas.map(
+              (respDto: any, respIndex: number) => {
+                const answer = new BlankAnswer();
+
+                if (respDto.posicion === undefined || !respDto.textoCorrecto) {
+                  throwHttpError(
+                    `Error en pregunta ${index}: La respuesta ${respIndex} debe tener posición y textoCorrecto.`,
+                    400
+                  );
+                }
+
+                answer.posicion = respDto.posicion;
+                answer.textoCorrecto = respDto.textoCorrecto;
+                return answer;
+              }
+            );
+            const matches = fillQ.textoCorrecto.match(/\[\d+\]/g) || [];
+            if (matches.length !== fillQ.respuestas.length) {
+              throwHttpError(
+                `Pregunta ${index}: El número de espacios [x] no coincide con las respuestas enviadas.`,
+                400
+              );
+            }
+          } else {
+            throwHttpError(
+              `La pregunta ${index} debe tener al menos una respuesta correcta.`,
+              400
+            );
+          }
+
+          return fillQ;
 
         default:
           throwHttpError(

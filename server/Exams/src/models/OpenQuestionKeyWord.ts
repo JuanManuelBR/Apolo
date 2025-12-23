@@ -8,8 +8,6 @@ export class OpenQuestionKeyword {
   @Column()
   texto!: string;
 
-  @Column({ type: "boolean"})
-  esObligatoria!: boolean; 
 
   @ManyToOne("OpenQuestion", "keywords", { onDelete: "CASCADE" })
   question!: any;
