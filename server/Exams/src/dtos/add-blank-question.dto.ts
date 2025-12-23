@@ -15,6 +15,6 @@ export class FillBlankQuestionDto extends BaseQuestionDto {
 
   @IsArray({ message: "Las respuestas deben ser un arreglo." })
   @ValidateNested({ each: true })
-  @Type(() => FillBlankAnswerDto) // Verifica que este DTO no tenga errores internos
+  @Type(() => FillBlankAnswerDto)
   respuestas!: FillBlankAnswerDto[];
 }

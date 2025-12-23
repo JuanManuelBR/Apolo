@@ -1,5 +1,4 @@
-import { Entity, Column, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { MatchQuestion } from "./MatchQuestion";
+import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, OneToMany } from "typeorm";
 
 @Entity()
 export class MatchItemA {
@@ -9,6 +8,6 @@ export class MatchItemA {
   @Column()
   text!: string;
 
-  @ManyToOne(() => MatchQuestion)
-  question!: MatchQuestion;
+  @OneToMany("MatchPair", "itemA", { onDelete: "CASCADE" })
+  par!: any;
 }

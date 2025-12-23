@@ -13,6 +13,6 @@ export class BlankAnswer {
   @Column()
   textoCorrecto!: string;
 
-  @ManyToOne(() => FillBlankQuestion)
+  @ManyToOne(() => FillBlankQuestion, {onDelete: "CASCADE"})
   question!: FillBlankQuestion;
 }

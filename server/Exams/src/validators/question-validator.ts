@@ -1,6 +1,10 @@
 import { Exam } from "@src/models/Exam";
 import { BlankAnswer } from "@src/models/FillBlankAnswer";
 import { FillBlankQuestion } from "@src/models/FillBlankQuestion";
+import { MatchItemA } from "@src/models/MatchItemA";
+import { MatchItemB } from "@src/models/MatchItemB";
+import { MatchPair } from "@src/models/MatchPair";
+import { MatchQuestion } from "@src/models/MatchQuestion";
 import { OpenQuestion } from "@src/models/OpenQuestion";
 import { OpenQuestionKeyword } from "@src/models/OpenQuestionKeyWord";
 import { Question } from "@src/models/Question";
@@ -151,6 +155,57 @@ export class QuestionValidator {
 
           return fillQ;
 
+        case "matching":
+          const matchQ = new MatchQuestion();
+
+          // 1. Asignar metadatos base (enunciado, puntaje, examen, etc.)
+          // Usamos la estructura que ya definiste en tu código anterior
+          Object.assign(matchQ, preguntaBaseData);
+
+          // 2. Validar que existan pares en el DTO
+          if (
+            !questionDto.pares ||
+            !Array.isArray(questionDto.pares) ||
+            questionDto.pares.length === 0
+          ) {
+            throwHttpError(
+              `Error en pregunta ${index}: Las preguntas de emparejamiento deben tener al menos un par de elementos.`,
+              400
+            );
+          }
+
+          // 3. Mapear los pares e ítems
+          matchQ.pares = questionDto.pares.map(
+            (pairDto: any, pairIndex: number) => {
+              // Validación interna del par
+              if (!pairDto.itemA || !pairDto.itemB) {
+                throwHttpError(
+                  `Error en pregunta ${index}, par ${pairIndex}: Ambos elementos (itemA e itemB) son obligatorios.`,
+                  400
+                );
+              }
+
+              // Crear la entidad del ítem de la columna A
+              const itemA = new MatchItemA();
+              itemA.text = pairDto.itemA;
+              // No necesita referencia a 'question' según tu diseño optimizado
+
+              // Crear la entidad del ítem de la columna B
+              const itemB = new MatchItemB();
+              itemB.text = pairDto.itemB;
+              // No necesita referencia a 'question' según tu diseño optimizado
+
+              // Crear el par que une ambos ítems
+              const pair = new MatchPair();
+              pair.itemA = itemA;
+              pair.itemB = itemB;
+              pair.question = matchQ; // El par es el que mantiene la relación con la pregunta
+
+              return pair;
+            }
+          );
+
+          return matchQ;
         default:
           throwHttpError(
             `Tipo de pregunta no soportado: ${questionDto.type}`,

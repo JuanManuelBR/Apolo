@@ -15,6 +15,7 @@ import { QUESTION_DTO_MAP } from "./question-dto-map";
 import { TestQuestionDto } from "./add-test-question.dto";
 import { OpenQuestionDto } from "./add-open-question.dto";
 import { FillBlankQuestionDto } from "./add-blank-question.dto";
+import { MatchingQuestionDto } from "./add-matching-question.dto";
 
 export class add_exam_dto {
   @IsString({ message: "Nombre debe ser string" })
@@ -57,7 +58,7 @@ export class add_exam_dto {
         { value: TestQuestionDto, name: "test" },
         { value: OpenQuestionDto, name: "open" },
         { value: FillBlankQuestionDto, name: "fill_blanks" },
-
+        { value: MatchingQuestionDto, name: "matching" },
       ],
     },
   })

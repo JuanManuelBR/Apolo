@@ -45,8 +45,16 @@ export class ExamService {
 
         const preguntas_guardadas = await manager.save(Question, preguntas);
 
-        examen_guardado.questions = preguntas_guardadas;
-        examen_guardado.questions.forEach((q) => delete (q as any).exam);
+        examen_guardado.questions = preguntas_guardadas.map((q: any) => {
+          // 1. Quitamos la referencia al examen (lo que ya tenías)
+          delete q.exam;
+          if (q.type === "matching" && q.pares) {
+            q.pares.forEach((p: any) => {
+              delete p.question;
+            });
+          }
+          return q;
+        });
       }
 
       return examen_guardado;
