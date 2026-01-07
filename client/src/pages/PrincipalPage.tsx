@@ -1,3 +1,8 @@
+// ============================================
+// LMSDashboard.tsx - CÓDIGO COMPLETO
+// Nombres capitalizados correctamente
+// ============================================
+
 // Importar componentes reutilizables
 import ListaExamenes from '../components/ListaExamen';
 import StudentMonitor from '../components/StudentMonitor';
@@ -69,24 +74,49 @@ export default function LMSDashboard() {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
   }, [darkMode]);
 
-  // Obtener datos del usuario desde localStorage
+  // ============================================
+  // OBTENER DATOS DEL USUARIO - CORREGIDO
+  // ============================================
+  
   const usuarioStorage = localStorage.getItem('usuario');
   const usuarioData = usuarioStorage ? JSON.parse(usuarioStorage) : null;
   
-  // Extraer primer nombre y primer apellido del nombre completo
-  const nombreCompleto: string = usuarioData?.nombre || 'Usuario';
-  const partesNombre: string[] = nombreCompleto.trim().split(' ').filter((parte: string) => parte.length > 0);
-  const primerNombre: string = partesNombre[0] || 'Usuario';
-  
-  let primerApellido = '';
-  if (partesNombre.length > 2) {
-    const posiblesApellidos: string[] = partesNombre.slice(2);
-    primerApellido = posiblesApellidos.find((parte: string) => parte.length > 2) || partesNombre[partesNombre.length - 1];
-  } else {
-    primerApellido = partesNombre[partesNombre.length - 1] || '';
-  }
-  
-  const nombreCorto: string = primerApellido ? `${primerNombre} ${primerApellido}` : primerNombre;
+  // Función auxiliar para capitalizar (Primera letra mayúscula, resto minúscula)
+  const capitalizeWord = (word: string): string => {
+    if (!word) return '';
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  };
+
+  // Función para obtener nombre corto (Primer Nombre + Primer Apellido)
+  const getNombreCorto = (): string => {
+    if (!usuarioData) return 'Usuario';
+
+    // Obtener nombre y apellido del localStorage
+    const nombre: string = usuarioData?.nombre || '';
+    const apellido: string = usuarioData?.apellido || '';
+
+    // Si tenemos nombre y apellido separados, usarlos directamente
+    if (nombre && apellido) {
+      // Tomar solo la primera palabra de cada uno y capitalizar
+      const primerNombre = capitalizeWord(nombre.trim().split(' ')[0]);
+      const primerApellido = capitalizeWord(apellido.trim().split(' ')[0]);
+      
+      return `${primerNombre} ${primerApellido}`;
+    }
+
+    // Fallback: si solo tenemos nombre completo
+    if (nombre) {
+      const partes: string[] = nombre.trim().split(' ').filter((p: string) => p.length > 0);
+      if (partes.length > 1) {
+        return `${capitalizeWord(partes[0])} ${capitalizeWord(partes[1])}`;
+      }
+      return capitalizeWord(partes[0]);
+    }
+
+    return 'Usuario';
+  };
+
+  const nombreCorto = getNombreCorto();
 
   const toggleTheme = () => {
     setDarkMode(!darkMode);
@@ -134,8 +164,8 @@ export default function LMSDashboard() {
             className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-2'} ${darkMode ? 'hover:bg-slate-800' : 'hover:bg-gray-50'} rounded-lg p-1 transition-colors`}
           >
             <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-blue-400 to-purple-500">
-              {usuarioData?.foto ? (
-                <img src={usuarioData.foto} alt="Profile" className="w-full h-full object-cover" />
+              {usuarioData?.picture ? (
+                <img src={usuarioData.picture} alt="Profile" className="w-full h-full object-cover" />
               ) : (
                 <User className="w-6 h-6 text-white" />
               )}
