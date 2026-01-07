@@ -6,16 +6,10 @@ export class User {
   id!: number;
 
   @Column({ type: "varchar", length: 50 })
-  primer_nombre!: string;
-
-  @Column({ type: "varchar", length: 50, nullable: true })
-  segundo_nombre?: string | null;
+  nombres!: string;
 
   @Column({ type: "varchar", length: 50 })
-  primer_apellido!: string;
-
-  @Column({ type: "varchar", length: 50, nullable: true })
-  segundo_apellido?: string | null;
+  apellidos!: string;
 
   @Column({ type: "varchar", length: 100, unique: true })
   email!: string;

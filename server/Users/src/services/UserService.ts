@@ -1,6 +1,5 @@
 import { AppDataSource } from "@src/data-source/AppDataSource";
 import { User } from "@src/models/User";
-import { add_user_dto, edit_user_dto } from "@src/types/user";
 import axios from "axios";
 import { JWT_SECRET } from "config/config";
 
@@ -44,6 +43,8 @@ export class UserService {
     const payload = {
       id: usuario.id,
       email: usuario.email,
+      nombres: usuario.nombres,
+      apellidos: usuario.apellidos
     };
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
@@ -141,16 +142,8 @@ export class UserService {
       usuario.contrasena = await bcrypt.hash(data.contrasena, 10);
     }
     Object.assign(usuario, {
-      primer_nombre: data.primer_nombre ?? usuario.primer_nombre,
-      segundo_nombre:
-        data.segundo_nombre !== undefined
-          ? data.segundo_nombre
-          : usuario.segundo_nombre,
-      primer_apellido: data.primer_apellido ?? usuario.primer_apellido,
-      segundo_apellido:
-        data.segundo_apellido !== undefined
-          ? data.segundo_apellido
-          : usuario.segundo_apellido,
+      nombres: data.nombres ?? usuario.nombres,
+      apellidos: data.apellidos ?? usuario.apellidos,
       email: data.email ?? usuario.email,
     });
 
@@ -178,10 +171,8 @@ export class UserService {
       const usuarios = await this.user_repository.find({
         select: [
           "id",
-          "primer_nombre",
-          "segundo_apellido",
-          "primer_apellido",
-          "segundo_apellido",
+          "nombres",
+          "apellidos",
           "email",
         ],
       });
