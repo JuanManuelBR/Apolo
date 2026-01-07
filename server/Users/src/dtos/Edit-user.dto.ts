@@ -8,21 +8,11 @@ import {
 export class EditUserDto {
   @IsOptional()
   @IsString()
-  primer_nombre?: string;
-
-  @IsOptional()
-  @ValidateIf((_, v) => v !== null)
-  @IsString()
-  segundo_nombre?: string | null;
+  nombres?: string;
 
   @IsOptional()
   @IsString()
-  primer_apellido?: string;
-
-  @IsOptional()
-  @ValidateIf((_, v) => v !== null)
-  @IsString()
-  segundo_apellido?: string | null;
+  apellidos?: string;
 
   @IsOptional()
   @IsEmail()
