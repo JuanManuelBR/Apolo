@@ -1,6 +1,6 @@
 // ============================================
 // 📁 BACKEND/src/services/UserService.ts
-// CÓDIGO COMPLETO CON LOGIN DE GOOGLE
+// CÓDIGO COMPLETO CON ESTADO ACTIVO
 // ============================================
 
 import { AppDataSource } from "@src/data-source/AppDataSource";
@@ -32,7 +32,7 @@ export class UserService {
       throw new Error("No se encontró un usuario con ese correo");
     }
 
-    // ✅ NUEVO: Si es usuario de Google, no validar contraseña
+    // Si es usuario de Google, no validar contraseña
     if (usuario.login_method === 'google') {
       console.log('ℹ️ Usuario de Google, omitiendo validación de contraseña');
       
@@ -49,8 +49,10 @@ export class UserService {
 
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
 
-      // Actualizar último acceso
-      await this.updateLastAccess(usuario.id);
+      // Actualizar último acceso (activo se actualiza en el controller)
+      await this.user_repository.update(usuario.id, {
+        ultimo_acceso: new Date()
+      });
 
       return {
         message: "Login exitoso",
@@ -86,8 +88,10 @@ export class UserService {
 
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
 
-    // Actualizar último acceso
-    await this.updateLastAccess(usuario.id);
+    // Actualizar último acceso (activo se actualiza en el controller)
+    await this.user_repository.update(usuario.id, {
+      ultimo_acceso: new Date()
+    });
 
     return {
       message: "Login exitoso",
@@ -138,7 +142,7 @@ export class UserService {
       login_method: data.login_method || "email",
       foto_perfil: data.foto_perfil || null,
       email_verificado: data.login_method === "google",
-      activo: true,
+      activo: false, // Por defecto inactivo hasta que haga login
       ultimo_acceso: new Date(),
     });
 
@@ -245,7 +249,7 @@ export class UserService {
 
   async getUserByEmail(email: string): Promise<User> {
     const usuario = await this.user_repository.findOne({
-      where: { email, activo: true },
+      where: { email },
     });
 
     if (!usuario) {
@@ -257,7 +261,7 @@ export class UserService {
 
   async getUserByFirebaseUid(firebaseUid: string): Promise<User> {
     const usuario = await this.user_repository.findOne({
-      where: { firebase_uid: firebaseUid, activo: true },
+      where: { firebase_uid: firebaseUid },
     });
 
     if (!usuario) {
@@ -295,6 +299,42 @@ export class UserService {
       console.log(`✅ ultimo_acceso actualizado para usuario ${userId}`);
     } catch (error) {
       console.error(`❌ Error actualizando ultimo_acceso:`, error);
+    }
+  }
+
+  // ============================================
+  // ✅ NUEVO: GESTIÓN DE ESTADO ACTIVO
+  // ============================================
+  
+  async setUserActive(userId: number, isActive: boolean): Promise<void> {
+    try {
+      const updateData: any = {
+        activo: isActive
+      };
+      
+      // Si está activo, actualizar último acceso
+      if (isActive) {
+        updateData.ultimo_acceso = new Date();
+      }
+      
+      await this.user_repository.update(userId, updateData);
+      console.log(`✅ Usuario ${userId} marcado como ${isActive ? 'activo' : 'inactivo'}`);
+    } catch (error) {
+      console.error(`❌ Error actualizando estado activo del usuario ${userId}:`, error);
+      throw error;
+    }
+  }
+
+  async getActiveUsers(): Promise<User[]> {
+    try {
+      const usuarios = await this.user_repository.find({
+        where: { activo: true },
+        select: ["id", "nombres", "apellidos", "email", "ultimo_acceso"],
+      });
+
+      return usuarios;
+    } catch (error: any) {
+      throw new Error("Error obteniendo usuarios activos: " + error.message);
     }
   }
 }

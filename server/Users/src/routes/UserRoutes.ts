@@ -1,6 +1,6 @@
 // ============================================
-// 📁 BACKEND/src/routes/user.routes.ts
-// CÓDIGO COMPLETO
+// 📁 BACKEND/src/routes/UserRoutes.ts
+// CÓDIGO COMPLETO CON RUTAS DE HEARTBEAT
 // ============================================
 
 import { UserController } from "@src/controllers/UserController";
@@ -16,6 +16,9 @@ const router = Router();
 // Autenticación
 router.post("/login", UserController.login);
 router.post("/logout", UserController.logout);
+
+// ✅ NUEVO: Heartbeat (sin autenticación para que funcione con sendBeacon)
+router.post("/heartbeat", UserController.heartbeat);
 
 // Registro
 router.post("/", UserController.AddUser);
@@ -35,6 +38,7 @@ router.patch("/:id/update-access", UserController.updateLastAccess);
 router.use(authMiddleware);
 
 router.get("/", UserController.getUsers);
+router.get("/active", UserController.getActiveUsers); // ✅ NUEVO: Usuarios activos
 router.get("/:id", UserController.getUserById);
 router.delete("/:id", UserController.deleteUser);
 router.put("/:id", UserController.editUser);

@@ -1,6 +1,6 @@
 // ============================================
 // LMSDashboard.tsx - CÓDIGO COMPLETO
-// Con actualización automática del perfil
+// Con sistema de estado activo y heartbeat
 // ============================================
 
 // Importar componentes reutilizables
@@ -101,6 +101,96 @@ export default function LMSDashboard() {
       window.removeEventListener('usuarioActualizado', handleStorageChange);
     };
   }, []);
+
+  // ============================================
+  // HEARTBEAT - Mantener usuario activo
+  // ============================================
+  useEffect(() => {
+    if (!usuarioData?.id) return;
+
+    // Enviar heartbeat inicial inmediatamente
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/users/heartbeat', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId: usuarioData.id })
+        });
+        console.log('💓 Heartbeat enviado');
+      } catch (error) {
+        console.error('❌ Error enviando heartbeat:', error);
+      }
+    };
+
+    // Enviar el primer heartbeat
+    sendHeartbeat();
+
+    // Enviar heartbeat cada 30 segundos
+    const heartbeatInterval = setInterval(sendHeartbeat, 30000);
+
+    return () => clearInterval(heartbeatInterval);
+  }, [usuarioData?.id]);
+
+  // ============================================
+  // DETECTAR CIERRE DE PESTAÑA O NAVEGADOR
+  // ============================================
+  useEffect(() => {
+    if (!usuarioData?.id) return;
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Usar sendBeacon para enviar petición de logout antes de cerrar
+      const data = JSON.stringify({ userId: usuarioData.id });
+      const blob = new Blob([data], { type: 'application/json' });
+      
+      // sendBeacon es más confiable que fetch en beforeunload
+      const sent = navigator.sendBeacon('/api/users/logout', blob);
+      console.log('📤 Beacon de logout enviado:', sent);
+    };
+
+    // También detectar cuando la pestaña pierde visibilidad por mucho tiempo
+    let visibilityTimer: number | null = null;
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Usuario cambió de pestaña, esperar 5 minutos antes de marcar como inactivo
+        visibilityTimer = setTimeout(async () => {
+          try {
+            await fetch('/api/users/logout', {
+              method: 'POST',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ userId: usuarioData.id })
+            });
+            console.log('⏰ Usuario marcado como inactivo por inactividad');
+          } catch (error) {
+            console.error('❌ Error marcando como inactivo:', error);
+          }
+        }, 5 * 60 * 1000); // 5 minutos
+      } else {
+        // Usuario volvió, cancelar el timer
+        if (visibilityTimer) {
+          clearTimeout(visibilityTimer);
+          visibilityTimer = null;
+        }
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (visibilityTimer) {
+        clearTimeout(visibilityTimer);
+      }
+    };
+  }, [usuarioData?.id]);
   
   // Función auxiliar para capitalizar (Primera letra mayúscula, resto minúscula)
   const capitalizeWord = (word: string): string => {
@@ -144,9 +234,27 @@ export default function LMSDashboard() {
     setShowProfileMenu(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('usuario');
-    window.location.href = '/login';
+  const handleLogout = async () => {
+    try {
+      if (usuarioData?.id) {
+        // Llamar al backend para marcar como inactivo
+        await fetch('/api/users/logout', {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ userId: usuarioData.id })
+        });
+        console.log('✅ Usuario marcado como inactivo en logout');
+      }
+    } catch (error) {
+      console.error('❌ Error al hacer logout:', error);
+    } finally {
+      // Limpiar localStorage y redirigir
+      localStorage.removeItem('usuario');
+      window.location.href = '/login';
+    }
   };
 
   const handleMenuItemClick = (menu: string) => {
