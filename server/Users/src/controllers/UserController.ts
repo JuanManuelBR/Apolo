@@ -1,6 +1,6 @@
 // ============================================
 // 📁 BACKEND/src/controllers/UserController.ts
-// CÓDIGO COMPLETO
+// CÓDIGO COMPLETO CON GESTIÓN DE ESTADO ACTIVO
 // ============================================
 
 import { UserService } from "@src/services/UserService";
@@ -95,25 +95,43 @@ export class UserController {
         data.contrasena
       );
 
+      console.log('🍪 Intentando setear cookie...');
+      console.log('   Token generado:', token ? 'SÍ' : 'NO');
+      
       res.cookie("token", token, {
         httpOnly: true,
         secure: false,
         sameSite: "lax",
         maxAge: 3600000,
-        domain: "localhost",
       });
+
+      console.log('✅ Cookie seteada');
+
+      // ✅ NUEVO: Marcar usuario como activo
+      await user_service.setUserActive(usuario.id, true);
+      console.log('✅ Usuario marcado como activo');
 
       return res.status(200).json({
         message,
         usuario,
       });
     } catch (error: any) {
+      console.error('❌ Error en login:', error.message);
       return res.status(400).json({ message: error.message });
     }
   }
 
   static async logout(req: Request, res: Response) {
     try {
+      // Obtener userId del body
+      const userId = req.body.userId;
+      
+      if (userId) {
+        // ✅ Marcar usuario como inactivo
+        await user_service.setUserActive(userId, false);
+        console.log('✅ Usuario marcado como inactivo');
+      }
+      
       res.clearCookie("token", {
         httpOnly: true,
         secure: false,
@@ -122,7 +140,45 @@ export class UserController {
 
       return res.status(200).json({ message: "Logout exitoso" });
     } catch (error: any) {
+      console.error('❌ Error en logout:', error);
       return res.status(500).json({ message: "Error al cerrar sesión" });
+    }
+  }
+
+  // ============================================
+  // ✅ NUEVO: HEARTBEAT
+  // ============================================
+  
+  static async heartbeat(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.body.userId;
+      
+      if (!userId) {
+        return res.status(400).json({ message: "userId requerido" });
+      }
+
+      // Actualizar último acceso y mantener activo
+      await user_service.setUserActive(userId, true);
+
+      return res.status(200).json({ 
+        message: "Heartbeat recibido",
+        timestamp: new Date()
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ============================================
+  // ✅ NUEVO: OBTENER USUARIOS ACTIVOS
+  // ============================================
+  
+  static async getActiveUsers(req: Request, res: Response, next: NextFunction) {
+    try {
+      const usuarios = await user_service.getActiveUsers();
+      return res.status(200).json(usuarios);
+    } catch (error) {
+      next(error);
     }
   }
 
