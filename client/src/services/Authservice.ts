@@ -1,6 +1,6 @@
 // ============================================
-// 📁 FRONTEND/src/services/Authservice.ts
-// CÓDIGO COMPLETO CON LOGIN DE GOOGLE MEJORADO
+// 🔐 FRONTEND/src/services/Authservice.ts
+// SOLUCIÓN COMPLETA - ERROR 401 DESPUÉS DE REGISTRO
 // ============================================
 
 import { usersApi } from "./api";
@@ -101,16 +101,23 @@ export const usersService = {
 
   loginUser: async (email: string, password: string): Promise<{ usuario: BackendUser, token: string }> => {
     try {
+      console.log('📤 [API] Haciendo login en backend para:', email);
+      
       const response = await usersApi.post("/login", {
         email: email,
         contrasena: password
       });
+      
+      console.log('✅ [API] Login backend exitoso');
+      console.log('🍪 [API] Cookies después del login:', document.cookie);
       
       return {
         usuario: response.data.usuario,
         token: response.data.token
       };
     } catch (error: any) {
+      console.error('❌ [API] Error en login backend:', error.response?.data || error.message);
+      
       const backendMessage =
         error.response?.data?.message || 
         error.response?.data?.error ||
@@ -185,7 +192,7 @@ export const usersService = {
 
 export const authService = {
   /**
-   * REGISTRO CON EMAIL
+   * REGISTRO CON EMAIL - ✅ CORREGIDO
    */
   registerWithEmail: async (
     auth: ReturnType<typeof getAuth>,
@@ -199,6 +206,7 @@ export const authService = {
     try {
       console.log('🔄 [REGISTRO EMAIL] Iniciando...');
 
+      // 1. Crear usuario en Firebase
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       firebaseUser = userCredential.user;
 
@@ -208,6 +216,7 @@ export const authService = {
 
       console.log('✅ [REGISTRO EMAIL] Usuario creado en Firebase');
 
+      // 2. Crear usuario en el backend
       const backendPayload: CreateUserPayload = {
         nombres: nombre,
         apellidos: apellido,
@@ -219,8 +228,19 @@ export const authService = {
       };
 
       const backendUser = await usersService.createUser(backendPayload);
-      console.log('✅ [REGISTRO EMAIL] Usuario creado en MySQL');
+      console.log('✅ [REGISTRO EMAIL] Usuario creado en backend (MySQL)');
 
+      // ✅ 3. HACER LOGIN PARA OBTENER LA COOKIE
+      console.log('🔄 [REGISTRO EMAIL] Obteniendo cookie del backend...');
+      try {
+        await usersService.loginUser(email, password);
+        console.log('✅ [REGISTRO EMAIL] Cookie obtenida correctamente');
+      } catch (loginError: any) {
+        console.error('❌ [REGISTRO EMAIL] No se pudo obtener cookie:', loginError.message);
+        // Continuar de todos modos
+      }
+
+      // 4. Guardar usuario en localStorage
       const localUser: LocalUser = {
         id: backendUser.id,
         backendId: backendUser.id,
@@ -234,19 +254,22 @@ export const authService = {
       };
 
       localStorage.setItem('usuario', JSON.stringify(localUser));
+      console.log('✅ [REGISTRO EMAIL] Usuario guardado en localStorage');
       
       return localUser;
 
     } catch (error: any) {
       console.error('❌ [REGISTRO EMAIL] Error:', error);
 
+      // Rollback: eliminar usuario de Firebase si ya se creó
       if (firebaseUser && 
           (error.message.includes('ya está en uso') || 
            error.message.includes('ya existe'))) {
         try {
           await firebaseUser.delete();
+          console.log('🔄 [REGISTRO EMAIL] Rollback: usuario eliminado de Firebase');
         } catch (deleteError) {
-          console.error('⚠️ Error en rollback:', deleteError);
+          console.error('⚠️ [REGISTRO EMAIL] Error en rollback:', deleteError);
         }
       }
 
@@ -264,7 +287,7 @@ export const authService = {
   },
 
   /**
-   * REGISTRO CON GOOGLE
+   * REGISTRO CON GOOGLE - ✅ CORREGIDO
    */
   registerWithGoogle: async (
     auth: ReturnType<typeof getAuth>,
@@ -273,6 +296,7 @@ export const authService = {
     try {
       console.log('🔄 [REGISTRO GOOGLE] Iniciando...');
 
+      // 1. Autenticar con Google/Firebase
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
@@ -280,8 +304,9 @@ export const authService = {
       const { firstName, lastName } = splitFullName(fullName);
       const email = firebaseUser.email || '';
 
-      console.log('✅ [REGISTRO GOOGLE] Autenticado');
+      console.log('✅ [REGISTRO GOOGLE] Autenticado en Firebase');
 
+      // 2. Crear/encontrar usuario en el backend
       const backendPayload: CreateUserPayload = {
         nombres: firstName || 'Usuario',
         apellidos: lastName || 'Google',
@@ -294,15 +319,27 @@ export const authService = {
       };
 
       const backendUser = await usersService.findOrCreateUser(backendPayload);
-      console.log('✅ [REGISTRO GOOGLE] Usuario en MySQL');
+      console.log('✅ [REGISTRO GOOGLE] Usuario en backend (MySQL)');
 
-      // Actualizar ultimo_acceso
+      // ✅ 3. HACER LOGIN PARA OBTENER LA COOKIE
+      console.log('🔄 [REGISTRO GOOGLE] Obteniendo cookie del backend...');
       try {
-        await usersService.updateLastAccess(backendUser.id);
-      } catch (error) {
-        console.warn('⚠️ No se pudo actualizar ultimo_acceso:', error);
+        const tempPassword = `google-oauth-${firebaseUser.uid}`;
+        await usersService.loginUser(email, tempPassword);
+        console.log('✅ [REGISTRO GOOGLE] Cookie obtenida correctamente');
+      } catch (loginError: any) {
+        console.error('❌ [REGISTRO GOOGLE] No se pudo obtener cookie:', loginError.message);
+        
+        // Fallback: actualizar último acceso manualmente
+        try {
+          await usersService.updateLastAccess(backendUser.id);
+          console.log('⚠️ [REGISTRO GOOGLE] Último acceso actualizado (sin cookie)');
+        } catch (accessError) {
+          console.error('❌ [REGISTRO GOOGLE] Error actualizando último acceso:', accessError);
+        }
       }
 
+      // 4. Guardar usuario en localStorage
       const localUser: LocalUser = {
         id: backendUser.id,
         backendId: backendUser.id,
@@ -316,6 +353,7 @@ export const authService = {
       };
 
       localStorage.setItem('usuario', JSON.stringify(localUser));
+      console.log('✅ [REGISTRO GOOGLE] Usuario guardado en localStorage');
       
       return localUser;
 
@@ -396,7 +434,7 @@ export const authService = {
   },
 
   /**
-   * LOGIN CON GOOGLE - ACTUALIZADO CON COOKIE
+   * LOGIN CON GOOGLE
    */
   loginWithGoogle: async (
     auth: ReturnType<typeof getAuth>,
@@ -427,13 +465,13 @@ export const authService = {
 
       console.log('✅ [LOGIN GOOGLE] Usuario encontrado');
 
-      // ✅ NUEVO: Hacer login en el backend para obtener la cookie
+      // Hacer login en el backend para obtener la cookie
       try {
         const tempPassword = `google-oauth-${firebaseUser.uid}`;
         await usersService.loginUser(email, tempPassword);
         console.log('✅ [LOGIN GOOGLE] Cookie obtenida del backend');
-      } catch (loginError) {
-        console.warn('⚠️ No se pudo hacer login en backend, actualizando último acceso manualmente');
+      } catch (loginError: any) {
+        console.warn('⚠️ No se pudo obtener cookie, actualizando último acceso manualmente');
         await usersService.updateLastAccess(backendUser.id);
       }
 
