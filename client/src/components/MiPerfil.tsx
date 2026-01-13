@@ -11,12 +11,14 @@ interface UserData {
   apellidos: string;
   email: string;
   foto_perfil: string | null;
+  login_method?: 'email' | 'google'; // ✅ AGREGAR
 }
 
 export default function MiPerfil({ darkMode }: MiPerfilProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [userId, setUserId] = useState<number | null>(null);
+  const [loginMethod, setLoginMethod] = useState<'email' | 'google'>('email'); // ✅ AGREGAR
   const [profileImage, setProfileImage] = useState('');
   const [imageError, setImageError] = useState('');
   const [formData, setFormData] = useState({
@@ -41,13 +43,13 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
     try {
       setIsLoading(true);
       
-      // Obtener el usuario del localStorage (lo guardas en el login)
+      // Obtener el usuario del localStorage
       const usuarioStorage = localStorage.getItem('usuario');
       console.log('📦 Usuario en localStorage:', usuarioStorage);
       
       if (!usuarioStorage) {
         alert('No hay sesión activa. Por favor inicia sesión nuevamente.');
-        window.location.href = '/login'; // Redirigir al login
+        window.location.href = '/login';
         return;
       }
 
@@ -63,6 +65,11 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       }
       
       setUserId(id);
+      
+      // ✅ DETECTAR MÉTODO DE LOGIN
+      const method = usuarioData.loginMethod || 'email';
+      setLoginMethod(method);
+      console.log('🔐 Método de login:', method);
 
       // Hacer petición al backend para obtener datos actualizados
       console.log('🔄 Haciendo petición a:', `/api/users/${id}`);
@@ -70,7 +77,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       
       const response = await fetch(`/api/users/${id}`, {
         method: 'GET',
-        credentials: 'include', // Para enviar cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         }
@@ -111,7 +118,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
     }
   };
 
-  // Función para calcular la fuerza de la contraseña
   const calculatePasswordStrength = (password: string) => {
     let score = 0;
     
@@ -119,14 +125,12 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       return { score: 0, label: '', color: '' };
     }
 
-    // Criterios de evaluación
     if (password.length >= 8) score++;
     if (password.length >= 12) score++;
     if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
     if (/\d/.test(password)) score++;
     if (/[^a-zA-Z0-9]/.test(password)) score++;
 
-    // Determinar nivel
     let label = '';
     let color = '';
 
@@ -153,14 +157,12 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validar tamaño (máximo 5MB)
-      const maxSize = 5 * 1024 * 1024; // 5MB en bytes
+      const maxSize = 5 * 1024 * 1024;
       if (file.size > maxSize) {
         setImageError('La imagen no debe superar los 5MB');
         return;
       }
 
-      // Validar tipo de archivo
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
       if (!validTypes.includes(file.type)) {
         setImageError('Solo se permiten imágenes (JPG, PNG, GIF, WebP)');
@@ -220,9 +222,13 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       const updateData: any = {
         nombres: formData.nombres,
         apellidos: formData.apellidos,
-        email: formData.email,
         foto_perfil: profileImage || null
       };
+
+      // ✅ Solo incluir email si NO es usuario de Google
+      if (loginMethod !== 'google') {
+        updateData.email = formData.email;
+      }
 
       // Si hay cambio de contraseña, incluirla
       if (formData.contrasena) {
@@ -232,7 +238,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
 
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
-        credentials: 'include', // Para enviar cookies
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
         },
@@ -252,10 +258,10 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
         const usuario = JSON.parse(usuarioStorage);
         const updatedUsuario = {
           ...usuario,
-          nombre: data.nombres,          // Singular para compatibilidad
-          apellido: data.apellidos,      // Singular para compatibilidad
-          nombres: data.nombres,         // También guardar en plural
-          apellidos: data.apellidos,     // También guardar en plural
+          nombre: data.nombres,
+          apellido: data.apellidos,
+          nombres: data.nombres,
+          apellidos: data.apellidos,
           email: data.email,
           foto_perfil: data.foto_perfil,
           picture: data.foto_perfil || usuario.picture
@@ -264,7 +270,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
         
         console.log('✅ Usuario actualizado en localStorage:', updatedUsuario);
         
-        // ✅ DISPARAR EVENTO para actualizar el Dashboard
         window.dispatchEvent(new Event('usuarioActualizado'));
         console.log('✅ Evento "usuarioActualizado" disparado');
       }
@@ -292,7 +297,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
   };
 
   const handleCancel = () => {
-    // Recargar datos originales
     fetchUserProfile();
     setPasswordStrength({ score: 0, label: '', color: '' });
     setImageError('');
@@ -312,7 +316,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
   return (
     <div className="max-w-5xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Panel Izquierdo - Información del Profesor */}
+        {/* Panel Izquierdo */}
         <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-6`}>
           <div className="text-center">
             <h3 className={`text-sm font-medium mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
@@ -345,7 +349,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
               )}
             </div>
 
-            {/* Error de imagen */}
             {imageError && (
               <div className="mb-4 p-2 bg-red-100 border border-red-300 rounded-lg flex items-center gap-2 text-xs text-red-700">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -369,7 +372,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
           </div>
         </div>
 
-        {/* Panel Derecho - Editar Información */}
+        {/* Panel Derecho */}
         <div className={`lg:col-span-2 ${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-6`}>
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -383,9 +386,8 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
           </div>
 
           <form className="space-y-6">
-            {/* Nombre y Apellido en fila */}
+            {/* Nombre y Apellido */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Nombre */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Nombres
@@ -405,7 +407,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
                 />
               </div>
 
-              {/* Apellido */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Apellidos
@@ -426,7 +427,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
               </div>
             </div>
 
-            {/* Correo Electrónico */}
+            {/* Correo Electrónico - ✅ BLOQUEADO PARA GOOGLE */}
             <div>
               <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                 Correo Electrónico
@@ -436,25 +437,31 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
                 name="email"
                 value={formData.email}
                 onChange={handleInputChange}
-                disabled={!isEditing}
+                disabled={!isEditing || loginMethod === 'google'} // ✅ DESHABILITAR SI ES GOOGLE
                 className={`w-full px-4 py-3 rounded-lg border transition-colors ${
                   darkMode 
-                    ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-500 disabled:bg-slate-800/50' 
-                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 disabled:bg-gray-100'
-                } ${isEditing ? 'focus:outline-none focus:ring-2 focus:ring-teal-500' : ''}`}
+                    ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-500 disabled:bg-slate-800/50 disabled:opacity-60' 
+                    : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 disabled:bg-gray-100 disabled:opacity-60'
+                } ${isEditing && loginMethod !== 'google' ? 'focus:outline-none focus:ring-2 focus:ring-teal-500' : ''}`}
                 placeholder="carlos.perez@colegio.edu"
               />
+              {/* ✅ MENSAJE INFORMATIVO PARA USUARIOS DE GOOGLE */}
+              {loginMethod === 'google' && (
+                <p className={`mt-2 text-xs flex items-center gap-1.5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`}>
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  El correo de Google no puede ser modificado
+                </p>
+              )}
             </div>
 
-            {/* Sección de Cambio de Contraseña */}
-            {isEditing && (
+            {/* Sección de Cambio de Contraseña - Solo para usuarios de email */}
+            {isEditing && loginMethod === 'email' && (
               <div className={`pt-4 border-t ${darkMode ? 'border-slate-800' : 'border-gray-200'}`}>
                 <h3 className={`text-sm font-semibold mb-4 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                   Cambiar Contraseña (opcional)
                 </h3>
                 
                 <div className="space-y-4">
-                  {/* Nueva Contraseña */}
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       Nueva Contraseña
@@ -476,7 +483,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
                     </div>
                   </div>
 
-                  {/* Confirmar Nueva Contraseña */}
                   <div>
                     <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                       Confirmar Nueva Contraseña
@@ -558,6 +564,8 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
                 </div>
               </div>
             )}
+
+
 
             {/* Botones de Acción */}
             <div className="flex gap-3 pt-4">
