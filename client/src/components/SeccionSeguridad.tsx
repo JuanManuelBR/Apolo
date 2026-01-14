@@ -9,6 +9,7 @@ interface SeccionSeguridadProps {
   consecuenciaInicial: string;
   onContraseñaHabilitadaChange?: (habilitada: boolean) => void;
   contraseñaHabilitadaInicial?: boolean;
+  onContraseñaValidaChange?: (valida: boolean) => void;
 }
 
 export default function SeccionSeguridad({
@@ -18,7 +19,8 @@ export default function SeccionSeguridad({
   contraseñaInicial,
   consecuenciaInicial,
   onContraseñaHabilitadaChange,
-  contraseñaHabilitadaInicial = false
+  contraseñaHabilitadaInicial = false,
+  onContraseñaValidaChange
 }: SeccionSeguridadProps) {
   const [contraseña, setContraseña] = useState(contraseñaInicial);
   const [mostrarContraseña, setMostrarContraseña] = useState(false);
@@ -28,29 +30,42 @@ export default function SeccionSeguridad({
 
   useEffect(() => {
     validarContraseña(contraseña);
-  }, [contraseña]);
+  }, [contraseña, contraseñaHabilitada]);
 
   const validarContraseña = (pass: string) => {
-    if (!contraseñaHabilitada || pass === '') {
+    // Si la contraseña no está habilitada, siempre es válida
+    if (!contraseñaHabilitada) {
       setContraseñaValida(true);
+      if (onContraseñaValidaChange) {
+        onContraseñaValidaChange(true);
+      }
       return;
     }
     
-    const tieneMayuscula = /[A-Z]/.test(pass);
-    const tieneMinuscula = /[a-z]/.test(pass);
-    const tieneNumero = /[0-9]/.test(pass);
-    const tieneSimbolo = /[!@#$%&*]/.test(pass);
-    const longitudValida = pass.length >= 6;
-
-    setContraseñaValida(
-      tieneMayuscula && tieneMinuscula && tieneNumero && tieneSimbolo && longitudValida
-    );
+    // Si está habilitada pero vacía, no es válida
+    if (pass === '') {
+      setContraseñaValida(false);
+      if (onContraseñaValidaChange) {
+        onContraseñaValidaChange(false);
+      }
+      return;
+    }
+    
+    // ✅ NUEVAS REGLAS: Mínimo 5, máximo 10, cualquier carácter
+    const longitudValida = pass.length >= 5 && pass.length <= 10;
+    setContraseñaValida(longitudValida);
+    if (onContraseñaValidaChange) {
+      onContraseñaValidaChange(longitudValida);
+    }
   };
 
   const handleContraseñaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nuevaContraseña = e.target.value;
-    setContraseña(nuevaContraseña);
-    onContraseñaChange(nuevaContraseña);
+    // Limitar a 10 caracteres máximo
+    if (nuevaContraseña.length <= 10) {
+      setContraseña(nuevaContraseña);
+      onContraseñaChange(nuevaContraseña);
+    }
   };
 
   const handleConsecuenciaChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -74,8 +89,6 @@ export default function SeccionSeguridad({
   };
 
   const bgCheckbox = darkMode ? 'bg-teal-500 border-teal-500' : 'bg-slate-700 border-slate-700';
-  const borderActivo = darkMode ? 'border-teal-500' : 'border-slate-700';
-  const bgActivoLight = darkMode ? 'bg-teal-500/10' : 'bg-slate-700/10';
 
   return (
     <div className="px-6 pb-6 space-y-6">
@@ -102,7 +115,7 @@ export default function SeccionSeguridad({
         {contraseñaHabilitada && (
           <>
             <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Ingrese una contraseña de 6 caracteres o más
+              Ingrese una contraseña de 5 a 10 caracteres (puede incluir letras, números y símbolos)
             </p>
             
             <div className="relative">
@@ -111,6 +124,7 @@ export default function SeccionSeguridad({
                 value={contraseña}
                 onChange={handleContraseñaChange}
                 placeholder="Ingrese la contraseña del examen"
+                maxLength={10}
                 className={`w-full px-4 py-3 pr-12 rounded-lg border ${
                   darkMode 
                     ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-500' 
@@ -137,16 +151,20 @@ export default function SeccionSeguridad({
               </div>
             </div>
 
-            {contraseña && (
+            {contraseña.length > 0 && (
               <div className="flex items-center gap-2">
                 {contraseñaValida ? (
                   <>
                     <Check className="w-4 h-4 text-green-500" />
-                    <span className="text-xs text-green-500">Contraseña válida</span>
+                    <span className="text-xs text-green-500">
+                      Contraseña válida ({contraseña.length}/10 caracteres)
+                    </span>
                   </>
                 ) : (
                   <span className="text-xs text-red-500">
-                    La contraseña debe tener al menos 6 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (!@#$%&*)
+                    {contraseña.length < 5 
+                      ? `La contraseña debe tener al menos 5 caracteres (${contraseña.length}/5)`
+                      : 'La contraseña no puede tener más de 10 caracteres'}
                   </span>
                 )}
               </div>

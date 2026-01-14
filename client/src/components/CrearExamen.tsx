@@ -1,12 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Upload, Check, ChevronDown, ChevronUp, Calendar, X } from 'lucide-react';
-import EditorTexto from '../../src/components/EditorTexto'
+import EditorTexto from '../../src/components/EditorTexto';
 import SeccionSeguridad from './SeccionSeguridad';
 import SeccionHerramientas from './SeccionHerramientas';
 import VisorPDF from '../../src/components/VisorPDF';
 import CrearPreguntas, { type Pregunta } from './CrearPreguntas';
 import ModalExamenCreado from './ModalExamenCreado';
-import { crearExamen, inicializarUsuarioDemo } from '../services/examenService';
+import { examsService, obtenerUsuarioActual } from '../services/examsService';
 
 interface CrearExamenProps {
   darkMode: boolean;
@@ -62,6 +62,7 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
 
   const [contraseñaExamen, setContraseñaExamen] = useState('');
   const [contraseñaHabilitada, setContraseñaHabilitada] = useState(false);
+  const [contraseñaValida, setContraseñaValida] = useState(true);
   const [consecuenciaAbandono, setConsecuenciaAbandono] = useState('');
 
   const [seccion1Abierta, setSeccion1Abierta] = useState(true);
@@ -78,10 +79,6 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
     javascript: false,
     python: false
   });
-
-  useEffect(() => {
-    inicializarUsuarioDemo();
-  }, []);
 
   const toggleCampo = (id: string) => {
     setCamposEstudiante(campos => campos.map(campo => campo.id === id ? { ...campo, activo: !campo.activo } : campo));
@@ -185,6 +182,7 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
     setLimiteHabilitado(false);
     setContraseñaExamen('');
     setContraseñaHabilitada(false);
+    setContraseñaValida(true); // Agregar esta línea
     setConsecuenciaAbandono('');
     setHerramientasActivas({
       dibujo: false,
@@ -201,12 +199,16 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
     setSeccion6Abierta(false);
   };
 
+    const handleContraseñaValidaChange = (valida: boolean) => {
+    setContraseñaValida(valida);
+  };
+
   const handleCrearExamen = async () => {
     if (!nombreExamen.trim()) {
       alert('Por favor, ingrese el nombre del examen');
       return;
     }
-
+    
     if (!tipoPregunta) {
       alert('Por favor, seleccione un tipo de pregunta');
       return;
@@ -228,15 +230,15 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
     }
 
     // Validar contraseña si está habilitada
-    if (contraseñaHabilitada && contraseñaExamen) {
-      const tieneMayuscula = /[A-Z]/.test(contraseñaExamen);
-      const tieneMinuscula = /[a-z]/.test(contraseñaExamen);
-      const tieneNumero = /[0-9]/.test(contraseñaExamen);
-      const tieneSimbolo = /[!@#$%&*]/.test(contraseñaExamen);
-      const longitudValida = contraseñaExamen.length >= 6;
+    // ✅ NUEVA VALIDACIÓN
+    if (contraseñaHabilitada) {
+      if (!contraseñaExamen.trim()) {
+        alert('Por favor, ingrese una contraseña para el examen');
+        return;
+      }
 
-      if (!tieneMayuscula || !tieneMinuscula || !tieneNumero || !tieneSimbolo || !longitudValida) {
-        alert('La contraseña debe tener al menos 6 caracteres, incluyendo mayúsculas, minúsculas, números y símbolos (!@#$%&*)');
+      if (contraseñaExamen.length < 5 || contraseñaExamen.length > 10) {
+        alert('La contraseña debe tener entre 5 y 10 caracteres');
         return;
       }
     }
@@ -244,16 +246,19 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
     setGuardando(true);
 
     try {
-      // Solo usar la contraseña si está habilitada
-      const contraseñaFinal = contraseñaHabilitada ? contraseñaExamen : '';
+      console.log('🎯 [CREAR EXAMEN] Iniciando creación...');
+
+      const usuario = obtenerUsuarioActual();
+      if (!usuario) {
+        alert('No se pudo obtener la información del usuario. Por favor, inicie sesión nuevamente.');
+        return;
+      }
 
       const datosExamen = {
         nombreExamen,
         descripcionExamen,
         tipoPregunta,
-        archivoPDF,
-        nombreArchivoPDF: archivoPDF?.name,
-        preguntasEscritas: undefined,
+        archivoPDF: tipoPregunta === 'pdf' ? archivoPDF : null,
         preguntasAutomaticas: tipoPregunta === 'automatico' ? preguntasAutomaticas : undefined,
         camposActivos: camposEstudiante.filter(c => c.activo),
         fechaInicio: fechaInicioHabilitada ? fechaInicio : null,
@@ -261,7 +266,7 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
         limiteTiempo: limiteHabilitado ? { valor: limiteTiempo, unidad: 'minutos' as const } : null,
         opcionTiempoAgotado: limiteHabilitado ? opcionTiempoAgotado : '',
         seguridad: {
-          contraseña: contraseñaFinal,
+          contraseña: contraseñaHabilitada ? contraseñaExamen : '',
           consecuenciaAbandono
         },
         herramientasActivas: Object.entries(herramientasActivas)
@@ -269,19 +274,23 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
           .map(([herramienta, _]) => herramienta)
       };
 
-      const resultado = await crearExamen(datosExamen);
+      console.log('📤 [CREAR EXAMEN] Enviando datos al backend...');
+      const resultado = await examsService.crearExamen(datosExamen, usuario.id);
 
       if (resultado.success) {
+        console.log('✅ [CREAR EXAMEN] Examen creado exitosamente');
+        console.log('🔑 [CREAR EXAMEN] Código:', resultado.codigoExamen);
+
         setExamenCreado({
           codigo: resultado.codigoExamen,
-          url: resultado.url
+          url: `${window.location.origin}/acceso-examen?code=${encodeURIComponent(resultado.codigoExamen)}`
         });
       } else {
         throw new Error(resultado.error || 'Error al crear el examen');
       }
 
     } catch (error: any) {
-      console.error('Error al crear examen:', error);
+      console.error('❌ [CREAR EXAMEN] Error:', error);
       alert(`Error al crear el examen: ${error.message || 'Error desconocido'}`);
     } finally {
       setGuardando(false);
@@ -496,8 +505,8 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
                   value={fechaInicio}
                   onChange={(e) => setFechaInicio(e.target.value)}
                   className={`w-full px-4 py-2.5 rounded-lg border ${darkMode
-                      ? 'bg-slate-700 border-slate-600 text-white'
-                      : 'bg-white border-gray-300'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300'
                     }`}
                 />
               )}
@@ -520,8 +529,8 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
                   value={fechaCierre}
                   onChange={(e) => setFechaCierre(e.target.value)}
                   className={`w-full px-4 py-2.5 rounded-lg border ${darkMode
-                      ? 'bg-slate-700 border-slate-600 text-white'
-                      : 'bg-white border-gray-300'
+                    ? 'bg-slate-700 border-slate-600 text-white'
+                    : 'bg-white border-gray-300'
                     }`}
                 />
               )}
@@ -593,6 +602,7 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
             onContraseñaChange={setContraseñaExamen}
             onConsecuenciaChange={setConsecuenciaAbandono}
             onContraseñaHabilitadaChange={setContraseñaHabilitada}
+            onContraseñaValidaChange={handleContraseñaValidaChange}
             contraseñaInicial={contraseñaExamen}
             consecuenciaInicial={consecuenciaAbandono}
             contraseñaHabilitadaInicial={contraseñaHabilitada}
@@ -615,7 +625,8 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
         </button>
         <button
           onClick={handleCrearExamen}
-          disabled={!nombreExamen.trim() || !tipoPregunta || !consecuenciaAbandono || guardando}
+          disabled={!nombreExamen.trim() || !tipoPregunta || !consecuenciaAbandono || guardando ||
+            (contraseñaHabilitada && !contraseñaValida)}
           className={`px-6 py-3 rounded-lg font-medium ${bgBoton} text-white disabled:opacity-50 disabled:cursor-not-allowed ${bgBotonHover} transition-colors flex items-center gap-2`}
         >
           {guardando ? (

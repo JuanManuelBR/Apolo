@@ -1,10 +1,10 @@
+// src/dtos/add-exam.dto.ts
 import { Consecuencia, ExamenState, TiempoAgotado } from "@src/types/Exam";
 import { Type } from "class-transformer";
 import {
   IsArray,
   IsBoolean,
   IsDate,
-  IsEmail,
   IsIn,
   IsNotEmpty,
   IsNumber,
@@ -27,7 +27,6 @@ export class add_exam_dto {
   @IsString({ message: "La descripción debe ser una cadena de texto" })
   @IsOptional()
   descripcion?: string;
-
 
   @IsString({ message: "La clave debe ser string" })
   @IsOptional()
@@ -118,7 +117,10 @@ export class add_exam_dto {
   })
   consecuencia!: Consecuencia;
 
-  
+  // ⭐ CAMPO NUEVO PARA PDF
+  @IsString({ message: "El nombre del archivo PDF debe ser una cadena de texto" })
+  @IsOptional()
+  archivoPDF?: string;
 
   @IsNotEmpty()
   @IsArray({ message: "Las preguntas deben ser un array" })

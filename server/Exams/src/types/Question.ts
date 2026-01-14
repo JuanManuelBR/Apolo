@@ -1,3 +1,5 @@
+// src/types/Question.ts
+
 export enum QuestionType {
   TEST = "test",
   OPEN = "open",

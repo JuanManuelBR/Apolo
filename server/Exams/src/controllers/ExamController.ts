@@ -3,12 +3,14 @@ import { NextFunction, Request, Response } from "express";
 import { ExamService } from "@src/services/ExamsService";
 import { throwHttpError } from "@src/utils/errors";
 import { imageService } from "@src/services/ImageService";
+import { pdfService } from "@src/services/PDFService";
 
 const exam_service = new ExamService();
 
 export class ExamsController {
   static async addExam(req: Request, res: Response, next: NextFunction) {
     const uploadedImages: string[] = [];
+    let uploadedPDF: string | null = null;
 
     try {
       const data = JSON.parse(req.body.data);
@@ -18,13 +20,22 @@ export class ExamsController {
 
       if (files && files.length > 0) {
         for (const file of files) {
-          const match = file.fieldname.match(/^image_(\d+)$/);
-          if (match) {
-            const index = parseInt(match[1]);
-            if (data.questions[index]) {
-              const fileName = await imageService.saveImage(file);
-              uploadedImages.push(fileName);
-              data.questions[index].nombreImagen = fileName;
+          // Manejar archivo PDF
+          if (file.fieldname === "examPDF") {
+            const pdfFileName = await pdfService.savePDF(file);
+            uploadedPDF = pdfFileName;
+            data.archivoPDF = pdfFileName;
+          }
+          // Manejar imágenes de preguntas
+          else {
+            const match = file.fieldname.match(/^image_(\d+)$/);
+            if (match) {
+              const index = parseInt(match[1]);
+              if (data.questions[index]) {
+                const fileName = await imageService.saveImage(file);
+                uploadedImages.push(fileName);
+                data.questions[index].nombreImagen = fileName;
+              }
             }
           }
         }
@@ -37,9 +48,15 @@ export class ExamsController {
         examen,
       });
     } catch (error) {
+      // Limpiar archivos subidos en caso de error
       for (const fileName of uploadedImages) {
         await imageService.deleteImage(fileName);
       }
+      
+      if (uploadedPDF) {
+        await pdfService.deletePDF(uploadedPDF);
+      }
+      
       next(error);
     }
   }
@@ -91,6 +108,12 @@ export class ExamsController {
       );
 
       for (const examen of examenes) {
+        // Eliminar PDF del examen si existe
+        if ((examen as any).archivoPDF) {
+          await pdfService.deletePDF((examen as any).archivoPDF);
+        }
+
+        // Eliminar imágenes de preguntas
         if (examen.questions) {
           for (const question of examen.questions) {
             if ((question as any).nombreImagen) {

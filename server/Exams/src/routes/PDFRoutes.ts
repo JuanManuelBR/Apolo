@@ -1,0 +1,12 @@
+// src/routes/PDFRoutes.ts
+import { Router } from "express";
+import { PDFController } from "@src/controllers/PDFController";
+
+const router = Router();
+
+router.get("/", PDFController.list);
+router.get("/:fileName", PDFController.get);
+router.get("/:fileName/info", PDFController.getInfo);
+router.delete("/:fileName", PDFController.delete);
+
+export default router;

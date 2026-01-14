@@ -1,3 +1,4 @@
+// src/services/ExamsService.ts
 import { AppDataSource } from "../data-source/AppDataSource";
 import { Exam } from "../models/Exam";
 
@@ -72,6 +73,7 @@ export class ExamService {
         limiteTiempoCumplido: data.limiteTiempoCumplido,
         consecuencia: data.consecuencia,
         codigoExamen: codigoExamen!,
+        archivoPDF: data.archivoPDF || null, // ⭐ CAMPO NUEVO
       });
 
       const examen_guardado = await manager.save(Exam, nuevo_examen);

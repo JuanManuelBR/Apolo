@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun } from 'lucide-react';
 import logoUniversidadNoche from '../../assets/logo-universidad-noche.png';
 import fondoImagen from '../../assets/fondo.jpg';
-import { obtenerExamenPorCodigo } from '../services/examenService';
+import { examsService } from '../services/examsService';
 
 // Tipos para los datos del formulario
 interface FormData {
@@ -48,27 +48,53 @@ export default function ExamAccessPage() {
 
   // Iniciar examen - useCallback para evitar recreación
   const iniciarExamen = useCallback((examen: any, datos: FormData = {}) => {
-    console.log('🚀 Iniciando examen:', examen.nombreExamen);
+    console.log('🚀 Iniciando examen:', examen.nombre);
+    console.log('📝 Datos del estudiante:', datos);
     
     // Guardar datos del estudiante y examen en localStorage
-    localStorage.setItem('studentData', JSON.stringify({
+    const studentData = {
       ...datos,
       examCode: examen.codigoExamen,
       startTime: new Date().toISOString()
-    }));
-
-    localStorage.setItem('currentExam', JSON.stringify(examen));
-
-    // Abrir ExamSolver en nueva ventana
-    const examWindow = window.open('/exam-solver', '_blank');
+    };
     
-    // Cerrar la ventana actual después de un pequeño delay
-    if (examWindow) {
-      setTimeout(() => {
-        window.close();
-      }, 500);
+    localStorage.setItem('studentData', JSON.stringify(studentData));
+    localStorage.setItem('currentExam', JSON.stringify(examen));
+    
+    console.log('💾 Datos guardados en localStorage');
+    console.log('📊 studentData:', studentData);
+    console.log('📊 currentExam:', examen);
+
+    // Redirigir en la misma ventana a ExamSolver
+    // Intentar diferentes rutas posibles
+    const rutaExamen = '/exam-solver'; // Cambia esto si tu ruta es diferente
+    console.log('➡️ Redirigiendo a:', rutaExamen);
+    
+    // Usar setTimeout para asegurar que localStorage se guarde antes de navegar
+    setTimeout(() => {
+      navigate(rutaExamen);
+    }, 100);
+  }, [navigate]);
+
+  // Función para obtener campos requeridos del examen
+  const obtenerCamposRequeridos = (examen: any): string[] => {
+    const campos: string[] = [];
+    
+    // Mapeo directo desde la base de datos
+    if (examen.necesitaNombreCompleto) {
+      campos.push('nombre');
+      campos.push('apellido');
     }
-  }, []);
+    if (examen.necesitaCorreoElectrónico) {
+      campos.push('correoElectronico');
+    }
+    if (examen.necesitaCodigoEstudiantil) {
+      campos.push('codigoEstudiante');
+    }
+    
+    console.log('📋 Campos requeridos detectados:', campos);
+    return campos;
+  };
 
   // EFECTO PRINCIPAL: Cargar código desde URL
   useEffect(() => {
@@ -92,9 +118,9 @@ export default function ExamAccessPage() {
     console.log('📍 Código detectado en URL:', decodedCode);
     console.log('📏 Longitud del código:', decodedCode.length);
     
-    // Validar longitud
-    if (decodedCode.length !== 6) {
-      setError(`El código debe tener exactamente 6 caracteres. Recibido: ${decodedCode.length} caracteres`);
+    // Validar longitud (ahora 8 caracteres)
+    if (decodedCode.length !== 8) {
+      setError(`El código debe tener exactamente 8 caracteres. Recibido: ${decodedCode.length} caracteres`);
       setLoading(false);
       return;
     }
@@ -108,37 +134,45 @@ export default function ExamAccessPage() {
     setLoading(true);
     
     // Buscar el examen
-    setTimeout(() => {
-      const examen = obtenerExamenPorCodigo(decodedCode);
-      
-      if (examen) {
-        console.log('✅ Examen encontrado:', examen.nombreExamen);
-        setExamenData(examen);
+    const buscarExamen = async () => {
+      try {
+        const examen = await examsService.obtenerExamenPorCodigo(decodedCode);
         
-        const campos = examen.camposActivos?.map((campo: any) => campo.id) || [];
-        setCamposRequeridos(campos);
-        
-        console.log('📋 Campos requeridos:', campos);
-        
-        // Si no hay campos requeridos, ir directo al examen
-        if (campos.length === 0) {
-          console.log('⚡ Sin campos requeridos, iniciando examen directo...');
-          iniciarExamen(examen, {});
+        if (examen) {
+          console.log('✅ Examen encontrado:', examen.nombre);
+          setExamenData(examen);
+          
+          const campos = obtenerCamposRequeridos(examen);
+          setCamposRequeridos(campos);
+          
+          console.log('📋 Campos requeridos:', campos);
+          
+          // Si no hay campos requeridos, ir directo al examen
+          if (campos.length === 0) {
+            console.log('⚡ Sin campos requeridos, iniciando examen directo...');
+            iniciarExamen(examen, {});
+          } else {
+            console.log('📝 Hay campos requeridos, mostrando formulario');
+            setShowForm(true);
+          }
+          setError('');
         } else {
-          console.log('📝 Hay campos requeridos, mostrando formulario');
-          setShowForm(true);
+          console.log('❌ Examen no encontrado');
+          setError('Código incorrecto. Verifica e intenta de nuevo.');
         }
-        setError('');
-      } else {
-        console.log('❌ Examen no encontrado');
-        setError('Código incorrecto. Verifica e intenta de nuevo.');
+      } catch (error) {
+        console.error('❌ Error al buscar examen:', error);
+        setError('Error al buscar el examen. Intenta nuevamente.');
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    }, 500);
+    };
+
+    buscarExamen();
   }, [searchParams, iniciarExamen]);
 
-  // Buscar examen por código de 6 caracteres (manual)
-  const handleSearchCode = () => {
+  // Buscar examen por código de 8 caracteres (manual)
+  const handleSearchCode = async () => {
     setError('');
     
     if (!examCode.trim()) {
@@ -146,22 +180,21 @@ export default function ExamAccessPage() {
       return;
     }
 
-    if (examCode.trim().length !== 6) {
-      setError('El código debe tener exactamente 6 caracteres.');
+    if (examCode.trim().length !== 8) {
+      setError('El código debe tener exactamente 8 caracteres.');
       return;
     }
 
     setLoading(true);
 
-    // Simular delay para mejor UX
-    setTimeout(() => {
-      const examen = obtenerExamenPorCodigo(examCode.trim());
+    try {
+      const examen = await examsService.obtenerExamenPorCodigo(examCode.trim());
       
       if (examen) {
         setExamenData(examen);
         
         // Obtener campos requeridos del examen
-        const campos = examen.camposActivos?.map((campo: any) => campo.id) || [];
+        const campos = obtenerCamposRequeridos(examen);
         setCamposRequeridos(campos);
         
         // Si no hay campos requeridos, ir directo al examen
@@ -174,8 +207,12 @@ export default function ExamAccessPage() {
       } else {
         setError('Código incorrecto. Verifica e intenta de nuevo.');
       }
+    } catch (error) {
+      console.error('❌ Error al buscar examen:', error);
+      setError('Error al buscar el examen. Intenta nuevamente.');
+    } finally {
       setLoading(false);
-    }, 800);
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -204,18 +241,10 @@ export default function ExamAccessPage() {
       errors.apellido = 'El apellido es requerido';
     }
     
-    if (camposRequeridos.includes('correo') && !formData.correoElectronico?.trim()) {
+    if (camposRequeridos.includes('correoElectronico') && !formData.correoElectronico?.trim()) {
       errors.correoElectronico = 'El correo electrónico es requerido';
-    } else if (camposRequeridos.includes('correo') && formData.correoElectronico && !/\S+@\S+\.\S+/.test(formData.correoElectronico)) {
+    } else if (camposRequeridos.includes('correoElectronico') && formData.correoElectronico && !/\S+@\S+\.\S+/.test(formData.correoElectronico)) {
       errors.correoElectronico = 'El correo electrónico no es válido';
-    }
-    
-    if (camposRequeridos.includes('nombreProfesor') && !formData.nombreProfesor?.trim()) {
-      errors.nombreProfesor = 'El nombre del profesor es requerido';
-    }
-    
-    if (camposRequeridos.includes('numeroTelefono') && !formData.numeroTelefono?.trim()) {
-      errors.numeroTelefono = 'El número de teléfono es requerido';
     }
     
     if (camposRequeridos.includes('codigoEstudiante') && !formData.codigoEstudiante?.trim()) {
@@ -223,6 +252,7 @@ export default function ExamAccessPage() {
     }
     
     setFormErrors(errors);
+    console.log('🔍 Validación:', { errors, valid: Object.keys(errors).length === 0 });
     return Object.keys(errors).length === 0;
   };
 
@@ -243,7 +273,13 @@ export default function ExamAccessPage() {
     label: string,
     type: string = 'text'
   ) => {
-    if (!camposRequeridos.includes(key)) return null;
+    // Verificar si el campo está en los campos requeridos
+    if (!camposRequeridos.includes(key)) {
+      console.log(`⏭️ Campo "${key}" no requerido, saltando...`);
+      return null;
+    }
+
+    console.log(`✅ Renderizando campo: ${key}`);
 
     return (
       <div key={key} className="mb-4">
@@ -347,11 +383,11 @@ export default function ExamAccessPage() {
               ? 'Completa tus datos para continuar'
               : loading 
                 ? 'Verificando código...'
-                : 'Ingresa el código de 6 caracteres de tu examen'}
+                : 'Ingresa el código de 8 caracteres de tu examen'}
           </p>
         </div>
 
-        {/* Paso 1: Ingresar código de 6 caracteres */}
+        {/* Paso 1: Ingresar código de 8 caracteres */}
         {!showForm && (
           <>
             <div className="mb-3">
@@ -361,8 +397,8 @@ export default function ExamAccessPage() {
                   value={examCode}
                   onChange={(e) => setExamCode(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Código de 6 caracteres"
-                  maxLength={6}
+                  placeholder="CÓDIGO"
+                  maxLength={8}
                   disabled={loading}
                   className={`flex-1 px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
                              outline-none transition-all ${
@@ -399,20 +435,18 @@ export default function ExamAccessPage() {
               darkMode ? 'bg-slate-800' : 'bg-gray-50'
             }`}>
               <div className={`text-sm font-medium mb-1 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                {examenData?.nombreExamen || 'Cargando...'}
+                {examenData?.nombre || 'Cargando...'}
               </div>
               <div className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                Profesor: {examenData?.profesorNombre || 'Cargando...'}
+                Código: {examenData?.codigoExamen || 'Cargando...'}
               </div>
             </div>
 
             {/* Campos del formulario según configuración del examen */}
             {renderField('nombre', 'nombre', 'Nombre')}
             {renderField('apellido', 'apellido', 'Apellido')}
-            {renderField('correo', 'correoElectronico', 'Correo electrónico', 'email')}
-            {renderField('nombreProfesor', 'nombreProfesor', 'Nombre del profesor')}
-            {renderField('numeroTelefono', 'numeroTelefono', 'Número de teléfono', 'tel')}
-            {renderField('codigoEstudiante', 'codigoEstudiante', 'Código estudiante')}
+            {renderField('correoElectronico', 'correoElectronico', 'Correo electrónico', 'email')}
+            {renderField('codigoEstudiante', 'codigoEstudiante', 'Código de estudiante')}
 
             {/* Botón Empezar */}
             <button

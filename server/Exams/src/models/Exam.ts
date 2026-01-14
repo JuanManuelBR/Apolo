@@ -1,3 +1,4 @@
+// src/models/Exam.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -8,6 +9,7 @@ import {
 
 import { Consecuencia, ExamenState, TiempoAgotado } from "../types/Exam";
 import { Question } from "./Question";
+
 @Entity("examenes")
 export class Exam {
   @PrimaryGeneratedColumn()
@@ -22,7 +24,8 @@ export class Exam {
   @Column({ type: "text" })
   codigoExamen?: string;
 
-  @Column({ type: "varchar", length: 255 })
+  // ✅ CORREGIDO: Agregado nullable: true
+  @Column({ type: "varchar", length: 255, nullable: true })
   contrasena?: string | null;
 
   @CreateDateColumn()
@@ -76,7 +79,9 @@ export class Exam {
   @Column({ type: "enum", enum: Consecuencia })
   consecuencia!: Consecuencia;
 
-
+  // ⭐ CAMPO NUEVO PARA PDF
+  @Column({ type: "varchar", length: 255, nullable: true })
+  archivoPDF?: string | null;
 
   @OneToMany(() => Question, (question) => question.exam, {
     onDelete: "CASCADE",

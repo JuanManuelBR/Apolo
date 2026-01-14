@@ -4,15 +4,30 @@ import multer from 'multer';
 const storage = multer.memoryStorage();
 
 const fileFilter = (req: any, file: Express.Multer.File, cb: any) => {
-  if (file.mimetype.startsWith('image/')) {
+  // Permitir imágenes Y PDFs
+  const allowedMimeTypes = [
+    // Imágenes
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/bmp',
+    // PDFs
+    'application/pdf'
+  ];
+
+  if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Solo se permiten imágenes'), false);
+    cb(new Error(`Tipo de archivo no permitido: ${file.mimetype}. Solo se permiten imágenes y PDFs.`), false);
   }
 };
 
 export const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 5 * 1024 * 1024 } // 5MB
+  limits: { 
+    fileSize: 50 * 1024 * 1024 // 50MB (aumentado para PDFs grandes)
+  }
 });
