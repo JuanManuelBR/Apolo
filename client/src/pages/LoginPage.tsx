@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Moon, Sun } from 'lucide-react';
-import logoUniversidad from '../../assets/logo-universidad.png';
-import logoUniversidadNoche from '../../assets/logo-universidad-noche.png';
-import fondoImagen from '../../assets/fondo.jpg';
+import logoUniversidad from '../../assets/logo-universidad.webp';
+import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
+import fondoImagen from '../../assets/fondo.webp';
 import ExamSearchBar from '../components/ExamSearchBar';
 import { authService } from '../services/Authservice';
 

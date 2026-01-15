@@ -10,8 +10,8 @@ import NotificationItem from '../components/NotificationItem';
 import MiPerfil from '../components/MiPerfil';
 import CrearExamen from '../components/CrearExamen';
 import HomeContent from '../components/Homecontent';
-import logoUniversidad from '../../assets/logo-universidad.png';
-import logoUniversidadNoche from '../../assets/logo-universidad-noche.png';
+import logoUniversidad from '../../assets/logo-universidad.webp';
+import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
 
 import { useState, useEffect } from 'react';
 import { Home, Bell, FileEdit, List, Monitor, ChevronDown, User, Moon, Sun, LogOut, ChevronLeft, ChevronRight } from 'lucide-react';

@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Moon, Sun } from 'lucide-react';
-import logoUniversidadNoche from '../../assets/logo-universidad-noche.png';
-import fondoImagen from '../../assets/fondo.jpg';
+import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
+import fondoImagen from '../../assets/fondo.webp';
 import { examsService } from '../services/examsService';
 
 // Tipos para los datos del formulario
