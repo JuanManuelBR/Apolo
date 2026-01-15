@@ -62,69 +62,116 @@ function mapearTiempoAgotado(opcion: string): 'enviar' | 'descartar' {
   return 'descartar';
 }
 
-function mapearPreguntaABackend(pregunta: Pregunta, index: number) {
-  const base = {
-    enunciado: pregunta.titulo.replace(/<[^>]*>/g, '').trim() || `Pregunta ${index + 1}`,
-    puntaje: pregunta.puntos,
-    calificacionParcial: pregunta.calificacionParcial || false,
-    nombreImagen: null
-  };
-
-  switch (pregunta.tipo) {
-    case 'seleccion-multiple':
-      return {
-        ...base,
-        type: 'test',
-        shuffleOptions: true,
-        options: pregunta.opciones?.map(op => ({
-          texto: op.texto,
-          esCorrecta: op.esCorrecta
-        })) || []
-      };
-
-    case 'abierta':
-      const resultado: any = {
-        ...base,
-        type: 'open'
-      };
-
-      if (pregunta.metodoEvaluacion === 'texto-exacto' && pregunta.textoExacto) {
-        resultado.textoRespuesta = pregunta.textoExacto;
-        resultado.palabrasClave = [];
-      } else if (pregunta.metodoEvaluacion === 'palabras-clave' && pregunta.palabrasClave) {
-        resultado.textoRespuesta = null;
-        resultado.palabrasClave = pregunta.palabrasClave;
-      } else {
-        resultado.textoRespuesta = null;
-        resultado.palabrasClave = [];
-      }
-
-      return resultado;
-
-    case 'rellenar-espacios':
-      return {
-        ...base,
-        type: 'fill_blanks',
-        textoCorrecto: pregunta.textoConEspacios || '',
-        respuestas: pregunta.espacios?.map((espacio, idx) => ({
-          posicion: idx,
-          textoCorrecto: espacio.respuestaCorrecta
-        })) || []
-      };
-
-    case 'conectar':
-      return {
-        ...base,
-        type: 'matching',
-        pares: pregunta.paresConexion?.map(par => ({
-          itemA: par.izquierda,
-          itemB: par.derecha
-        })) || []
-      };
-
-    default:
-      throw new Error(`Tipo de pregunta no soportado: ${pregunta.tipo}`);
+/**
+ * Convierte una imagen base64 a File
+ */
+function base64ToFile(base64String: string, fileName: string): File {
+  // Extraer el tipo MIME y los datos base64
+  const arr = base64String.split(',');
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+  const bstr = atob(arr[1]);
+  let n = bstr.length;
+  const u8arr = new Uint8Array(n);
+  
+  while (n--) {
+    u8arr[n] = bstr.charCodeAt(n);
   }
+  
+  return new File([u8arr], fileName, { type: mime });
+}
+
+/**
+ * Mapea las preguntas del frontend al formato del backend
+ * Retorna: { preguntasSinImagen, imagenesMap }
+ */
+function mapearPreguntasConImagenes(preguntas: Pregunta[]) {
+  const preguntasMapeadas: any[] = [];
+  const imagenesMap: Map<string, File> = new Map();
+  
+  preguntas.forEach((pregunta, index) => {
+    const base = {
+      enunciado: pregunta.titulo.replace(/<[^>]*>/g, '').trim() || `Pregunta ${index + 1}`,
+      puntaje: pregunta.puntos,
+      calificacionParcial: pregunta.calificacionParcial || false,
+      nombreImagen: null as string | null
+    };
+
+    // 🖼️ Manejar imagen si existe
+    if (pregunta.imagen) {
+      const imageName = `image_${index}`;
+      const imageFile = base64ToFile(pregunta.imagen, `${imageName}.png`);
+      imagenesMap.set(imageName, imageFile);
+      base.nombreImagen = imageName;
+    }
+
+    let preguntaMapeada: any;
+
+    switch (pregunta.tipo) {
+      case 'seleccion-multiple':
+        preguntaMapeada = {
+          ...base,
+          type: 'test',
+          shuffleOptions: true,
+          options: pregunta.opciones?.map(op => ({
+            texto: op.texto,
+            esCorrecta: op.esCorrecta
+          })) || []
+        };
+        break;
+
+      case 'abierta':
+        preguntaMapeada = {
+          ...base,
+          type: 'open'
+        };
+
+        // ✅ Formato correcto para palabras clave
+        if (pregunta.metodoEvaluacion === 'texto-exacto' && pregunta.textoExacto) {
+          preguntaMapeada.textoRespuesta = pregunta.textoExacto;
+          preguntaMapeada.palabrasClave = [];
+        } else if (pregunta.metodoEvaluacion === 'palabras-clave' && pregunta.palabrasClave) {
+          preguntaMapeada.textoRespuesta = null;
+          // ✅ Convertir array de strings a array de objetos { texto: "..." }
+          preguntaMapeada.palabrasClave = pregunta.palabrasClave.map(palabra => ({
+            texto: palabra
+          }));
+        } else {
+          preguntaMapeada.textoRespuesta = null;
+          preguntaMapeada.palabrasClave = [];
+        }
+        break;
+
+      case 'rellenar-espacios':
+        preguntaMapeada = {
+          ...base,
+          type: 'fill_blanks',
+          textoCorrecto: pregunta.textoConEspacios || '',
+          respuestas: pregunta.espacios?.map((espacio, idx) => ({
+            posicion: idx,
+            textoCorrecto: espacio.respuestaCorrecta
+          })) || []
+        };
+        break;
+
+      case 'conectar':
+        preguntaMapeada = {
+          ...base,
+          type: 'matching',
+          pares: pregunta.paresConexion?.map(par => ({
+            itemA: par.izquierda,
+            itemB: par.derecha
+          })) || []
+        };
+        break;
+
+      default:
+        throw new Error(`Tipo de pregunta no soportado: ${(pregunta as any).tipo}`);
+    }
+
+    preguntasMapeadas.push(preguntaMapeada);
+  });
+
+  return { preguntasMapeadas, imagenesMap };
 }
 
 // ==================== SERVICIO PRINCIPAL ====================
@@ -142,10 +189,22 @@ export const examsService = {
     try {
       console.log('📋 [EXAMS] Preparando examen para enviar...');
 
+      // ✅ Mapear preguntas y extraer imágenes
+      let preguntasMapeadas: any[] = [];
+      let imagenesMap: Map<string, File> = new Map();
+
+      if (datosExamen.tipoPregunta === 'automatico' && datosExamen.preguntasAutomaticas) {
+        const resultado = mapearPreguntasConImagenes(datosExamen.preguntasAutomaticas);
+        preguntasMapeadas = resultado.preguntasMapeadas;
+        imagenesMap = resultado.imagenesMap;
+        
+        console.log(`🖼️ [EXAMS] Total de imágenes encontradas: ${imagenesMap.size}`);
+      }
+
       const examData: any = {
         nombre: datosExamen.nombreExamen,
         descripcion: datosExamen.descripcionExamen || '',
-        contrasena: datosExamen.seguridad.contraseña || '', // ✅ String vacío en lugar de null
+        contrasena: datosExamen.seguridad.contraseña || '',
         fecha_creacion: new Date().toISOString(),
         estado: 'open',
         id_profesor: usuarioId,
@@ -168,17 +227,35 @@ export const examsService = {
         necesitaContrasena: !!datosExamen.seguridad.contraseña,
         consecuencia: mapearConsecuencia(datosExamen.seguridad.consecuenciaAbandono),
         
-        questions: datosExamen.tipoPregunta === 'automatico' 
-          ? (datosExamen.preguntasAutomaticas || []).map(mapearPreguntaABackend)
-          : []
+        questions: preguntasMapeadas
       };
 
+      // ✅ Crear FormData y agregar datos
       const formData = new FormData();
       formData.append('data', JSON.stringify(examData));
 
+      // ✅ Agregar PDF si existe
       if (datosExamen.tipoPregunta === 'pdf' && datosExamen.archivoPDF) {
         formData.append('examPDF', datosExamen.archivoPDF);
         console.log('📄 [EXAMS] PDF adjunto:', datosExamen.archivoPDF.name);
+      }
+
+      // ✅ Agregar imágenes de las preguntas
+      if (imagenesMap.size > 0) {
+        imagenesMap.forEach((file, key) => {
+          formData.append(key, file);
+          console.log(`🖼️ [EXAMS] Imagen adjunta: ${key} (${file.size} bytes)`);
+        });
+      }
+
+      // 🔍 Debug: Mostrar contenido del FormData
+      console.log('📦 [EXAMS] Contenido del FormData:');
+      for (const [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  - ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+        } else {
+          console.log(`  - ${key}: ${typeof value === 'string' ? value.substring(0, 100) + '...' : value}`);
+        }
       }
 
       console.log('🚀 [EXAMS] Enviando al backend...');
