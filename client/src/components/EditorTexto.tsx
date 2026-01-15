@@ -2,7 +2,6 @@ import { useEditor, EditorContent } from '@tiptap/react';
 import { useEffect } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
-import Link from '@tiptap/extension-link';
 import TextAlign from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Color } from '@tiptap/extension-color';
@@ -15,7 +14,6 @@ import {
   Strikethrough,
   List,
   ListOrdered,
-  Link2,
   AlignLeft,
   AlignCenter,
   AlignRight,
@@ -111,12 +109,6 @@ export default function EditorTexto({
       Placeholder.configure({
         placeholder: placeholder,
       }),
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-blue-500 underline cursor-pointer',
-        },
-      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
         alignments: ['left', 'center', 'right', 'justify'],
@@ -148,20 +140,6 @@ export default function EditorTexto({
 
   const alignText = (alignment: 'left' | 'center' | 'right' | 'justify') => {
     editor.chain().focus().setTextAlign(alignment).run();
-  };
-
-  const addLink = () => {
-    const previousUrl = editor.getAttributes('link').href;
-    const url = window.prompt('URL:', previousUrl || 'https://');
-
-    if (url === null) return;
-
-    if (url === '') {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run();
-      return;
-    }
-
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
   };
 
   const setFontSize = (size: string) => {
@@ -366,16 +344,6 @@ export default function EditorTexto({
         >
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
-
-        <div className={`w-px h-6 ${darkMode ? 'bg-slate-600' : 'bg-gray-400'}`} />
-
-        <ToolbarButton
-          onClick={addLink}
-          isActive={editor.isActive('link')}
-          title="Insertar enlace"
-        >
-          <Link2 className="w-4 h-4" />
-        </ToolbarButton>
       </div>
 
       {/* Editor */}
@@ -429,15 +397,6 @@ export default function EditorTexto({
         .ProseMirror p[style*="text-align: justify"],
         .ProseMirror div[style*="text-align: justify"] {
           text-align: justify !important;
-        }
-
-        .ProseMirror a {
-          color: #3b82f6;
-          text-decoration: underline;
-          cursor: pointer;
-        }
-        .ProseMirror a:hover {
-          color: #2563eb;
         }
         
         .ProseMirror ul,

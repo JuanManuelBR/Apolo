@@ -47,7 +47,6 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
 
   const [camposEstudiante, setCamposEstudiante] = useState<CampoEstudiante[]>([
     { id: 'nombre', nombre: 'Nombre completo', activo: false },
-    { id: 'apellido', nombre: 'Apellido', activo: false },
     { id: 'correo', nombre: 'Correo electrónico', activo: false },
     { id: 'codigoEstudiante', nombre: 'Código estudiante', activo: false },
   ]);
@@ -409,8 +408,8 @@ export default function CrearExamen({ darkMode }: CrearExamenProps) {
         {seccion2Abierta && (
           <div className="px-6 pb-6 space-y-4">
             {[
-              { tipo: 'pdf', titulo: 'Usar un archivo PDF', desc: 'Añada o cambie el archivo PDF que quiera.' },
-              { tipo: 'automatico', titulo: 'Calificados automáticamente', desc: 'Cree exámenes con diferentes tipos de preguntas.' }
+              { tipo: 'pdf', titulo: 'Usar un archivo PDF', desc: 'Sube el archivo del examen en formato .PDF' },
+              { tipo: 'automatico', titulo: 'Crear examen manualmente', desc: 'Cree un exámen con diferentes tipos de preguntas.' }
             ].map(({ tipo, titulo, desc }) => (
               <div key={tipo} onClick={() => setTipoPregunta(tipo as TipoPregunta)} className={`p-5 rounded-lg border-2 cursor-pointer transition-all ${tipoPregunta === tipo ? `${borderActivo} ${bgActivoLight}` : 'border-gray-200 hover:border-gray-300'}`}>
                 <div className="flex items-start gap-3">

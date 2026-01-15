@@ -209,7 +209,7 @@ export const examsService = {
         estado: 'open',
         id_profesor: usuarioId,
         
-        necesitaNombreCompleto: datosExamen.camposActivos.some(c => c.id === 'nombre' || c.id === 'apellido'),
+        necesitaNombreCompleto: datosExamen.camposActivos.some(c => c.id === 'nombre'),
         necesitaCorreoElectrónico: datosExamen.camposActivos.some(c => c.id === 'correo'),
         necesitaCodigoEstudiantil: datosExamen.camposActivos.some(c => c.id === 'codigoEstudiante'),
         

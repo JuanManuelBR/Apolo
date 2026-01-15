@@ -303,46 +303,31 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
           darkMode ? 'bg-slate-800' : 'bg-white'
         } shadow-sm`}
       >
-        {/* Header con input de pregunta y selector de tipo */}
-        <div className="flex items-start gap-4 mb-4">
-          <div className="flex-1">
-            <EditorTexto
-              value={pregunta.titulo}
-              onChange={(html) => actualizarPregunta(pregunta.id, { titulo: html })}
-              darkMode={darkMode}
-              placeholder="Escribe tu pregunta aquí..."
-              minHeight="80px"
-            />
-          </div>
-
-          <label className={`p-3 rounded-lg cursor-pointer transition-colors self-start mt-2 ${
-            darkMode ? 'hover:bg-slate-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+        {/* Selector de tipo de pregunta - PRIMERO */}
+        <div className="mb-4">
+          <label className={`block text-sm font-medium mb-2 ${
+            darkMode ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            <ImageIcon className="w-5 h-5" />
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImagenCarga(pregunta.id, e)}
-            />
+            Seleccione el tipo de pregunta
           </label>
-
-          <div className="relative self-start mt-2">
+          <div className="relative">
             <button
               onClick={() => setMostrarSelectorTipo(mostrarSelectorTipo === pregunta.id ? null : pregunta.id)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg border ${
+              className={`flex items-center gap-2 px-4 py-3 rounded-lg border w-full justify-between ${
                 darkMode 
                   ? 'bg-slate-700 border-slate-600 text-white' 
                   : 'bg-gray-50 border-gray-300'
               }`}
             >
-              <span>{tiposPregunta.find(t => t.tipo === pregunta.tipo)?.icono}</span>
-              <span>{tiposPregunta.find(t => t.tipo === pregunta.tipo)?.nombre}</span>
+              <div className="flex items-center gap-2">
+                <span>{tiposPregunta.find(t => t.tipo === pregunta.tipo)?.icono}</span>
+                <span>{tiposPregunta.find(t => t.tipo === pregunta.tipo)?.nombre}</span>
+              </div>
               <ChevronDown className="w-4 h-4" />
             </button>
 
             {mostrarSelectorTipo === pregunta.id && (
-              <div className={`absolute right-0 mt-2 w-64 rounded-lg border shadow-lg z-10 ${
+              <div className={`absolute left-0 right-0 mt-2 rounded-lg border shadow-lg z-10 ${
                 darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
               }`}>
                 {tiposPregunta.map((tipo) => (
@@ -362,6 +347,34 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               </div>
             )}
           </div>
+        </div>
+
+        {/* Editor de pregunta e imagen - SEGUNDO */}
+        <div className="flex items-start gap-4 mb-4">
+          <div className="flex-1">
+            <EditorTexto
+              value={pregunta.titulo}
+              onChange={(html) => actualizarPregunta(pregunta.id, { titulo: html })}
+              darkMode={darkMode}
+              placeholder="Escribe tu pregunta aquí..."
+              minHeight="80px"
+            />
+          </div>
+
+          <label className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border-2 border-dashed self-start mt-2 ${
+            darkMode 
+              ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700 text-gray-300 hover:text-white' 
+              : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600'
+          }`}>
+            <ImageIcon className="w-5 h-5" />
+            <span className="text-xs font-medium whitespace-nowrap">Subir imagen</span>
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => handleImagenCarga(pregunta.id, e)}
+            />
+          </label>
         </div>
 
         {pregunta.imagen && (

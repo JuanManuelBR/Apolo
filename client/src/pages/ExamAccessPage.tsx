@@ -8,7 +8,6 @@ import { examsService } from '../services/examsService';
 // Tipos para los datos del formulario
 interface FormData {
   nombre?: string;
-  apellido?: string;
   correoElectronico?: string;
   nombreProfesor?: string;
   numeroTelefono?: string;
@@ -80,10 +79,9 @@ export default function ExamAccessPage() {
   const obtenerCamposRequeridos = (examen: any): string[] => {
     const campos: string[] = [];
     
-    // Mapeo directo desde la base de datos
+    // ✅ CORREGIDO: Ya no se agrega 'apellido'
     if (examen.necesitaNombreCompleto) {
       campos.push('nombre');
-      campos.push('apellido');
     }
     if (examen.necesitaCorreoElectrónico) {
       campos.push('correoElectronico');
@@ -229,16 +227,12 @@ export default function ExamAccessPage() {
     navigate('/teacher-login');
   };
 
-  // Validar campos del formulario según lo que requiere el examen
+  // ✅ CORREGIDO: Validar campos del formulario sin apellido
   const validateForm = (): boolean => {
     const errors: Partial<FormData> = {};
     
     if (camposRequeridos.includes('nombre') && !formData.nombre?.trim()) {
-      errors.nombre = 'El nombre es requerido';
-    }
-    
-    if (camposRequeridos.includes('apellido') && !formData.apellido?.trim()) {
-      errors.apellido = 'El apellido es requerido';
+      errors.nombre = 'El nombre completo es requerido';
     }
     
     if (camposRequeridos.includes('correoElectronico') && !formData.correoElectronico?.trim()) {
@@ -442,9 +436,8 @@ export default function ExamAccessPage() {
               </div>
             </div>
 
-            {/* Campos del formulario según configuración del examen */}
-            {renderField('nombre', 'nombre', 'Nombre')}
-            {renderField('apellido', 'apellido', 'Apellido')}
+            {/* ✅ CORREGIDO: Campos del formulario sin apellido */}
+            {renderField('nombre', 'nombre', 'Nombre completo')}
             {renderField('correoElectronico', 'correoElectronico', 'Correo electrónico', 'email')}
             {renderField('codigoEstudiante', 'codigoEstudiante', 'Código de estudiante')}
 
