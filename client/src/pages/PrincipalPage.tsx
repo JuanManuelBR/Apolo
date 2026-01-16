@@ -1,6 +1,6 @@
 // ============================================
 // LMSDashboard.tsx - CÓDIGO COMPLETO
-// Con sistema de estado activo y heartbeat
+// Con sistema de estado activo, heartbeat y verificación de sesión
 // ============================================
 
 // Importar componentes reutilizables
@@ -82,6 +82,69 @@ export default function LMSDashboard() {
     const usuarioStorage = localStorage.getItem('usuario');
     return usuarioStorage ? JSON.parse(usuarioStorage) : null;
   });
+
+  // ============================================
+  // VERIFICAR SESIÓN AL CARGAR Y PERIÓDICAMENTE
+  // ============================================
+  useEffect(() => {
+    const verificarSesion = async () => {
+      try {
+        const usuarioStorage = localStorage.getItem('usuario');
+        
+        if (!usuarioStorage) {
+          console.log('❌ No hay usuario en localStorage, redirigiendo...');
+          window.location.href = '/login';
+          return;
+        }
+
+        const usuario = JSON.parse(usuarioStorage);
+        
+        if (!usuario.id) {
+          console.log('❌ Usuario sin ID, redirigiendo...');
+          localStorage.removeItem('usuario');
+          window.location.href = '/login';
+          return;
+        }
+
+        // Verificar con el backend si la sesión es válida
+        const response = await fetch(`/api/users/${usuario.id}`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.status === 401) {
+          console.log('❌ Sesión expirada (401), redirigiendo al login...');
+          localStorage.removeItem('usuario');
+          window.location.href = '/login';
+          return;
+        }
+
+        if (!response.ok) {
+          console.log('❌ Error al verificar sesión, redirigiendo...');
+          localStorage.removeItem('usuario');
+          window.location.href = '/login';
+          return;
+        }
+
+        console.log('✅ Sesión válida');
+      } catch (error) {
+        console.error('❌ Error al verificar sesión:', error);
+        localStorage.removeItem('usuario');
+        window.location.href = '/login';
+      }
+    };
+
+    // Verificar inmediatamente al cargar
+    verificarSesion();
+
+    // Verificar cada 2 minutos
+    const verificacionInterval = setInterval(verificarSesion, 2 * 60 * 1000);
+
+    return () => clearInterval(verificacionInterval);
+  }, []);
 
   // Escuchar cambios en localStorage
   useEffect(() => {

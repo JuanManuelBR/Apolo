@@ -287,12 +287,14 @@ export const examsService = {
 
   /**
    * Obtener exámenes del profesor
+   * ✅ CORREGIDO: Ahora usa /:userId en lugar de /by-user/:userId
    */
   obtenerMisExamenes: async (profesorId: number): Promise<ExamenCreado[]> => {
     try {
       console.log('📚 [EXAMS] Obteniendo exámenes del profesor:', profesorId);
       
-      const response = await examsApi.get(`/by-user/${profesorId}`);
+      // ✅ CORREGIDO: usar /:id en lugar de /by-user/:userId
+      const response = await examsApi.get(`/${profesorId}`);
       
       console.log('✅ [EXAMS] Exámenes obtenidos:', response.data.length);
       return response.data;
@@ -310,7 +312,7 @@ export const examsService = {
   obtenerExamenPorCodigo: async (codigo: string): Promise<ExamenCreado | null> => {
     try {
       console.log('🔍 [EXAMS] Buscando examen con código:', codigo);
-      console.log('📏 [EXAMS] Longitud del código:', codigo.length);
+      console.log('🔍 [EXAMS] Longitud del código:', codigo.length);
       
       // Limpiar el código de espacios
       const codigoLimpio = codigo.trim();
