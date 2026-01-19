@@ -17,6 +17,24 @@ export class ExamService {
     const validator = new CommonValidator();
     const data = await validator.validateDto(add_exam_dto, rawData);
 
+    if (data.horaApertura && data.horaCierre) {
+      const apertura = new Date(data.horaApertura);
+      const cierre = new Date(data.horaCierre);
+
+      if (isNaN(apertura.getTime()) || isNaN(cierre.getTime())) {
+        throwHttpError(
+          "Formato de fecha inválido en horaApertura u horaCierre",
+          400,
+        );
+      }
+
+      if (apertura >= cierre) {
+        throwHttpError(
+          "La fecha y hora de apertura deben ser anteriores a la fecha y hora de cierre",
+          400,
+        );
+      }
+    }
     const id_profesor = Number(data.id_profesor);
     if (isNaN(id_profesor)) {
       throwHttpError("ID de profesor inválido", 400);
@@ -31,7 +49,7 @@ export class ExamService {
       if (data.horaApertura >= data.horaCierre) {
         throwHttpError(
           "La hora de apertura debe ser anterior a la hora de cierre",
-          400
+          400,
         );
       }
     }
@@ -54,7 +72,7 @@ export class ExamService {
       if (codigoExiste) {
         throwHttpError(
           "No se pudo generar un código único para el examen",
-          500
+          500,
         );
       }
 
@@ -88,7 +106,7 @@ export class ExamService {
       if (data.questions?.length) {
         const preguntas = QuestionValidator.crearPreguntasDesdeDto(
           data.questions,
-          examen_guardado
+          examen_guardado,
         );
         const preguntas_guardadas = await manager.save(Question, preguntas);
         examen_guardado.questions = preguntas_guardadas.map((q: any) => {

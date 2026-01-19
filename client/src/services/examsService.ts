@@ -287,14 +287,13 @@ export const examsService = {
 
   /**
    * Obtener exámenes del profesor
-   * ✅ CORREGIDO: Ahora usa /:userId en lugar de /by-user/:userId
    */
   obtenerMisExamenes: async (profesorId: number): Promise<ExamenCreado[]> => {
     try {
       console.log('📚 [EXAMS] Obteniendo exámenes del profesor:', profesorId);
       
       // ✅ CORREGIDO: usar /:id en lugar de /by-user/:userId
-      const response = await examsApi.get(`/${profesorId}`);
+      const response = await examsApi.get(`me`);
       
       console.log('✅ [EXAMS] Exámenes obtenidos:', response.data.length);
       return response.data;
@@ -310,10 +309,7 @@ export const examsService = {
    * MEJORADO: Con búsqueda case-insensitive y mejor manejo de errores
    */
   obtenerExamenPorCodigo: async (codigo: string): Promise<ExamenCreado | null> => {
-    try {
-      console.log('🔍 [EXAMS] Buscando examen con código:', codigo);
-      console.log('🔍 [EXAMS] Longitud del código:', codigo.length);
-      
+    try {      
       // Limpiar el código de espacios
       const codigoLimpio = codigo.trim();
       
@@ -321,7 +317,7 @@ export const examsService = {
       // Esto es un workaround si el backend no soporta búsqueda case-insensitive
       try {
         // Primero intentar la ruta específica del backend
-        const response = await examsApi.get(`/by-code/${codigoLimpio}`);
+        const response = await examsApi.get(`/${codigoLimpio}`);
         
         if (response.data) {
           console.log('✅ [EXAMS] Examen encontrado via API:', response.data.nombre);

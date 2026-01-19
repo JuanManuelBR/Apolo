@@ -3,6 +3,7 @@
 // CÓDIGO COMPLETO CON GESTIÓN DE ESTADO ACTIVO
 // ============================================
 
+import { AuthenticatedRequest } from "@src/middlewares/auth";
 import { UserService } from "@src/services/UserService";
 import { throwHttpError } from "@src/utils/errors";
 import { NextFunction, Request, Response } from "express";
@@ -10,7 +11,7 @@ import { NextFunction, Request, Response } from "express";
 const user_service = new UserService();
 
 export class UserController {
-  static async AddUser(req: Request, res: Response, next: NextFunction) {
+  static async AddUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const usuario_nuevo = await user_service.AddUser(req.body);
 
@@ -20,7 +21,7 @@ export class UserController {
     }
   }
 
-  static async deleteUser(req: Request, res: Response, next: NextFunction) {
+  static async deleteUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const cookies = req.headers.cookie;
       const id = Number(req.params.id);
@@ -37,7 +38,7 @@ export class UserController {
     }
   }
 
-  static async editUser(req: Request, res: Response, next: NextFunction) {
+  static async editUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
 
@@ -56,7 +57,7 @@ export class UserController {
     }
   }
 
-  static async getUserById(req: Request, res: Response) {
+  static async getUserById(req: AuthenticatedRequest, res: Response) {
     try {
       const id = Number(req.params.id);
 
@@ -76,7 +77,7 @@ export class UserController {
     }
   }
 
-  static async getUsers(req: Request, res: Response) {
+  static async getUsers(req: AuthenticatedRequest, res: Response) {
     try {
       const usuarios = await user_service.getAllusers();
       return res.status(200).json(usuarios);
@@ -87,7 +88,7 @@ export class UserController {
     }
   }
 
-  static async login(req: Request, res: Response) {
+  static async login(req: AuthenticatedRequest, res: Response) {
     try {
       const data = req.body;
       const { message, token, usuario } = await user_service.login(
@@ -121,7 +122,7 @@ export class UserController {
     }
   }
 
-  static async logout(req: Request, res: Response) {
+  static async logout(req: AuthenticatedRequest, res: Response) {
     try {
       // Obtener userId del body
       const userId = req.body.userId;
@@ -149,7 +150,7 @@ export class UserController {
   // ✅ NUEVO: HEARTBEAT
   // ============================================
   
-  static async heartbeat(req: Request, res: Response, next: NextFunction) {
+  static async heartbeat(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const userId = req.body.userId;
       
@@ -173,7 +174,7 @@ export class UserController {
   // ✅ NUEVO: OBTENER USUARIOS ACTIVOS
   // ============================================
   
-  static async getActiveUsers(req: Request, res: Response, next: NextFunction) {
+  static async getActiveUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const usuarios = await user_service.getActiveUsers();
       return res.status(200).json(usuarios);
@@ -182,7 +183,7 @@ export class UserController {
     }
   }
 
-  static async getUserByEmail(req: Request, res: Response, next: NextFunction) {
+  static async getUserByEmail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { email } = req.params;
       const usuario = await user_service.getUserByEmail(email);
@@ -195,7 +196,7 @@ export class UserController {
     }
   }
 
-  static async getUserByFirebaseUid(req: Request, res: Response, next: NextFunction) {
+  static async getUserByFirebaseUid(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const { firebaseUid } = req.params;
       const usuario = await user_service.getUserByFirebaseUid(firebaseUid);
@@ -208,7 +209,7 @@ export class UserController {
     }
   }
 
-  static async findOrCreateUser(req: Request, res: Response, next: NextFunction) {
+  static async findOrCreateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const usuario = await user_service.findOrCreateUser(req.body);
 
@@ -220,7 +221,7 @@ export class UserController {
     }
   }
 
-  static async updateLastAccess(req: Request, res: Response, next: NextFunction) {
+  static async updateLastAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
     try {
       const id = Number(req.params.id);
 

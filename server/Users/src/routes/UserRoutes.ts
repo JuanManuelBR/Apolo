@@ -4,8 +4,8 @@
 // ============================================
 
 import { UserController } from "@src/controllers/UserController";
+import { authenticateToken } from "@src/middlewares/auth";
 import { Router } from "express";
-import { authMiddleware } from "@src/middlewares/auth";
 
 const router = Router();
 
@@ -35,12 +35,10 @@ router.patch("/:id/update-access", UserController.updateLastAccess);
 // RUTAS PROTEGIDAS (Con autenticación)
 // ============================================
 
-router.use(authMiddleware);
-
-router.get("/", UserController.getUsers);
-router.get("/active", UserController.getActiveUsers); // ✅ NUEVO: Usuarios activos
-router.get("/:id", UserController.getUserById);
-router.delete("/:id", UserController.deleteUser);
-router.put("/:id", UserController.editUser);
+router.get("/", UserController.getUsers, authenticateToken);
+router.get("/active", UserController.getActiveUsers, authenticateToken);
+router.get("/:id", UserController.getUserById, authenticateToken);
+router.delete("/:id", UserController.deleteUser, authenticateToken);
+router.put("/:id", UserController.editUser, authenticateToken);
 
 export default router;

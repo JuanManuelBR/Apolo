@@ -4,11 +4,16 @@ import { ExamService } from "@src/services/ExamsService";
 import { throwHttpError } from "@src/utils/errors";
 import { imageService } from "@src/services/ImageService";
 import { pdfService } from "@src/services/PDFService";
+import { AuthenticatedRequest } from "@src/middlewares/auth";
 
 const exam_service = new ExamService();
 
 export class ExamsController {
-  static async addExam(req: Request, res: Response, next: NextFunction) {
+  static async addExam(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     const uploadedImages: string[] = [];
     let uploadedPDF: string | null = null;
 
@@ -61,7 +66,11 @@ export class ExamsController {
     }
   }
 
-  static async listExams(req: Request, res: Response, next: NextFunction) {
+  static async listExams(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const examenes = await exam_service.listExams();
 
@@ -74,7 +83,7 @@ export class ExamsController {
   static async getExamByCodigo(
     req: Request,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     try {
       const codigo = req.params.codigoExamen;
@@ -86,9 +95,13 @@ export class ExamsController {
     }
   }
 
-  static async getExamsByUser(req: Request, res: Response, next: NextFunction) {
+  static async getExamsByUser(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
-      const userId = Number(req.params.id);
+      const userId = req.user.id;
 
       if (isNaN(userId)) {
         throwHttpError("ID de usuario inválido", 400);
@@ -96,7 +109,7 @@ export class ExamsController {
 
       const examenes = await exam_service.getExamsByUser(
         userId,
-        req.headers.cookie
+        req.headers.cookie,
       );
 
       return res.status(200).json(examenes);
@@ -106,9 +119,9 @@ export class ExamsController {
   }
 
   static async deleteExamsByUser(
-    req: Request,
+    req: AuthenticatedRequest,
     res: Response,
-    next: NextFunction
+    next: NextFunction,
   ) {
     try {
       const userId = Number(req.params.id);
@@ -119,7 +132,7 @@ export class ExamsController {
 
       const examenes = await exam_service.getExamsByUser(
         userId,
-        req.headers.cookie
+        req.headers.cookie,
       );
 
       for (const examen of examenes) {

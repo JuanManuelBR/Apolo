@@ -1,19 +1,28 @@
 import { ExamsController } from "@src/controllers/ExamController";
 import { Router } from "express";
-import { authMiddleware } from "@src/middlewares/auth";
+
+import { authenticateToken } from "@src/middlewares/auth";
 import { upload } from "@src/middlewares/upload";
+import { authorizeExamOwner } from "@src/middlewares/authorization";
 
 const router = Router();
 
-router.get("/getForStudent/:codigoExamen", ExamsController.getExamByCodigo);
+router.get("/:codigoExamen", ExamsController.getExamByCodigo);
 
-router.use(authMiddleware);
-router.post("/", upload.any(), ExamsController.addExam);
-router.get("/", ExamsController.listExams);
+router.post("/", upload.any(), ExamsController.addExam, authenticateToken);
 
-router.get("/", ExamsController.listExams);
-router.get("/:id", ExamsController.getExamsByUser);
+router.get("/", ExamsController.listExams, authenticateToken);
 
-router.delete("/:id", ExamsController.deleteExamsByUser);
+router.get("/", ExamsController.listExams, authenticateToken);
+
+router.get(
+  "/me",
+  authenticateToken,
+  ExamsController.getExamsByUser,
+
+  authorizeExamOwner,
+);
+
+router.delete("/:id", ExamsController.deleteExamsByUser, authenticateToken);
 
 export default router;

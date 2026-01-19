@@ -39,6 +39,15 @@ export class QuestionValidator {
 
       switch (questionDto.type) {
         case "test":
+          if (questionDto.options && Array.isArray(questionDto.options)) {
+            if (questionDto.options.length > 10) {
+              throwHttpError(
+                `La pregunta ${index} tiene demasiadas opciones. Máximo permitido: 10.`,
+                400,
+              );
+            }
+          }
+
           return {
             ...preguntaBase,
             shuffleOptions: questionDto.shuffleOptions ?? false,
@@ -48,7 +57,7 @@ export class QuestionValidator {
                 if (!opt?.texto || typeof opt.esCorrecta !== "boolean") {
                   throwHttpError(
                     `Opción inválida en pregunta ${index}, opción ${optIndex}`,
-                    400
+                    400,
                   );
                 }
 
@@ -76,7 +85,7 @@ export class QuestionValidator {
           if (tieneTexto && tieneKeywords) {
             throwHttpError(
               `Error en pregunta ${index}: No se puede definir 'textoRespuesta' y 'palabrasClave' al mismo tiempo. Elige un método de calificación.`,
-              400
+              400,
             );
           }
 
@@ -90,14 +99,14 @@ export class QuestionValidator {
                 if (!kwDto?.texto) {
                   throwHttpError(
                     `Palabra clave inválida en pregunta ${index}, posición ${kwIndex}. Debe tener 'texto'`,
-                    400
+                    400,
                   );
                 }
 
                 keyword.texto = kwDto.texto;
 
                 return keyword;
-              }
+              },
             );
           } else {
             openQ.keywords = [];
@@ -114,7 +123,7 @@ export class QuestionValidator {
           if (!questionDto.textoCorrecto) {
             throwHttpError(
               `La pregunta ${index} (Rellenar) requiere el texto base.`,
-              400
+              400,
             );
           }
 
@@ -128,27 +137,27 @@ export class QuestionValidator {
                 if (respDto.posicion === undefined || !respDto.textoCorrecto) {
                   throwHttpError(
                     `Error en pregunta ${index}: La respuesta ${respIndex} debe tener posición y textoCorrecto.`,
-                    400
+                    400,
                   );
                 }
 
                 answer.posicion = respDto.posicion;
                 answer.textoCorrecto = respDto.textoCorrecto;
                 return answer;
-              }
+              },
             );
             const matches = fillQ.textoCorrecto.match(/___/g) || [];
 
             if (matches.length !== fillQ.respuestas.length) {
               throwHttpError(
                 `Pregunta ${index}: El número de espacios en blanco (___) no coincide con las respuestas enviadas.`,
-                400
+                400,
               );
             }
           } else {
             throwHttpError(
               `La pregunta ${index} debe tener al menos una respuesta correcta.`,
-              400
+              400,
             );
           }
 
@@ -167,7 +176,15 @@ export class QuestionValidator {
           ) {
             throwHttpError(
               `Error en pregunta ${index}: Las preguntas de emparejamiento deben tener al menos un par de elementos.`,
-              400
+              400,
+            );
+          }
+
+          // LÍMITE MÁXIMO DE 10 PARES
+          if (questionDto.pares.length > 10) {
+            throwHttpError(
+              `La pregunta ${index} tiene demasiados pares. Máximo permitido: 10 pares.`,
+              400,
             );
           }
 
@@ -176,7 +193,7 @@ export class QuestionValidator {
               if (!pairDto.itemA || !pairDto.itemB) {
                 throwHttpError(
                   `Error en pregunta ${index}, par ${pairIndex}: Ambos elementos (itemA e itemB) son obligatorios.`,
-                  400
+                  400,
                 );
               }
 
@@ -192,7 +209,7 @@ export class QuestionValidator {
               pair.question = matchQ;
 
               return pair;
-            }
+            },
           );
 
           return matchQ;
@@ -200,7 +217,7 @@ export class QuestionValidator {
         default:
           throwHttpError(
             `Tipo de pregunta no soportado: ${questionDto.type}`,
-            400
+            400,
           );
       }
     });
