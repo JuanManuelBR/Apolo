@@ -2,6 +2,7 @@
 import express from "express";
 import { AppDataSource } from "./data-source/AppDataSource";
 import cors from "cors";
+import examRouter from "@src/routes/ExamRoutes"
 //import UserRoutes from "./routes/UserRoutes";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/errorHandler";
@@ -14,6 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors());
+app.use("/api/exam", examRouter);
 
 app.use(errorHandler);
 

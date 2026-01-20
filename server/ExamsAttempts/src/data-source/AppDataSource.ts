@@ -10,7 +10,9 @@ import {
   DB_USER,
 } from "../../config/config";
 import { ExamAttempt } from "@src/models/ExamAttempt";
-// crear el AppDataSource (Conexión BD)
+import { ExamAnswer } from "@src/models/ExamAnswer";
+import { ExamInProgress } from "@src/models/ExamInProgress";
+import { ExamEvent } from "@src/models/ExamEvent";
 export const AppDataSource = new DataSource({
   type: "mysql",
   host: DB_HOST,
@@ -20,7 +22,7 @@ export const AppDataSource = new DataSource({
   username: DB_USER,
   synchronize: true,
   logging: false,
-  entities: [ExamAttempt],
+  entities: [ExamAttempt, ExamAnswer, ExamInProgress, ExamEvent],
   migrations: ["src/migrations/*.ts"],
   migrationsTableName: "migrations",
 });
