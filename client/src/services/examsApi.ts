@@ -1,50 +1,63 @@
-// src/services/examsApi.ts
-import axios from 'axios';
+import axios from "axios";
 
+// ✅ USAR RUTA RELATIVA PARA QUE PASE POR EL PROXY
 export const examsApi = axios.create({
   baseURL: "/api/exams",
   headers: {
     "Content-Type": "application/json",
   },
   withCredentials: true,
-  timeout: 30000, // 30 segundos para PDFs grandes
+  timeout: 30000,
 });
 
-// Interceptor para agregar el token de autenticación
+// Interceptor para manejar FormData
 examsApi.interceptors.request.use(
   (config) => {
-    // Obtener el token del localStorage
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-
-    // Si es FormData (para subir archivos), cambiar el Content-Type
+    // Si es FormData, cambiar el Content-Type
     if (config.data instanceof FormData) {
-      config.headers['Content-Type'] = 'multipart/form-data';
+      config.headers["Content-Type"] = "multipart/form-data";
     }
 
-    console.log('📤 [EXAMS API] Request:', config.method?.toUpperCase(), config.url);
+    console.log(
+      "📤 [EXAMS] Request:",
+      config.method?.toUpperCase(),
+      config.url,
+    );
+    console.log("   🍪 Cookies:", document.cookie);
     return config;
   },
   (error) => {
-    console.error('❌ [EXAMS API] Request Error:', error);
+    console.error("❌ [EXAMS] Request Error:", error);
     return Promise.reject(error);
-  }
+  },
 );
 
 examsApi.interceptors.response.use(
   (response) => {
-    console.log('✅ [EXAMS API] Response:', response.status, response.config.url);
+    console.log("✅ [EXAMS] Response:", response.status, response.config.url);
     return response;
   },
   (error) => {
-    console.error('❌ [EXAMS API] Response Error:', {
+    console.error("❌ [EXAMS] Response Error:", {
       status: error.response?.status,
-      statusText: error.response?.statusText,
       data: error.response?.data,
-      url: error.config?.url
+      url: error.config?.url,
     });
+
+    // Redirigir a login si es 401 o 403
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      console.log("🚪 Sesión expirada en EXAMS API");
+      localStorage.removeItem("usuario");
+
+      const currentPath = window.location.pathname;
+      if (
+        !currentPath.includes("/login") &&
+        !currentPath.includes("/register")
+      ) {
+        window.location.href = "/login";
+      }
+    }
+
     return Promise.reject(error);
-  }
+  },
 );

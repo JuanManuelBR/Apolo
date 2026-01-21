@@ -85,4 +85,49 @@ export class ExamController {
       next(err);
     }
   }
+
+  static async getActiveAttemptsByExam(req: Request, res: Response, next: NextFunction) {
+  try {
+    const examId = Number(req.params.examId);
+    
+    if (isNaN(examId)) {
+      return res.status(400).json({ message: "ID de examen inválido" });
+    }
+
+    const attempts = await ExamService.getActiveAttemptsByExam(examId);
+    res.status(200).json(attempts);
+  } catch (err) {
+    next(err);
+  }
+}
+
+static async abandonAttempt(req: Request, res: Response, next: NextFunction) {
+  try {
+    const intento_id = Number(req.params.intento_id);
+    
+    if (isNaN(intento_id)) {
+      return res.status(400).json({ message: "ID de intento inválido" });
+    }
+
+    const result = await ExamService.abandonAttempt(intento_id, req.app.get("io"));
+    res.status(200).json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+static async getAttemptEvents(req: Request, res: Response, next: NextFunction) {
+  try {
+    const attemptId = Number(req.params.attemptId);
+    
+    if (isNaN(attemptId)) {
+      return res.status(400).json({ message: "ID de intento inválido" });
+    }
+
+    const events = await ExamService.getAttemptEvents(attemptId);
+    res.status(200).json(events);
+  } catch (err) {
+    next(err);
+  }
+}
 }

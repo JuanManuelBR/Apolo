@@ -5,6 +5,7 @@ export enum AttemptEvent {
   INTENTO_FINALIZADO = "intento_finalizado",
   PANTALLA_COMPLETA_CERRADA = "pantalla_completa_cerrada",
   COMBINACION_TECLAS_PROHIBIDA = "combinacion_teclas_prohibida",
+  INTENTO_ABANDONADO = "intento_abandonado",
   FOCO_PERDIDO = "foco_perdido",
   INTENTO_COPIAR_PEGAR_IMPRIMIR = "intento_copiar_pegar_imprimir",
   MANIPULACION_CODIGO = "manipulacion_codigo",

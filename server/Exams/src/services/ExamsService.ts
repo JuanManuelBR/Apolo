@@ -285,6 +285,7 @@ export class ExamService {
           // ❌ eliminar textoCorrecto y respuestas correctas
           return {
             ...baseQuestion,
+            textoCorrecto: q.textoCorrecto,
             // Si necesitas la estructura de huecos, puedes enviar solo posiciones
             blanks: q.respuestas?.map((r: any) => ({
               id: r.id,
@@ -337,5 +338,32 @@ export class ExamService {
     };
 
     return publicExam;
+  }
+
+  async validatePassword(
+    codigoExamen: string,
+    contrasena?: string,
+  ): Promise<boolean> {
+    const examen = await this.examRepo.findOne({
+      where: { codigoExamen },
+    });
+
+    if (!examen) {
+      throwHttpError("Examen no encontrado", 404);
+    }
+
+    if (!examen.necesitaContrasena) {
+      return true;
+    }
+
+    if (!contrasena) {
+      throwHttpError("Se requiere contraseña", 400);
+    }
+
+    if (examen.contrasena !== contrasena) {
+      throwHttpError("Contraseña incorrecta", 401);
+    }
+
+    return true;
   }
 }

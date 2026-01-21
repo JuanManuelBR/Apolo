@@ -195,7 +195,6 @@ export class ExamService {
   }
 
   static async createEvent(data: CreateExamEventDto, io: Server) {
-
     const eventRepo = AppDataSource.getRepository(ExamEvent);
     const progressRepo = AppDataSource.getRepository(ExamInProgress);
     const attemptRepo = AppDataSource.getRepository(ExamAttempt);
@@ -254,7 +253,7 @@ export class ExamService {
     const progressRepo = AppDataSource.getRepository(ExamInProgress);
     const attemptRepo = AppDataSource.getRepository(ExamAttempt);
 
-    // SIEMPRE notificar al profesor, independiente de la consecuencia
+    // ✅ Notificar SIEMPRE al profesor (excepto si es "ninguna")
     const baseAlert = {
       attemptId: attempt.id,
       tipo_evento: evento,
@@ -269,12 +268,12 @@ export class ExamService {
     };
 
     if (attempt.consecuencia === "ninguna") {
-      // Solo registrar, no notificar
+      // ❌ No hacer nada
       return;
     }
 
     if (attempt.consecuencia === "notificar") {
-      // Notificar al profesor, NO bloquear
+      // ✅ Solo notificar al profesor, NO bloquear
       io.to(`exam_${attempt.examen_id}`).emit("fraud_alert", {
         ...baseAlert,
         blocked: false,
@@ -283,8 +282,7 @@ export class ExamService {
     }
 
     if (attempt.consecuencia === "bloquear") {
-      // Bloquear el intento
-
+      // ✅ Bloquear el intento
       examInProgress.estado = AttemptState.BLOCKED;
       attempt.estado = AttemptState.BLOCKED;
 
@@ -302,7 +300,6 @@ export class ExamService {
         ...baseAlert,
         blocked: true,
       });
-
 
       io.to(`exam_${attempt.examen_id}`).emit("attempt_blocked_notification", {
         attemptId: attempt.id,
@@ -434,5 +431,111 @@ export class ExamService {
     });
 
     return examInProgress;
+  }
+
+  static async getActiveAttemptsByExam(examId: number) {
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+    const progressRepo = AppDataSource.getRepository(ExamInProgress);
+    const eventRepo = AppDataSource.getRepository(ExamEvent);
+
+    const attempts = await attemptRepo.find({
+      where: {
+        examen_id: examId,
+      },
+      order: { fecha_inicio: "DESC" },
+    });
+
+    const attemptsWithDetails = await Promise.all(
+      attempts.map(async (attempt) => {
+        const progress = await progressRepo.findOne({
+          where: { intento_id: attempt.id },
+        });
+
+        const events = await eventRepo.find({
+          where: { intento_id: attempt.id },
+          order: { fecha_envio: "DESC" },
+          take: 10,
+        });
+
+        const now = new Date();
+        const elapsed =
+          now.getTime() - new Date(attempt.fecha_inicio).getTime();
+        const elapsedMinutes = Math.floor(elapsed / 60000);
+
+        const totalAnswers = attempt.respuestas?.length || 0;
+
+        return {
+          id: attempt.id,
+          nombre_estudiante: attempt.nombre_estudiante || "Sin nombre",
+          correo_estudiante: attempt.correo_estudiante,
+          identificacion_estudiante: attempt.identificacion_estudiante,
+          estado: attempt.estado,
+          fecha_inicio: attempt.fecha_inicio,
+          tiempoTranscurrido: `${elapsedMinutes} min`,
+          progreso: totalAnswers,
+          alertas: events.length,
+          codigo_acceso: progress?.codigo_acceso,
+          fecha_expiracion: progress?.fecha_expiracion,
+          eventos_recientes: events,
+        };
+      }),
+    );
+
+    return attemptsWithDetails;
+  }
+
+  static async getAttemptEvents(attemptId: number) {
+    const eventRepo = AppDataSource.getRepository(ExamEvent);
+
+    const events = await eventRepo.find({
+      where: { intento_id: attemptId },
+      order: { fecha_envio: "DESC" },
+    });
+
+    return events;
+  }
+  static async abandonAttempt(intento_id: number, io: Server) {
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+    const progressRepo = AppDataSource.getRepository(ExamInProgress);
+
+    const attempt = await attemptRepo.findOne({
+      where: { id: intento_id },
+    });
+
+    if (!attempt) {
+      throwHttpError("Intento no encontrado", 404);
+    }
+
+    const examInProgress = await progressRepo.findOne({
+      where: { intento_id },
+    });
+
+    if (!examInProgress) {
+      throwHttpError("Examen en progreso no encontrado", 404);
+    }
+
+    // ✅ Solo marcar como abandonado si estaba activo
+    if (attempt.estado === AttemptState.ACTIVE) {
+      attempt.estado = AttemptState.ABANDONADO;
+      examInProgress.estado = AttemptState.ABANDONADO;
+      attempt.fecha_fin = new Date();
+      examInProgress.fecha_fin = new Date();
+
+      await attemptRepo.save(attempt);
+      await progressRepo.save(examInProgress);
+
+      // Notificar al profesor
+      io.to(`exam_${attempt.examen_id}`).emit("student_abandoned_exam", {
+        attemptId: intento_id,
+        estudiante: {
+          nombre: attempt.nombre_estudiante,
+          correo: attempt.correo_estudiante,
+        },
+      });
+
+      console.log(`🚪 Intento ${intento_id} marcado como abandonado`);
+    }
+
+    return attempt;
   }
 }

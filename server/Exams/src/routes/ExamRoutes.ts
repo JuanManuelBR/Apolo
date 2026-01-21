@@ -22,5 +22,5 @@ router.delete("/:id", ExamsController.deleteExamsByUser, authenticateToken);
 router.get("/by-id/:id", ExamsController.getExamById, authenticateToken);
 router.get("/:codigoExamen", ExamsController.getExamByCodigo);
 router.get("/forAttempt/:codigo", ExamsController.getExamForAttempt);
-
+router.post("/validate-password", ExamsController.validatePassword);
 export default router;

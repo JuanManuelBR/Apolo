@@ -1,11 +1,13 @@
 import { Server, Socket } from "socket.io";
 import { AppDataSource } from "@src/data-source/AppDataSource";
-import { ExamInProgress } from "@src/models/ExamInProgress";
+import { AttemptState, ExamInProgress } from "@src/models/ExamInProgress";
+import { ExamAttempt } from "@src/models/ExamAttempt";
 
 export class SocketHandler {
   private io: Server;
   private timers: Map<number, NodeJS.Timeout> = new Map();
-  private connections: Map<string, { type: string; id: string | number }> = new Map();
+  private connections: Map<string, { type: string; id: string | number }> =
+    new Map();
 
   constructor(io: Server) {
     this.io = io;
@@ -16,13 +18,16 @@ export class SocketHandler {
     this.io.on("connection", (socket: Socket) => {
       console.log(`✅ Cliente conectado: ${socket.id}`);
 
-      socket.on("join_attempt", (data: { attemptId: number; sessionId: string }) => {
-        this.handleJoinAttempt(socket, data);
-      });
+      socket.on(
+        "join_attempt",
+        (data: { attemptId: number; sessionId: string }) => {
+          this.handleJoinAttempt(socket, data);
+        },
+      );
 
       socket.on("join_exam_monitoring", (examId: number) => {
         socket.join(`exam_${examId}`);
-        this.connections.set(socket.id, { type: 'teacher', id: examId });
+        this.connections.set(socket.id, { type: "teacher", id: examId });
         console.log(`👨‍🏫 Profesor ${socket.id} monitoreando exam_${examId}`);
       });
 
@@ -33,10 +38,29 @@ export class SocketHandler {
         console.log(`❌ Cliente ${socket.id} abandonó attempt_${attemptId}`);
       });
 
-      socket.on("disconnect", () => {
+      socket.on("disconnect", async () => {
         const connection = this.connections.get(socket.id);
+
         if (connection) {
-          console.log(`🔌 ${connection.type === 'teacher' ? 'Profesor' : 'Estudiante'} desconectado: ${socket.id}`);
+          if (connection.type === "student") {
+            console.log(
+              `🔌 Estudiante desconectado: ${socket.id} (attempt_${connection.id})`,
+            );
+
+            // ✅ Marcar como abandonado
+            try {
+              const attemptId = connection.id as number;
+              await this.handleStudentDisconnect(attemptId);
+            } catch (error) {
+              console.error(
+                "❌ Error al marcar intento como abandonado:",
+                error,
+              );
+            }
+          } else {
+            console.log(`🔌 Profesor desconectado: ${socket.id}`);
+          }
+
           this.connections.delete(socket.id);
         } else {
           console.log(`🔌 Cliente desconectado: ${socket.id}`);
@@ -51,13 +75,13 @@ export class SocketHandler {
       this.connections.forEach((conn, socketId) => {
         console.log(`  - ${socketId}: ${conn.type} (${conn.id})`);
       });
-      console.log('');
+      console.log("");
     }, 30000);
   }
 
   private async handleJoinAttempt(
     socket: Socket,
-    data: { attemptId: number; sessionId: string }
+    data: { attemptId: number; sessionId: string },
   ) {
     const { attemptId, sessionId } = data;
 
@@ -79,7 +103,7 @@ export class SocketHandler {
     }
 
     socket.join(`attempt_${attemptId}`);
-    this.connections.set(socket.id, { type: 'student', id: attemptId });
+    this.connections.set(socket.id, { type: "student", id: attemptId });
     console.log(`👨‍🎓 Estudiante ${socket.id} unido a attempt_${attemptId}`);
 
     if (examInProgress.fecha_expiracion) {
@@ -137,6 +161,58 @@ export class SocketHandler {
       console.log(`⏱️ Timer detenido para attempt_${attemptId}`);
     }
   }
+
+  private async handleStudentDisconnect(attemptId: number) {
+  const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+  const progressRepo = AppDataSource.getRepository(ExamInProgress);
+
+  const attempt = await attemptRepo.findOne({
+    where: { id: attemptId },
+  });
+
+  if (!attempt) {
+    console.log(`⚠️ Intento ${attemptId} no encontrado`);
+    return;
+  }
+
+  const examInProgress = await progressRepo.findOne({
+    where: { intento_id: attemptId },
+  });
+
+  if (!examInProgress) {
+    console.log(`⚠️ ExamInProgress no encontrado para intento ${attemptId}`);
+    return;
+  }
+
+  // ✅ Solo marcar como abandonado si estaba activo
+  if (attempt.estado === AttemptState.ACTIVE) {
+    attempt.estado = AttemptState.ABANDONADO;
+    examInProgress.estado = AttemptState.ABANDONADO;
+    attempt.fecha_fin = new Date();
+    examInProgress.fecha_fin = new Date();
+
+    await attemptRepo.save(attempt);
+    await progressRepo.save(examInProgress);
+
+    console.log(`🚪 Intento ${attemptId} marcado como ABANDONADO`);
+
+    // ✅ Notificar al profesor
+    this.io.to(`exam_${attempt.examen_id}`).emit("student_abandoned_exam", {
+      attemptId: attemptId,
+      estudiante: {
+        nombre: attempt.nombre_estudiante,
+        correo: attempt.correo_estudiante,
+        identificacion: attempt.identificacion_estudiante,
+      },
+      fecha_abandono: new Date(),
+    });
+
+    // ✅ Detener timer si existe
+    this.stopTimer(attemptId);
+  } else {
+    console.log(`ℹ️ Intento ${attemptId} ya estaba en estado: ${attempt.estado}`);
+  }
+}
 
   public emitToAttempt(attemptId: number, event: string, data: any) {
     this.io.to(`attempt_${attemptId}`).emit(event, data);

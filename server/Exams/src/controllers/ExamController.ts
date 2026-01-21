@@ -196,4 +196,15 @@ export class ExamsController {
       });
     }
   }
+  static async validatePassword(req: Request, res: Response, next: NextFunction) {
+  try {
+    const { codigo_examen, contrasena } = req.body;
+    
+    const isValid = await exam_service.validatePassword(codigo_examen, contrasena);
+    
+    return res.status(200).json({ valid: isValid });
+  } catch (error) {
+    next(error);
+  }
+}
 }
