@@ -176,7 +176,7 @@ export class ExamsController {
     }
   }
 
-   static async getExamForAttempt(req: Request, res: Response) {
+  static async getExamForAttempt(req: Request, res: Response) {
     try {
       const { codigo } = req.params;
 
@@ -196,15 +196,78 @@ export class ExamsController {
       });
     }
   }
-  static async validatePassword(req: Request, res: Response, next: NextFunction) {
-  try {
-    const { codigo_examen, contrasena } = req.body;
-    
-    const isValid = await exam_service.validatePassword(codigo_examen, contrasena);
-    
-    return res.status(200).json({ valid: isValid });
-  } catch (error) {
-    next(error);
+  static async validatePassword(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const { codigo_examen, contrasena } = req.body;
+
+      const isValid = await exam_service.validatePassword(
+        codigo_examen,
+        contrasena,
+      );
+
+      return res.status(200).json({ valid: isValid });
+    } catch (error) {
+      next(error);
+    }
   }
-}
+
+  static async updateExamStatus(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.id);
+      const { estado } = req.body;
+      const profesorId = req.user.id;
+
+      if (isNaN(examId)) {
+        throwHttpError("ID de examen inválido", 400);
+      }
+
+      if (!["open", "closed"].includes(estado)) {
+        throwHttpError("Estado inválido. Debe ser 'open' o 'closed'", 400);
+      }
+
+      const examen = await exam_service.updateExamStatus(
+        examId,
+        estado,
+        profesorId,
+        req.headers.cookie,
+      );
+
+      return res.status(200).json({
+        message: "Estado actualizado correctamente",
+        examen,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+  static async deleteExamById(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.id);
+      const profesorId = req.user.id;
+
+      if (isNaN(examId)) {
+        throwHttpError("ID de examen inválido", 400);
+      }
+
+      await exam_service.deleteExamById(examId, profesorId, req.headers.cookie);
+
+      return res.status(200).json({
+        message: "Examen eliminado correctamente",
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

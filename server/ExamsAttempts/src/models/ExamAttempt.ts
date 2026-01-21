@@ -48,8 +48,9 @@ export class ExamAttempt {
 
   @Column({ type: "datetime", nullable: true })
   fecha_fin?: Date | null;
-  @Column({ type: "varchar", length: 50 })
-  limiteTiempoCumplido!: string; // "enviar" o "descartar"
+
+  @Column({ type: "varchar", length: 50, nullable: true })
+  limiteTiempoCumplido?: string | null;
 
   @Column({ type: "varchar", length: 50 })
   consecuencia!: string; // "ninguna", "notificar", "bloquear"

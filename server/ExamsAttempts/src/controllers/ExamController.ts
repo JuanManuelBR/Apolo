@@ -13,7 +13,10 @@ export class ExamController {
       const errors = await validateDTO(StartExamAttemptDto, req.body);
       if (errors.length) throwValidationErrors(errors);
 
-      const result = await ExamService.startAttempt(req.body, req.app.get("io"));
+      const result = await ExamService.startAttempt(
+        req.body,
+        req.app.get("io"),
+      );
       res.status(201).json(result);
     } catch (err) {
       next(err);
@@ -25,7 +28,10 @@ export class ExamController {
       const errors = await validateDTO(ResumeExamAttemptDto, req.body);
       if (errors.length) throwValidationErrors(errors);
 
-      const result = await ExamService.resumeAttempt(req.body, req.app.get("io"));
+      const result = await ExamService.resumeAttempt(
+        req.body,
+        req.app.get("io"),
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -59,12 +65,15 @@ export class ExamController {
   static async finishAttempt(req: Request, res: Response, next: NextFunction) {
     try {
       const intento_id = Number(req.params.intento_id);
-      
+
       if (isNaN(intento_id)) {
         return res.status(400).json({ message: "ID de intento inválido" });
       }
 
-      const result = await ExamService.finishAttempt(intento_id, req.app.get("io"));
+      const result = await ExamService.finishAttempt(
+        intento_id,
+        req.app.get("io"),
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);
@@ -74,60 +83,95 @@ export class ExamController {
   static async unlockAttempt(req: Request, res: Response, next: NextFunction) {
     try {
       const intento_id = Number(req.params.intento_id);
-      
+
       if (isNaN(intento_id)) {
         return res.status(400).json({ message: "ID de intento inválido" });
       }
 
-      const result = await ExamService.unlockAttempt(intento_id, req.app.get("io"));
+      const result = await ExamService.unlockAttempt(
+        intento_id,
+        req.app.get("io"),
+      );
       res.status(200).json(result);
     } catch (err) {
       next(err);
     }
   }
 
-  static async getActiveAttemptsByExam(req: Request, res: Response, next: NextFunction) {
-  try {
-    const examId = Number(req.params.examId);
-    
-    if (isNaN(examId)) {
-      return res.status(400).json({ message: "ID de examen inválido" });
+  static async getActiveAttemptsByExam(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.examId);
+
+      if (isNaN(examId)) {
+        return res.status(400).json({ message: "ID de examen inválido" });
+      }
+
+      const attempts = await ExamService.getActiveAttemptsByExam(examId);
+      res.status(200).json(attempts);
+    } catch (err) {
+      next(err);
     }
-
-    const attempts = await ExamService.getActiveAttemptsByExam(examId);
-    res.status(200).json(attempts);
-  } catch (err) {
-    next(err);
   }
-}
 
-static async abandonAttempt(req: Request, res: Response, next: NextFunction) {
-  try {
-    const intento_id = Number(req.params.intento_id);
-    
-    if (isNaN(intento_id)) {
-      return res.status(400).json({ message: "ID de intento inválido" });
+  static async abandonAttempt(req: Request, res: Response, next: NextFunction) {
+    try {
+      const intento_id = Number(req.params.intento_id);
+
+      if (isNaN(intento_id)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.abandonAttempt(
+        intento_id,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
     }
-
-    const result = await ExamService.abandonAttempt(intento_id, req.app.get("io"));
-    res.status(200).json(result);
-  } catch (err) {
-    next(err);
   }
-}
 
-static async getAttemptEvents(req: Request, res: Response, next: NextFunction) {
-  try {
-    const attemptId = Number(req.params.attemptId);
-    
-    if (isNaN(attemptId)) {
-      return res.status(400).json({ message: "ID de intento inválido" });
+  static async getAttemptEvents(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const events = await ExamService.getAttemptEvents(attemptId);
+      res.status(200).json(events);
+    } catch (err) {
+      next(err);
     }
-
-    const events = await ExamService.getAttemptEvents(attemptId);
-    res.status(200).json(events);
-  } catch (err) {
-    next(err);
   }
-}
+  static async markEventsAsRead(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.markEventsAsRead(
+        attemptId,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

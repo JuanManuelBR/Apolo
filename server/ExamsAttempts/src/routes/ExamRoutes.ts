@@ -28,4 +28,7 @@ router.get("/:examId/active-attempts", ExamController.getActiveAttemptsByExam);
 // Obtener eventos de un intento
 router.get("/attempt/:attemptId/events", ExamController.getAttemptEvents);
 
+router.patch("/attempt/:attemptId/events/read", ExamController.markEventsAsRead);
+
+
 export default router;

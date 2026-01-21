@@ -16,14 +16,31 @@ export const examsAttemptsService = {
     const response = await examsAttemptsApi.get(`/${examId}/active-attempts`);
     return response.data;
   },
-
-  async getAttemptEvents(attemptId: number) {
-    const response = await examsAttemptsApi.get(`/attempt/${attemptId}/events`);
+  async unlockAttempt(attemptId: number) {
+    const response = await examsAttemptsApi.post(
+      `/attempt/${attemptId}/unlock`,
+    );
     return response.data;
   },
 
-  async unlockAttempt(attemptId: number) {
-    const response = await examsAttemptsApi.post(`/attempt/${attemptId}/unlock`);
-    return response.data;
+  getAttemptEvents: async (attemptId: number) => {
+    try {
+      const response = await examsAttemptsApi.get(
+        `/attempt/${attemptId}/events`,
+      );
+      return response.data;
+    } catch (error: any) {
+      console.error("Error obteniendo eventos:", error);
+      throw error;
+    }
+  },
+
+  markEventsAsRead: async (attemptId: number) => {
+    try {
+      await examsAttemptsApi.patch(`/attempt/${attemptId}/events/read`);
+    } catch (error: any) {
+      console.error("Error marcando eventos como leídos:", error);
+      throw error;
+    }
   },
 };

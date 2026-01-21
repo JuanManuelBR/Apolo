@@ -49,9 +49,9 @@ function mapearConsecuencia(
     notificar: "notificar",
     "notificar-profesor": "notificar",
     bloquear: "bloquear",
-    "bloquear-examen": "bloquear",
+    "desbloqueo-manual": "bloquear",
     ninguna: "ninguna",
-    "sin-consecuencia": "ninguna",
+    "desactivar-proteccion": "ninguna",
     "": "ninguna",
   };
 
@@ -262,10 +262,10 @@ export const examsService = {
         horaCierre: datosExamen.fechaCierre
           ? new Date(datosExamen.fechaCierre).toISOString()
           : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-        limiteTiempo: datosExamen.limiteTiempo?.valor || 60,
-        limiteTiempoCumplido: mapearTiempoAgotado(
-          datosExamen.opcionTiempoAgotado,
-        ),
+        limiteTiempo: datosExamen.limiteTiempo?.valor || null,
+        limiteTiempoCumplido: datosExamen.limiteTiempo?.valor
+          ? mapearTiempoAgotado(datosExamen.opcionTiempoAgotado)
+          : null,
 
         necesitaContrasena: !!datosExamen.seguridad.contraseña,
         consecuencia: mapearConsecuencia(
@@ -467,21 +467,43 @@ export const examsService = {
     try {
       console.log("🗑️ [EXAMS] Eliminando examen ID:", id);
 
-      // Primero verificar que el examen pertenezca al profesor
-      const examenes = await examsService.obtenerMisExamenes(profesorId);
-      const examen = examenes.find((e) => e.id === id);
+      await examsApi.delete(`/${id}/single`, {
+        withCredentials: true,
+      });
 
-      if (!examen) {
-        console.error("❌ [EXAMS] Examen no encontrado o no autorizado");
-        return false;
-      }
-
-      await examsApi.delete(`/${id}`);
       console.log("✅ [EXAMS] Examen eliminado");
       return true;
     } catch (error: any) {
       console.error("❌ [EXAMS] Error al eliminar examen:", error);
-      return false;
+      throw new Error(
+        error.response?.data?.message || "Error al eliminar el examen",
+      );
+    }
+  },
+
+  updateExamStatus: async (
+    examId: number,
+    nuevoEstado: "open" | "closed",
+  ): Promise<ExamenCreado> => {
+    try {
+      console.log(
+        `🔄 [EXAMS] Actualizando estado del examen ${examId} a ${nuevoEstado}`,
+      );
+
+      const response = await examsApi.patch(
+        `/${examId}/status`,
+        { estado: nuevoEstado },
+        { withCredentials: true },
+      );
+
+      console.log("✅ [EXAMS] Estado actualizado");
+      return response.data.examen;
+    } catch (error: any) {
+      console.error("❌ [EXAMS] Error al actualizar estado:", error);
+      throw new Error(
+        error.response?.data?.message ||
+          "Error al actualizar estado del examen",
+      );
     }
   },
 };

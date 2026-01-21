@@ -25,4 +25,7 @@ export class ExamEvent {
 
   @Column()
   intento_id!: number;
+
+  @Column({ type: "boolean", default: false })
+  leido!: boolean;
 }

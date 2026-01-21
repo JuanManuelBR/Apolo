@@ -13,6 +13,7 @@ import { omit } from "lodash";
 
 import { NextFunction } from "express";
 import axios from "axios";
+import { ExamenState } from "@src/types/Exam";
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
@@ -89,6 +90,7 @@ export class ExamService {
         necesitaNombreCompleto: data.necesitaNombreCompleto,
         necesitaCodigoEstudiantil: data.necesitaCodigoEstudiantil,
         necesitaCorreoElectrónico: data.necesitaCorreoElectrónico,
+        necesitaContrasena: !!data.necesitaContrasena,
         descripcion: data.descripcion,
         incluirHerramientaDibujo: data.incluirHerramientaDibujo,
         incluirCalculadoraCientifica: data.incluirCalculadoraCientifica,
@@ -98,7 +100,9 @@ export class ExamService {
         horaApertura: data.horaApertura || null,
         horaCierre: data.horaCierre || null,
         limiteTiempo: data.limiteTiempo,
-        limiteTiempoCumplido: data.limiteTiempoCumplido,
+        limiteTiempoCumplido: data.limiteTiempo
+          ? data.limiteTiempoCumplido
+          : null,
         consecuencia: data.consecuencia,
         codigoExamen: codigoExamen!,
         archivoPDF: data.archivoPDF || null,
@@ -361,9 +365,99 @@ export class ExamService {
     }
 
     if (examen.contrasena !== contrasena) {
-      throwHttpError("Contraseña incorrecta", 401);
+      throwHttpError("Contraseña incorrecta", 400);
     }
 
     return true;
+  }
+
+  async updateExamStatus(
+    examId: number,
+    newStatus: ExamenState,
+    profesorId: number,
+    cookies?: string,
+  ): Promise<Exam> {
+    await examenValidator.verificarProfesor(profesorId, cookies);
+
+    const exam = await this.examRepo.findOne({ where: { id: examId } });
+
+    if (!exam) {
+      throwHttpError("Examen no encontrado", 404);
+    }
+
+    if (exam.id_profesor !== profesorId) {
+      throwHttpError("No autorizado para modificar este examen", 403);
+    }
+
+    exam.estado = newStatus;
+    exam.cambioEstadoAutomatico = false;
+
+    if (exam.cambioEstadoAutomatico) {
+      schedulerService.cancelarCambioEstado(examId);
+    }
+
+    return await this.examRepo.save(exam);
+  }
+
+  async deleteExamById(
+    examId: number,
+    profesorId: number,
+    cookies?: string,
+  ): Promise<void> {
+    await examenValidator.verificarProfesor(profesorId, cookies);
+
+    return await AppDataSource.transaction(async (manager) => {
+      const exam = await manager.findOne(Exam, {
+        where: { id: examId },
+        relations: [
+          "questions",
+          "questions.pares",
+          "questions.pares.itemA",
+          "questions.pares.itemB",
+        ],
+      });
+
+      if (!exam) {
+        throwHttpError("Examen no encontrado", 404);
+      }
+
+      if (exam.id_profesor !== profesorId) {
+        throwHttpError("No autorizado para eliminar este examen", 403);
+      }
+
+      const { imageService } = await import("./ImageService");
+      const { pdfService } = await import("./PDFService");
+      const { MatchItemA } = await import("../models/MatchItemA");
+      const { MatchItemB } = await import("../models/MatchItemB");
+
+      if (exam.archivoPDF) {
+        await pdfService.deletePDF(exam.archivoPDF);
+      }
+
+      if (exam.questions) {
+        for (const question of exam.questions) {
+          if ((question as any).nombreImagen) {
+            await imageService.deleteImage((question as any).nombreImagen);
+          }
+
+          if ((question as any).pares) {
+            for (const par of (question as any).pares) {
+              if (par.itemA) {
+                await manager.remove(MatchItemA, par.itemA);
+              }
+              if (par.itemB) {
+                await manager.remove(MatchItemB, par.itemB);
+              }
+            }
+          }
+        }
+      }
+
+      if (exam.cambioEstadoAutomatico) {
+        schedulerService.cancelarCambioEstado(examId);
+      }
+
+      await manager.remove(Exam, exam);
+    });
   }
 }

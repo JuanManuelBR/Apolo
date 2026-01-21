@@ -66,11 +66,11 @@ export class Exam {
   @Column({ type: "datetime", nullable: true })
   horaCierre?: Date | null;
 
-  @Column({ type: "int" })
-  limiteTiempo!: number;
+  @Column({ type: "int", nullable: true })
+  limiteTiempo?: number | null;
 
-  @Column({ type: "enum", enum: TiempoAgotado })
-  limiteTiempoCumplido!: TiempoAgotado;
+  @Column({ type: "text", nullable: true })
+  limiteTiempoCumplido?: string | null;
 
   @Column({ type: "boolean", default: false })
   necesitaContrasena!: boolean;

@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { examsService } from "../services/examsService";
 import { examsAttemptsService } from "../services/examsAttempts";
+import AlertasModal from "../components/AlertasModal";
 
 export default function LMSDashboard() {
   const [activeMenu, setActiveMenu] = useState("home");
@@ -180,9 +181,6 @@ export default function LMSDashboard() {
       window.removeEventListener("usuarioActualizado", handleStorageChange);
     };
   }, []);
-
-
-
 
   // Función auxiliar para capitalizar (Primera letra mayúscula, resto minúscula)
   const capitalizeWord = (word: string): string => {
@@ -482,7 +480,10 @@ export default function LMSDashboard() {
             />
           )}
           {activeMenu === "nuevo-examen" && (
-            <NuevoExamenContent darkMode={darkMode} />
+            <NuevoExamenContent
+              darkMode={darkMode}
+              onNavigate={setActiveMenu}
+            />
           )}
           {activeMenu === "lista-examenes" && (
             <ListaExamenesContent
@@ -624,8 +625,19 @@ function NotificationsContent({
   );
 }
 
-function NuevoExamenContent({ darkMode }: { darkMode: boolean }) {
-  return <CrearExamen darkMode={darkMode} />;
+function NuevoExamenContent({
+  darkMode,
+  onNavigate,
+}: {
+  darkMode: boolean;
+  onNavigate: (menu: string) => void;
+}) {
+  return (
+    <CrearExamen
+      darkMode={darkMode}
+      onExamenCreado={() => onNavigate("lista-examenes")}
+    />
+  );
 }
 
 function ListaExamenesContent({
@@ -648,19 +660,65 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
   const [activeAttempts, setActiveAttempts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [modalAlertas, setModalAlertas] = useState<{
+    show: boolean;
+    attemptId: number | null;
+    nombre: string;
+  }>({
+    show: false,
+    attemptId: null,
+    nombre: "",
+  });
+  const [alertasDetalle, setAlertasDetalle] = useState<any[]>([]);
 
   // ✅ NUEVO: Estado para el filtro
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
 
   const usuarioData = JSON.parse(localStorage.getItem("usuario") || "{}");
 
+  const traducirEstado = (
+    estado: string,
+  ): "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado" => {
+    const traducciones: Record<
+      string,
+      "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado"
+    > = {
+      activo: "Activo",
+      blocked: "Bloqueado",
+      paused: "Pausado",
+      finished: "Terminado",
+      abandonado: "Abandonado",
+    };
+    return traducciones[estado] || "Abandonado";
+  };
+
+  // ✅ NUEVO: Función para obtener estado normalizado (para comparación)
+  const normalizarEstado = (estado: string): string => {
+    const normalizaciones: Record<string, string> = {
+      blocked: "bloqueado",
+      paused: "pausado",
+      finished: "terminado",
+    };
+    return normalizaciones[estado] || estado;
+  };
+
   // ✅ NUEVO: Calcular contadores por estado
   const contadores = {
-    activos: activeAttempts.filter((a) => a.estado === "activo").length,
-    bloqueados: activeAttempts.filter((a) => a.estado === "blocked").length,
-    pausados: activeAttempts.filter((a) => a.estado === "paused").length,
-    terminados: activeAttempts.filter((a) => a.estado === "finished").length,
-    abandonados: activeAttempts.filter((a) => a.estado === "abandonado").length,
+    activos: activeAttempts.filter(
+      (a) => normalizarEstado(a.estado) === "activo",
+    ).length,
+    bloqueados: activeAttempts.filter(
+      (a) => normalizarEstado(a.estado) === "bloqueado",
+    ).length,
+    pausados: activeAttempts.filter(
+      (a) => normalizarEstado(a.estado) === "pausado",
+    ).length,
+    terminados: activeAttempts.filter(
+      (a) => normalizarEstado(a.estado) === "terminado",
+    ).length,
+    abandonados: activeAttempts.filter(
+      (a) => normalizarEstado(a.estado) === "abandonado",
+    ).length,
     total: activeAttempts.length,
   };
 
@@ -668,7 +726,9 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
   const intentosFiltrados =
     filtroEstado === "todos"
       ? activeAttempts
-      : activeAttempts.filter((a) => a.estado === filtroEstado);
+      : activeAttempts.filter(
+          (a) => normalizarEstado(a.estado) === filtroEstado,
+        );
 
   // Cargar exámenes abiertos del profesor
   useEffect(() => {
@@ -787,10 +847,15 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
       );
     });
 
-    // ✅ Actualizar tiempo transcurrido cada minuto
+    // ✅ MODIFICADO: Actualizar tiempo transcurrido solo para intentos ACTIVOS
     const timeInterval = setInterval(() => {
       setActiveAttempts((prev) =>
         prev.map((attempt) => {
+          // ✅ Solo actualizar tiempo si está activo
+          if (normalizarEstado(attempt.estado) !== "activo") {
+            return attempt; // No modificar el tiempo si no está activo
+          }
+
           const now = new Date();
           const elapsed =
             now.getTime() - new Date(attempt.fecha_inicio).getTime();
@@ -802,7 +867,7 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
           };
         }),
       );
-    }, 60000);
+    }, 60000); // Cada minuto
 
     setSocket(newSocket);
 
@@ -812,6 +877,44 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
       newSocket.disconnect();
     };
   }, [selectedExam]);
+
+  // ✅ Escuchar nuevas alertas por WebSocket
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("new_alert", (data) => {
+      console.log("🆕 Nueva alerta:", data);
+
+      setActiveAttempts((prev) =>
+        prev.map((attempt) =>
+          attempt.id === data.attemptId
+            ? {
+                ...attempt,
+                alertasNoLeidas: (attempt.alertasNoLeidas || 0) + 1,
+                alertas: attempt.alertas + 1,
+              }
+            : attempt,
+        ),
+      );
+    });
+
+    socket.on("alerts_read", (data) => {
+      console.log("✅ Alertas marcadas como leídas:", data);
+
+      setActiveAttempts((prev) =>
+        prev.map((attempt) =>
+          attempt.id === data.attemptId
+            ? { ...attempt, alertasNoLeidas: 0 }
+            : attempt,
+        ),
+      );
+    });
+
+    return () => {
+      socket.off("new_alert");
+      socket.off("alerts_read");
+    };
+  }, [socket]);
 
   const handleUnlockAttempt = async (attemptId: number) => {
     try {
@@ -824,6 +927,19 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
       );
     } catch (error) {
       console.error("Error desbloqueando intento:", error);
+    }
+  };
+
+  const handleVerAlertas = async (attemptId: number, nombre: string) => {
+    try {
+      const alertas = await examsAttemptsService.getAttemptEvents(attemptId);
+      setAlertasDetalle(alertas);
+      setModalAlertas({ show: true, attemptId, nombre });
+
+      // Marcar como leídas
+      await examsAttemptsService.markEventsAsRead(attemptId);
+    } catch (error) {
+      console.error("Error cargando alertas:", error);
     }
   };
 
@@ -963,7 +1079,7 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
           </div>
         </div>
 
-        {/* ✅ NUEVO: Contadores por estado */}
+        {/* ✅ Contadores por estado */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <div
             className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
@@ -1142,15 +1258,30 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
               nombre={attempt.nombre_estudiante}
               email={attempt.correo_estudiante || "Sin correo"}
               examen={selectedExam.nombre}
-              estado={attempt.estado}
+              estado={traducirEstado(attempt.estado)}
               tiempoTranscurrido={attempt.tiempoTranscurrido}
               progreso={attempt.progreso}
               alertas={attempt.alertas}
+              alertasNoLeidas={attempt.alertasNoLeidas || 0}
               darkMode={darkMode}
               onRestablecerAcceso={handleUnlockAttempt}
               onVerDetalles={handleViewDetails}
+              onVerAlertas={(id) =>
+                handleVerAlertas(id, attempt.nombre_estudiante)
+              }
             />
           ))}
+          {modalAlertas.show && (
+            <AlertasModal
+              mostrar={modalAlertas.show}
+              darkMode={darkMode}
+              alertas={alertasDetalle}
+              nombreEstudiante={modalAlertas.nombre}
+              onCerrar={() =>
+                setModalAlertas({ show: false, attemptId: null, nombre: "" })
+              }
+            />
+          )}
         </div>
       )}
     </div>

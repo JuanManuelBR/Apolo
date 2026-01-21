@@ -10,6 +10,7 @@ import {
   IsNumber,
   IsOptional,
   IsString,
+  ValidateIf,
   ValidateNested,
 } from "class-validator";
 
@@ -45,7 +46,7 @@ export class add_exam_dto {
 
   @IsNumber(
     {},
-    { message: "El id del profesor proporcionada tiene formato incorrecto" }
+    { message: "El id del profesor proporcionada tiene formato incorrecto" },
   )
   @IsNotEmpty({
     message:
@@ -99,15 +100,19 @@ export class add_exam_dto {
   @IsOptional()
   horaCierre?: Date;
 
-  @IsNotEmpty({ message: "Falta especificar limite de tiempo" })
+  @IsOptional()
   @IsNumber({}, { message: "Limite de tiempo debe ser un número" })
-  limiteTiempo!: number;
+  limiteTiempo?: number | null;
 
-  @IsNotEmpty({ message: "Falta especificar limiteTiempoCumplido" })
-  @IsIn(Object.values(TiempoAgotado), {
-    message: "limiteTiempoCumplido inválido",
+  @ValidateIf((o) => o.limiteTiempo !== null && o.limiteTiempo !== undefined)
+  @IsNotEmpty({
+    message:
+      "Debe especificar limiteTiempoCumplido cuando hay límite de tiempo",
   })
-  limiteTiempoCumplido!: TiempoAgotado;
+  @IsIn(Object.values(TiempoAgotado), {
+    message: "limiteTiempoCumplido debe ser 'enviar' o 'descartar'",
+  })
+  limiteTiempoCumplido?: string | null;
 
   @IsNotEmpty({
     message: "Falta especificar la consecuencia al salir del examen",
