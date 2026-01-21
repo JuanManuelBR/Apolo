@@ -220,25 +220,33 @@ export class ExamService {
     event.tipo_evento = data.tipo_evento;
     event.fecha_envio = data.fecha_envio;
     event.intento_id = data.intento_id;
+    event.leido = false; // ✅ NUEVO
 
     await eventRepo.save(event);
 
-    // ✅ Solo notificar y aplicar consecuencias si NO es "ninguna"
+    // ✅ Emitir nueva alerta al profesor en tiempo real
+    io.to(`exam_${attempt.examen_id}`).emit("new_alert", {
+      attemptId: data.intento_id,
+      event: {
+        id: event.id,
+        tipo_evento: event.tipo_evento,
+        fecha_envio: event.fecha_envio,
+        leido: false,
+      },
+    });
+
     if (attempt.consecuencia !== "ninguna") {
-      // Notificar al estudiante
       io.to(`attempt_${data.intento_id}`).emit("fraud_detected", {
         tipo_evento: data.tipo_evento,
         fecha_envio: data.fecha_envio,
       });
 
-      // Aplicar consecuencia (notificar o bloquear)
       await this.applyConsequence(
         attempt,
         examInProgress,
         data.tipo_evento,
         io,
       );
-    } else {
     }
 
     return event;
@@ -451,11 +459,12 @@ export class ExamService {
           where: { intento_id: attempt.id },
         });
 
-        const events = await eventRepo.find({
+        const allEvents = await eventRepo.find({
           where: { intento_id: attempt.id },
           order: { fecha_envio: "DESC" },
-          take: 10,
         });
+
+        const unreadEvents = allEvents.filter((e) => !e.leido);
 
         const now = new Date();
         const elapsed =
@@ -473,10 +482,10 @@ export class ExamService {
           fecha_inicio: attempt.fecha_inicio,
           tiempoTranscurrido: `${elapsedMinutes} min`,
           progreso: totalAnswers,
-          alertas: events.length,
+          alertas: allEvents.length,
+          alertasNoLeidas: unreadEvents.length, // ✅ NUEVO
           codigo_acceso: progress?.codigo_acceso,
           fecha_expiracion: progress?.fecha_expiracion,
-          eventos_recientes: events,
         };
       }),
     );
@@ -537,5 +546,27 @@ export class ExamService {
     }
 
     return attempt;
+  }
+
+  static async markEventsAsRead(attemptId: number, io: Server) {
+    const eventRepo = AppDataSource.getRepository(ExamEvent);
+
+    await eventRepo.update(
+      { intento_id: attemptId, leido: false },
+      { leido: true },
+    );
+
+    // Notificar al profesor que las alertas fueron leídas
+    const attempt = await AppDataSource.getRepository(ExamAttempt).findOne({
+      where: { id: attemptId },
+    });
+
+    if (attempt) {
+      io.to(`exam_${attempt.examen_id}`).emit("alerts_read", {
+        attemptId,
+      });
+    }
+
+    return { message: "Alertas marcadas como leídas" };
   }
 }

@@ -232,6 +232,12 @@ export default function SecureExamPlatform() {
       console.log("🔓 Protecciones desactivadas (consecuencia: ninguna)");
       return;
     }
+
+    if (!examData.limiteTiempo || examData.limiteTiempo === 0) {
+      setRemainingTime("Sin límite");
+      return;
+    }
+
     const interval = setInterval(() => {
       const start = new Date(studentData.startTime);
       const now = new Date();
@@ -960,12 +966,17 @@ export default function SecureExamPlatform() {
 
                     {/* Imagen si existe */}
                     {question.nombreImagen && (
-                      <div className="mb-4">
+                      <div className="mb-4 flex justify-center">
                         <img
-                          src={`http://localhost:3001/uploads/images/${question.nombreImagen}`}
+                          src={`http://localhost:3001/api/images/${question.nombreImagen}`}
                           alt="Imagen de la pregunta"
-                          className="max-w-full h-auto rounded-lg"
-                          style={{ maxHeight: "400px" }}
+                          className="rounded-lg object-contain"
+                          style={{
+                            maxWidth: "100%",
+                            maxHeight: "400px",
+                            width: "auto",
+                            height: "auto",
+                          }}
                         />
                       </div>
                     )}
@@ -1309,7 +1320,9 @@ export default function SecureExamPlatform() {
               <p className="text-base">
                 <strong style={{ color: "#1f2937" }}>Duración:</strong>
                 <span className="ml-2" style={{ color: "#4b5563" }}>
-                  {examData?.limiteTiempo || 0} minutos
+                  {examData?.limiteTiempo && examData.limiteTiempo > 0
+                    ? `${examData.limiteTiempo} minutos`
+                    : "Sin límite de tiempo"}
                 </span>
               </p>
             </div>

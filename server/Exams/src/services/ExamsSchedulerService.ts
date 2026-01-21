@@ -9,11 +9,16 @@ export class ExamSchedulerService {
   private timers: Map<number, NodeJS.Timeout[]> = new Map();
 
   programarCambioEstado(examen: Exam): void {
-    if (!examen.cambioEstadoAutomatico || !examen.horaApertura || !examen.horaCierre) {
+    if (
+      !examen.cambioEstadoAutomatico ||
+      !examen.horaApertura ||
+      !examen.horaCierre
+    ) {
       return;
     }
 
-    this.cancelarTimers(examen.id);
+    this.cancelarCambioEstado(examen.id);
+
 
     const ahora = new Date();
     const horaApertura = new Date(examen.horaApertura);
@@ -25,14 +30,18 @@ export class ExamSchedulerService {
       const delay = horaApertura.getTime() - ahora.getTime();
       const timer = setTimeout(() => this.abrirExamen(examen.id), delay);
       timers.push(timer);
-      console.log(`Examen ${examen.id} programado para abrir en ${Math.round(delay / 1000)}s`);
+      console.log(
+        `Examen ${examen.id} programado para abrir en ${Math.round(delay / 1000)}s`,
+      );
     }
 
     if (ahora < horaCierre) {
       const delay = horaCierre.getTime() - ahora.getTime();
       const timer = setTimeout(() => this.cerrarExamen(examen.id), delay);
       timers.push(timer);
-      console.log(`Examen ${examen.id} programado para cerrar en ${Math.round(delay / 1000)}s`);
+      console.log(
+        `Examen ${examen.id} programado para cerrar en ${Math.round(delay / 1000)}s`,
+      );
     }
 
     if (timers.length > 0) {
@@ -67,11 +76,12 @@ export class ExamSchedulerService {
     }
   }
 
-  private cancelarTimers(examenId: number): void {
+  cancelarCambioEstado(examenId: number): void {
     const timers = this.timers.get(examenId);
     if (timers) {
-      timers.forEach(timer => clearTimeout(timer));
+      timers.forEach((timer) => clearTimeout(timer));
       this.timers.delete(examenId);
+      console.log(`✅ Timers cancelados para examen ${examenId}`);
     }
   }
 
@@ -89,7 +99,9 @@ export class ExamSchedulerService {
         this.programarCambioEstado(examen);
       }
 
-      console.log(`Scheduler inicializado: ${examenes.length} exámenes programados`);
+      console.log(
+        `Scheduler inicializado: ${examenes.length} exámenes programados`,
+      );
     } catch (error) {
       console.error("Error al inicializar scheduler:", error);
     }
