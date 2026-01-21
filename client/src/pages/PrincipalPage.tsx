@@ -14,7 +14,6 @@ import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import { io, Socket } from "socket.io-client";
 import { useState, useEffect } from "react";
-import type { ActiveAttempt } from "../types/exam-attempts.types";
 import {
   Home,
   Bell,
@@ -774,10 +773,16 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
       console.log("👨‍🎓 Estudiante inició examen:", data);
 
       setActiveAttempts((prev) => {
+        // Si ya existe, actualizar solo el estado y fecha_inicio
         if (prev.some((a) => a.id === data.attemptId)) {
-          return prev;
+          return prev.map((a) =>
+            a.id === data.attemptId
+              ? { ...a, estado: "activo", fecha_inicio: data.fecha_inicio }
+              : a,
+          );
         }
 
+        // Si no existe, agregarlo (mantener alertas que vengan de la BD)
         return [
           ...prev,
           {
@@ -789,23 +794,11 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
             fecha_inicio: data.fecha_inicio,
             tiempoTranscurrido: "0 min",
             progreso: 0,
-            alertas: 0,
+            alertas: data.alertas || 0, // Respetar el valor que viene de la BD
+            alertasNoLeidas: data.alertasNoLeidas || 0,
           },
         ];
       });
-    });
-
-    // ✅ Alerta de fraude
-    newSocket.on("fraud_alert", (data) => {
-      console.log("🚨 Alerta de fraude:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, alertas: (attempt.alertas || 0) + 1 }
-            : attempt,
-        ),
-      );
     });
 
     // ✅ Intento bloqueado
