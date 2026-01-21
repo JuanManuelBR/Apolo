@@ -11,7 +11,11 @@ import { NextFunction, Request, Response } from "express";
 const user_service = new UserService();
 
 export class UserController {
-  static async AddUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async AddUser(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const usuario_nuevo = await user_service.AddUser(req.body);
 
@@ -21,7 +25,11 @@ export class UserController {
     }
   }
 
-  static async deleteUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async deleteUser(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const cookies = req.headers.cookie;
       const id = Number(req.params.id);
@@ -38,7 +46,11 @@ export class UserController {
     }
   }
 
-  static async editUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async editUser(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const id = Number(req.params.id);
 
@@ -68,7 +80,9 @@ export class UserController {
       if (error.message.includes("No se encontró")) {
         return res
           .status(404)
-          .json({ message: "No se encontró al usuario con el id especificado" });
+          .json({
+            message: "No se encontró al usuario con el id especificado",
+          });
       }
 
       return res
@@ -93,31 +107,33 @@ export class UserController {
       const data = req.body;
       const { message, token, usuario } = await user_service.login(
         data.email,
-        data.contrasena
+        data.contrasena,
       );
 
-      console.log('🍪 Intentando setear cookie...');
-      console.log('   Token generado:', token ? 'SÍ' : 'NO');
-      
+      console.log("🍪 Intentando setear cookie...");
+      console.log("   Token generado:", token ? "SÍ" : "NO");
+
       res.cookie("token", token, {
         httpOnly: true,
         secure: false,
         sameSite: "lax",
-        maxAge: 3600000,
+        maxAge: 12 * 60 * 60 * 1000,
+        path: "/",
+        priority: "high",
       });
 
-      console.log('✅ Cookie seteada');
+      console.log("✅ Cookie seteada");
 
       // ✅ NUEVO: Marcar usuario como activo
       await user_service.setUserActive(usuario.id, true);
-      console.log('✅ Usuario marcado como activo');
+      console.log("✅ Usuario marcado como activo");
 
       return res.status(200).json({
         message,
         usuario,
       });
     } catch (error: any) {
-      console.error('❌ Error en login:', error.message);
+      console.error("❌ Error en login:", error.message);
       return res.status(400).json({ message: error.message });
     }
   }
@@ -126,22 +142,23 @@ export class UserController {
     try {
       // Obtener userId del body
       const userId = req.body.userId;
-      
+
       if (userId) {
         // ✅ Marcar usuario como inactivo
         await user_service.setUserActive(userId, false);
-        console.log('✅ Usuario marcado como inactivo');
+        console.log("✅ Usuario marcado como inactivo");
       }
-      
+
       res.clearCookie("token", {
         httpOnly: true,
         secure: false,
         sameSite: "lax",
+        path: "/",
       });
 
       return res.status(200).json({ message: "Logout exitoso" });
     } catch (error: any) {
-      console.error('❌ Error en logout:', error);
+      console.error("❌ Error en logout:", error);
       return res.status(500).json({ message: "Error al cerrar sesión" });
     }
   }
@@ -149,11 +166,15 @@ export class UserController {
   // ============================================
   // ✅ NUEVO: HEARTBEAT
   // ============================================
-  
-  static async heartbeat(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+
+  static async heartbeat(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const userId = req.body.userId;
-      
+
       if (!userId) {
         return res.status(400).json({ message: "userId requerido" });
       }
@@ -161,9 +182,9 @@ export class UserController {
       // Actualizar último acceso y mantener activo
       await user_service.setUserActive(userId, true);
 
-      return res.status(200).json({ 
+      return res.status(200).json({
         message: "Heartbeat recibido",
-        timestamp: new Date()
+        timestamp: new Date(),
       });
     } catch (error) {
       next(error);
@@ -173,8 +194,12 @@ export class UserController {
   // ============================================
   // ✅ NUEVO: OBTENER USUARIOS ACTIVOS
   // ============================================
-  
-  static async getActiveUsers(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+
+  static async getActiveUsers(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const usuarios = await user_service.getActiveUsers();
       return res.status(200).json(usuarios);
@@ -183,7 +208,11 @@ export class UserController {
     }
   }
 
-  static async getUserByEmail(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getUserByEmail(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const { email } = req.params;
       const usuario = await user_service.getUserByEmail(email);
@@ -196,7 +225,11 @@ export class UserController {
     }
   }
 
-  static async getUserByFirebaseUid(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async getUserByFirebaseUid(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const { firebaseUid } = req.params;
       const usuario = await user_service.getUserByFirebaseUid(firebaseUid);
@@ -209,7 +242,11 @@ export class UserController {
     }
   }
 
-  static async findOrCreateUser(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async findOrCreateUser(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const usuario = await user_service.findOrCreateUser(req.body);
 
@@ -221,7 +258,11 @@ export class UserController {
     }
   }
 
-  static async updateLastAccess(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  static async updateLastAccess(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
     try {
       const id = Number(req.params.id);
 
@@ -231,8 +272,8 @@ export class UserController {
 
       await user_service.updateLastAccessById(id);
 
-      return res.status(200).json({ 
-        message: "Último acceso actualizado correctamente" 
+      return res.status(200).json({
+        message: "Último acceso actualizado correctamente",
       });
     } catch (error) {
       next(error);

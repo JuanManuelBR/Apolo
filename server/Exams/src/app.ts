@@ -17,7 +17,12 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use(cors());
+app.use(
+  cors({
+    origin: "*", // o el puerto donde corre tu HTML
+    credentials: true,
+  }),
+);
 
 app.use("/api/exams", ExamRoutes);
 app.use("/api/images", ImageRoutes);

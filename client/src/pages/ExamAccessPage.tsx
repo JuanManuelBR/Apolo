@@ -11,6 +11,7 @@ interface FormData {
   nombreProfesor?: string;
   numeroTelefono?: string;
   codigoEstudiante?: string;
+  contrasena?: string;
 }
 
 export default function ExamAccessPage() {
@@ -89,7 +90,6 @@ export default function ExamAccessPage() {
   const obtenerCamposRequeridos = (examen: any): string[] => {
     const campos: string[] = [];
 
-    // ✅ CORREGIDO: Ya no se agrega 'apellido'
     if (examen.necesitaNombreCompleto) {
       campos.push("nombre");
     }
@@ -98,6 +98,9 @@ export default function ExamAccessPage() {
     }
     if (examen.necesitaCodigoEstudiantil) {
       campos.push("codigoEstudiante");
+    }
+    if (examen.necesitaContrasena) {
+      campos.push("contrasena");
     }
 
     console.log("📋 Campos requeridos detectados:", campos);
@@ -298,26 +301,33 @@ export default function ExamAccessPage() {
     setError("");
 
     try {
+      // ✅ PRIMERO: Validar contraseña con el backend
+      await examsService.validatePassword(examCode, formData.contrasena);
+
+      console.log("✅ Contraseña validada correctamente");
+
+      // ✅ SEGUNDO: Guardar datos en localStorage (SIN intento)
       const studentData = {
-        ...formData,
+        nombre: formData.nombre,
+        correoElectronico: formData.correoElectronico,
+        codigoEstudiante: formData.codigoEstudiante,
+        contrasena: formData.contrasena,
         examCode: examCode,
         startTime: new Date().toISOString(),
       };
 
-      // Guardar en localStorage
       localStorage.setItem("studentData", JSON.stringify(studentData));
       localStorage.setItem("currentExam", JSON.stringify(examenData));
 
-      console.log("💾 Datos guardados (sin crear intento aún):", studentData);
-      console.log("📘 Examen actual:", examenData);
+      console.log("💾 Datos guardados (sin intento):", studentData);
 
-      // Navegar a la siguiente página
+      // ✅ TERCERO: Navegar a exam-solver
       setTimeout(() => {
         navigate("/exam-solver");
       }, 100);
     } catch (error: any) {
-      console.error("❌ Error al preparar inicio de examen:", error);
-      setError("Error al continuar. Intenta nuevamente.");
+      console.error("❌ Error:", error);
+      setError(error.message || "Error al validar. Intenta nuevamente.");
     } finally {
       setLoading(false);
     }
@@ -529,6 +539,13 @@ export default function ExamAccessPage() {
               "codigoEstudiante",
               "codigoEstudiante",
               "Código de estudiante",
+            )}
+
+            {renderField(
+              "contrasena",
+              "contrasena",
+              "Contraseña del examen",
+              "password",
             )}
 
             {/* Botón Empezar */}

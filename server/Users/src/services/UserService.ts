@@ -6,7 +6,7 @@
 import { AppDataSource } from "@src/data-source/AppDataSource";
 import { User } from "@src/models/User";
 import axios from "axios";
-import { JWT_SECRET } from "config/config";
+import { JWT_SECRET, JWT_EXPIRES_IN } from "config/config";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
 import { throwHttpError } from "@src/utils/errors";
@@ -48,6 +48,7 @@ export class UserService {
       };
 
       const token = jwt.sign(payload, JWT_SECRET, { expiresIn: "1h" });
+
 
       // Actualizar último acceso (activo se actualiza en el controller)
       await this.user_repository.update(usuario.id, {

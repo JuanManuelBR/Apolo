@@ -22,7 +22,7 @@ export const AppDataSource = new DataSource({
   username: DB_USER,
   synchronize: true,
   logging: false,
-  entities: [ExamAttempt, ExamAnswer, ExamInProgress, ExamEvent],
+  entities: [ExamAttempt, ExamAnswer, ExamEvent, ExamInProgress],
   migrations: ["src/migrations/*.ts"],
   migrationsTableName: "migrations",
 });

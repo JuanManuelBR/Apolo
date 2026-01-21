@@ -14,6 +14,7 @@ export enum AttemptState {
   BLOCKED = "blocked",
   PAUSED = "paused",
   FINISHED = "finished",
+  ABANDONADO = "abandonado",
 }
 
 @Entity("exam_attempts")

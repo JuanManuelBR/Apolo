@@ -35,17 +35,21 @@ interface StudentData {
 
   examCode: string;
   startTime: string;
+  contrasena?: string;
 }
 
 interface ExamData {
   nombre: string;
   nombreProfesor: string;
   limiteTiempo: number;
+  consecuencia: string;
   incluirHerramientaDibujo: boolean;
   incluirCalculadoraCientifica: boolean;
   incluirHojaExcel: boolean;
   incluirJavascript: boolean;
   incluirPython: boolean;
+  descripcion: string;
+  questions: any;
 }
 
 type PanelType =
@@ -93,26 +97,17 @@ export default function SecureExamPlatform() {
 
   useEffect(() => {
     const storedStudentData = localStorage.getItem("studentData");
+    const storedExamData = localStorage.getItem("currentExam");
 
     if (storedStudentData) {
       const parsedStudent = JSON.parse(storedStudentData);
       setStudentData(parsedStudent);
+    }
 
-      // 🔹 Llamar al endpoint real del examen
-      fetch(
-        `http://localhost:3001/api/exams/forAttempt/${parsedStudent.examCode}`,
-      )
-        .then((res) => {
-          if (!res.ok) throw new Error("Error al cargar examen");
-          return res.json();
-        })
-        .then((data) => {
-          console.log("📘 Examen recibido del backend:", data);
-          setExamData(data);
-        })
-        .catch((err) => {
-          console.error("❌ Error cargando examen:", err);
-        });
+    // ✅ Solo cargar la info básica del examen (sin preguntas)
+    if (storedExamData) {
+      const parsedExam = JSON.parse(storedExamData);
+      setExamData(parsedExam);
     }
   }, []);
 
@@ -233,7 +228,10 @@ export default function SecureExamPlatform() {
 
   useEffect(() => {
     if (!examStarted || !studentData || !examData) return;
-
+    if (!examStarted || examBlocked || examData?.consecuencia === "ninguna") {
+      console.log("🔓 Protecciones desactivadas (consecuencia: ninguna)");
+      return;
+    }
     const interval = setInterval(() => {
       const start = new Date(studentData.startTime);
       const now = new Date();
@@ -261,21 +259,137 @@ export default function SecureExamPlatform() {
     return () => clearInterval(interval);
   }, [examStarted, studentData, examData]);
 
+  // ✅ Detectar DevTools abiertas desde el inicio
+  useEffect(() => {
+    if (!examStarted) return;
+
+    // Verificación inmediata
+    const checkDevTools = () => {
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
+
+      if (widthDiff > 200 || heightDiff > 200) {
+        console.log("⚠️ DevTools detectadas:", { widthDiff, heightDiff });
+        blockExam("Herramientas de desarrollador detectadas", "CRITICAL");
+        return true;
+      }
+      return false;
+    };
+
+    // Verificar inmediatamente
+    if (checkDevTools()) return;
+
+    // Verificar cada 2 segundos
+    const interval = setInterval(checkDevTools, 2000);
+
+    return () => clearInterval(interval);
+  }, [examStarted, examBlocked]);
+  useEffect(() => {
+    if (!examStarted || !studentData?.attemptId) return;
+
+    const handleBeforeUnload = async (e: BeforeUnloadEvent) => {
+      // ✅ Enviar abandono al backend
+      if (studentData.attemptId && !examBlocked) {
+        try {
+          // Usar sendBeacon para mayor confiabilidad
+          const data = JSON.stringify({
+            intento_id: studentData.attemptId,
+          });
+          const blob = new Blob([data], { type: "application/json" });
+          navigator.sendBeacon(
+            `http://localhost:3002/api/exam/attempt/${studentData.attemptId}/abandon`,
+            blob,
+          );
+        } catch (error) {
+          console.error("Error al enviar abandono:", error);
+        }
+      }
+
+      e.preventDefault();
+      e.returnValue = "El examen está en progreso.";
+      return e.returnValue;
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [examStarted, examBlocked, studentData?.attemptId]);
+
   const addSecurityViolation = (violation: string) => {
     setSecurityViolations((prev) => [
       ...prev,
       `${new Date().toLocaleTimeString()}: ${violation}`,
     ]);
   };
+  const mapReasonToEventType = (reason: string): string => {
+    if (reason.includes("pantalla completa"))
+      return "pantalla_completa_cerrada";
+    if (reason.includes("combinación") || reason.includes("tecla"))
+      return "combinacion_teclas_prohibida";
+    if (reason.includes("foco")) return "foco_perdido";
+    if (
+      reason.includes("copiar") ||
+      reason.includes("pegar") ||
+      reason.includes("imprimir")
+    )
+      return "intento_copiar_pegar_imprimir";
+    if (reason.includes("código")) return "manipulacion_codigo";
+    if (reason.includes("pestaña")) return "pestana_cambiada";
 
-  const blockExam = (
+    // Default
+    return "pestana_cambiada";
+  };
+  const blockExam = async (
     reason: string,
     severity: "INFO" | "WARNING" | "CRITICAL" = "CRITICAL",
   ) => {
     if (examBlocked) return;
-    setExamBlocked(true);
-    setBlockReason(reason);
+
+    // ✅ Si la consecuencia es "ninguna", no hacer nada
+    if (examData?.consecuencia === "ninguna") {
+      console.log("⚠️ Consecuencia 'ninguna' - ignorando evento:", reason);
+      return;
+    }
+
+    const tipoEvento = mapReasonToEventType(reason);
     addSecurityViolation(`[${severity}] ${reason}`);
+
+    // ✅ Enviar evento al backend via HTTP
+    if (studentData?.attemptId) {
+      try {
+        const response = await fetch("http://localhost:3002/api/exam/event", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            intento_id: studentData.attemptId,
+            tipo_evento: tipoEvento,
+            fecha_envio: new Date().toISOString(),
+          }),
+        });
+
+        if (!response.ok) {
+          console.error("❌ Error al enviar evento:", await response.text());
+        } else {
+          console.log("📤 Evento enviado al backend:", tipoEvento);
+        }
+      } catch (error) {
+        console.error("❌ Error enviando evento:", error);
+      }
+    }
+
+    // ✅ Si la consecuencia es "notificar", NO bloquear localmente
+    if (examData?.consecuencia === "notificar") {
+      console.log("📢 Consecuencia 'notificar' - alerta enviada sin bloquear");
+      return; // ← No bloquear, solo enviar alerta
+    }
+
+    // ✅ Si la consecuencia es "bloquear", el backend enviará "attempt_blocked" via WebSocket
+    // No bloqueamos aquí, esperamos la señal del backend
+    console.log("⏳ Esperando confirmación de bloqueo del backend...");
   };
 
   const startExam = async () => {
@@ -285,12 +399,24 @@ export default function SecureExamPlatform() {
         return;
       }
 
-      // 🟢 1. Crear intento en el backend
+      // ✅ 0. Verificar DevTools ANTES de iniciar
+      const widthDiff = window.outerWidth - window.innerWidth;
+      const heightDiff = window.outerHeight - window.innerHeight;
+
+      if (widthDiff > 200 || heightDiff > 200) {
+        alert(
+          "Por favor cierra las herramientas de desarrollador antes de iniciar el examen.",
+        );
+        return;
+      }
+
+      // ✅ 1. Crear intento en el backend
       const attemptPayload = {
         codigo_examen: studentData.examCode,
         nombre_estudiante: studentData.nombre || undefined,
         correo_estudiante: studentData.correoElectronico || undefined,
         identificacion_estudiante: studentData.codigoEstudiante || undefined,
+        contrasena: studentData.contrasena || undefined,
       };
 
       console.log("🚀 Creando intento con:", attemptPayload);
@@ -309,13 +435,28 @@ export default function SecureExamPlatform() {
       }
 
       const result = await res.json();
-
-      const { attempt, examInProgress } = result;
+      const { attempt, examInProgress, exam } = result;
 
       console.log("✅ Intento creado:", attempt);
       console.log("⏳ Exam en progreso:", examInProgress);
 
-      // 🟢 2. Actualizar studentData con datos del intento
+      // ✅ 2. AHORA SÍ cargar las preguntas del examen
+      console.log("📘 Cargando preguntas del examen...");
+      const examDetailsRes = await fetch(
+        `http://localhost:3001/api/exams/forAttempt/${studentData.examCode}`,
+      );
+
+      if (!examDetailsRes.ok) {
+        throw new Error("Error al cargar detalles del examen");
+      }
+
+      const examDetails = await examDetailsRes.json();
+      console.log("✅ Preguntas cargadas:", examDetails);
+
+      // ✅ Actualizar examData con las preguntas
+      setExamData(examDetails);
+
+      // ✅ 3. Actualizar studentData con datos del intento
       const updatedStudentData: StudentData = {
         ...studentData,
         attemptId: attempt.id,
@@ -327,7 +468,7 @@ export default function SecureExamPlatform() {
       setStudentData(updatedStudentData);
       localStorage.setItem("studentData", JSON.stringify(updatedStudentData));
 
-      // 🟢 3. Conectar al WebSocket YA con attempt válido
+      // ✅ 4. Conectar al WebSocket
       const newSocket = io("http://localhost:3002", {
         transports: ["websocket", "polling"],
       });
@@ -376,13 +517,14 @@ export default function SecureExamPlatform() {
       });
 
       newSocket.on("fraud_detected", (data) => {
-        console.log("🚨 Fraude detectado:", data);
-        addSecurityViolation(`Fraude detectado: ${data.tipo_evento}`);
+        console.log("🚨 Fraude detectado (backend confirmó):", data);
+        addSecurityViolation(`Fraude: ${data.tipo_evento}`);
       });
 
       newSocket.on("attempt_blocked", (data) => {
-        console.log("🔒 Intento bloqueado:", data);
-        blockExam(data.message, "CRITICAL");
+        console.log("🔒 Intento bloqueado por el backend:", data);
+        setExamBlocked(true);
+        setBlockReason(data.message);
       });
 
       newSocket.on("attempt_unlocked", (data) => {
@@ -401,7 +543,7 @@ export default function SecureExamPlatform() {
 
       setSocket(newSocket);
 
-      // 🟢 4. Ahora sí: marcar examen como iniciado
+      // ✅ 5. Marcar examen como iniciado
       setExamStarted(true);
       setOpenPanels(["exam"]);
       setPanelSizes([100]);
@@ -731,6 +873,7 @@ export default function SecureExamPlatform() {
             style={{ backgroundColor: bgColor, color: textColor }}
           >
             <div className="max-w-4xl mx-auto">
+              {/* Header del examen */}
               <div className="mb-8">
                 <h2
                   className="text-3xl font-bold mb-2"
@@ -739,52 +882,233 @@ export default function SecureExamPlatform() {
                     color: darkMode ? "#fbbf24" : "#d97706",
                   }}
                 >
-                  FINAL YEAR EXAMINATION 2020
+                  {examData?.nombre || "Cargando..."}
                 </h2>
                 <h3
-                  className="text-xl font-semibold"
+                  className="text-xl font-semibold mb-2"
                   style={{ color: darkMode ? "#60a5fa" : "#2563eb" }}
                 >
-                  PHYSICS - PAPER 2 - FORM 4
+                  Profesor: {examData?.nombreProfesor || "Cargando..."}
                 </h3>
-                <p className="text-lg mt-2 opacity-80">2 HOURS & 30 MINUTES</p>
+                <p className="text-lg opacity-80">
+                  Duración: {examData?.limiteTiempo || 0} minutos
+                </p>
               </div>
 
-              <div
-                className="border-t-4 border-b-4 my-6 py-6"
-                style={{
-                  borderColor: darkMode ? "#fbbf24" : "#d97706",
-                }}
-              >
-                <p
-                  className="text-center font-bold text-lg tracking-wide"
+              {/* Descripción del examen (con HTML) */}
+              {examData?.descripcion && (
+                <div
+                  className="mb-8 p-6 rounded-lg border-2"
                   style={{
-                    fontFamily: '"Georgia", serif',
+                    borderColor: darkMode ? "#374151" : "#e5e7eb",
+                    backgroundColor: darkMode ? "#1e293b" : "#f9fafb",
                   }}
                 >
-                  PLEASE DO NOT OPEN THIS PAPER UNTIL TOLD TO DO SO
-                </p>
-              </div>
+                  <h4
+                    className="text-lg font-bold mb-3"
+                    style={{ color: darkMode ? "#fbbf24" : "#d97706" }}
+                  >
+                    Instrucciones:
+                  </h4>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: examData.descripcion }}
+                    style={{
+                      color: textColor,
+                      fontFamily: '"Georgia", serif',
+                      lineHeight: "1.8",
+                    }}
+                  />
+                </div>
+              )}
 
-              <div
-                className="space-y-4 mt-6 leading-relaxed"
-                style={{
-                  fontFamily: '"Georgia", serif',
-                }}
-              >
-                <p>
-                  <strong>1.</strong> This question paper consists of three
-                  sections: Section A, Section B and Section C.
-                </p>
-                <p>
-                  <strong>2.</strong> Answer all questions in Section A. Write
-                  your answers for Section A in the spaces provided in the
-                  question paper.
-                </p>
-                <p>
-                  <strong>3.</strong> Write your answers for Section B and
-                  Section C in the answer booklet provided.
-                </p>
+              {/* Preguntas */}
+              <div className="space-y-8">
+                {examData?.questions?.map((question: any, index: number) => (
+                  <div
+                    key={question.id}
+                    className="p-6 rounded-lg border-2"
+                    style={{
+                      borderColor: darkMode ? "#374151" : "#e5e7eb",
+                      backgroundColor: darkMode ? "#1e293b" : "#ffffff",
+                    }}
+                  >
+                    {/* Número y enunciado */}
+                    <div className="mb-4">
+                      <div className="flex items-start gap-3 mb-2">
+                        <span
+                          className="font-bold text-lg px-3 py-1 rounded"
+                          style={{
+                            backgroundColor: darkMode ? "#374151" : "#e5e7eb",
+                            color: darkMode ? "#fbbf24" : "#d97706",
+                          }}
+                        >
+                          {index + 1}
+                        </span>
+                        <div className="flex-1">
+                          <p
+                            className="text-lg font-medium"
+                            style={{ fontFamily: '"Georgia", serif' }}
+                          >
+                            {question.enunciado}
+                          </p>
+                          <p className="text-sm opacity-60 mt-1">
+                            Puntaje: {question.puntaje} punto(s)
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Imagen si existe */}
+                    {question.nombreImagen && (
+                      <div className="mb-4">
+                        <img
+                          src={`http://localhost:3001/uploads/images/${question.nombreImagen}`}
+                          alt="Imagen de la pregunta"
+                          className="max-w-full h-auto rounded-lg"
+                          style={{ maxHeight: "400px" }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Renderizar según tipo de pregunta */}
+                    {question.type === "open" && (
+                      <div>
+                        <label className="block text-sm font-medium mb-2 opacity-80">
+                          Respuesta:
+                        </label>
+                        <textarea
+                          className="w-full p-4 rounded-lg resize-none border-2"
+                          style={{
+                            backgroundColor: darkMode ? "#0f172a" : "#f9fafb",
+                            color: textColor,
+                            borderColor: darkMode ? "#475569" : "#d1d5db",
+                            minHeight: "150px",
+                          }}
+                          placeholder="Escribe tu respuesta aquí..."
+                        />
+                      </div>
+                    )}
+
+                    {question.type === "test" && (
+                      <div className="space-y-3">
+                        {question.options?.map(
+                          (option: any, optIdx: number) => (
+                            <label
+                              key={option.id}
+                              className="flex items-center gap-3 p-3 rounded-lg cursor-pointer hover:bg-opacity-50 transition-all"
+                              style={{
+                                backgroundColor: darkMode
+                                  ? "#374151"
+                                  : "#f3f4f6",
+                              }}
+                            >
+                              <input
+                                type="radio"
+                                name={`question_${question.id}`}
+                                className="w-5 h-5"
+                                style={{ accentColor: "#3b82f6" }}
+                              />
+                              <span className="flex-1">{option.texto}</span>
+                            </label>
+                          ),
+                        )}
+                      </div>
+                    )}
+
+                    {question.type === "fill_blanks" && (
+                      <div>
+                        <label className="block text-sm font-medium mb-3 opacity-80">
+                          Completa los espacios en blanco:
+                        </label>
+                        <div className="text-lg leading-relaxed">
+                          {(() => {
+                            const texto = question.textoCorrecto || "";
+                            const partes = texto.split("___");
+
+                            return partes.map((parte: string, idx: number) => (
+                              <span key={idx}>
+                                <span>{parte}</span>
+                                {idx < partes.length - 1 && (
+                                  <input
+                                    type="text"
+                                    className="inline-block mx-2 px-3 py-1 rounded border-2 min-w-[120px]"
+                                    style={{
+                                      backgroundColor: darkMode
+                                        ? "#0f172a"
+                                        : "#f9fafb",
+                                      color: textColor,
+                                      borderColor: darkMode
+                                        ? "#475569"
+                                        : "#3b82f6",
+                                    }}
+                                    placeholder=""
+                                  />
+                                )}
+                              </span>
+                            ));
+                          })()}
+                        </div>
+                      </div>
+                    )}
+
+                    {question.type === "match" && (
+                      <div>
+                        <label className="block text-sm font-medium mb-3 opacity-80">
+                          Conecta los pares correctos:
+                        </label>
+                        <div className="space-y-3">
+                          {question.pares?.map((par: any, parIdx: number) => (
+                            <div
+                              key={par.id}
+                              className="grid grid-cols-2 gap-4 p-3 rounded-lg"
+                              style={{
+                                backgroundColor: darkMode
+                                  ? "#374151"
+                                  : "#f3f4f6",
+                              }}
+                            >
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
+                                  style={{
+                                    backgroundColor: darkMode
+                                      ? "#1e293b"
+                                      : "#e5e7eb",
+                                    color: darkMode ? "#fbbf24" : "#d97706",
+                                  }}
+                                >
+                                  {String.fromCharCode(65 + parIdx)}
+                                </span>
+                                <span>{par.itemA.text}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  className="flex-1 px-3 py-2 rounded border"
+                                  style={{
+                                    backgroundColor: darkMode
+                                      ? "#0f172a"
+                                      : "#ffffff",
+                                    color: textColor,
+                                    borderColor: darkMode
+                                      ? "#475569"
+                                      : "#d1d5db",
+                                  }}
+                                >
+                                  <option value="">Selecciona...</option>
+                                  {question.pares.map((p: any, idx: number) => (
+                                    <option key={p.id} value={p.itemB.id}>
+                                      {idx + 1}. {p.itemB.text}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
           </div>

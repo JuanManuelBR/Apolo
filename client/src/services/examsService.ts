@@ -1,6 +1,7 @@
 // src/services/examsService.ts
 import { examsApi } from "./examsApi";
 import type { Pregunta } from "../components/CrearPreguntas";
+import type { validatePassword } from "firebase/auth";
 
 // ==================== TIPOS ====================
 
@@ -366,6 +367,23 @@ export const examsService = {
     }
   },
 
+  validatePassword: async (
+    codigo_examen: string,
+    contrasena?: string,
+  ): Promise<{ valid: boolean }> => {
+    try {
+      const response = await examsApi.post("/validate-password", {
+        codigo_examen,
+        contrasena,
+      });
+
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || "Error al validar contraseña",
+      );
+    }
+  },
 
   /**
    * Obtener examen por código (PÚBLICO - para estudiantes)

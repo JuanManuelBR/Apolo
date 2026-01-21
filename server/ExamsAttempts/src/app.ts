@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(cors({
-  origin: 'http://localhost:5173', // o el puerto donde corre tu HTML
+  origin: '*', // o el puerto donde corre tu HTML
   credentials: true
 }));
 app.use("/api/exam", examRouter);

@@ -21,4 +21,11 @@ router.post("/attempt/:intento_id/finish", ExamController.finishAttempt);
 // Desbloquear intento (solo profesor)
 router.post("/attempt/:intento_id/unlock", ExamController.unlockAttempt);
 
+router.post("/attempt/:intento_id/abandon", ExamController.abandonAttempt);
+// Obtener intentos activos de un examen
+router.get("/:examId/active-attempts", ExamController.getActiveAttemptsByExam);
+
+// Obtener eventos de un intento
+router.get("/attempt/:attemptId/events", ExamController.getAttemptEvents);
+
 export default router;
