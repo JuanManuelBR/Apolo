@@ -6,6 +6,8 @@ import {
   ChevronUp,
   Calendar,
   X,
+  AlertCircle,
+  HelpCircle,
 } from "lucide-react";
 import EditorTexto from "../../src/components/EditorTexto";
 import SeccionSeguridad from "./SeccionSeguridad";
@@ -70,8 +72,27 @@ export default function CrearExamen({
     { id: "codigoEstudiante", nombre: "Código estudiante", activo: false },
   ]);
 
-  const [fechaInicio, setFechaInicio] = useState("2024-01-15T07:00");
-  const [fechaCierre, setFechaCierre] = useState("2024-01-15T07:40");
+  const obtenerFechaActual = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const [fechaInicio, setFechaInicio] = useState(obtenerFechaActual());
+  const [fechaCierre, setFechaCierre] = useState(() => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 40);
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  });
   const [fechaInicioHabilitada, setFechaInicioHabilitada] = useState(false);
   const [fechaCierreHabilitada, setFechaCierreHabilitada] = useState(false);
   const [limiteHabilitado, setLimiteHabilitado] = useState(false);
@@ -91,6 +112,13 @@ export default function CrearExamen({
   const [seccion5Abierta, setSeccion5Abierta] = useState(false);
   const [seccion6Abierta, setSeccion6Abierta] = useState(false);
 
+  const [mostrarTooltipNombre, setMostrarTooltipNombre] = useState(false);
+  const [mostrarTooltipTipoPregunta, setMostrarTooltipTipoPregunta] = useState(false);
+  const [mostrarTooltipPregunta, setMostrarTooltipPregunta] = useState(false);
+  const [mostrarTooltipDatosEstudiante, setMostrarTooltipDatosEstudiante] = useState(false);
+  const [mostrarTooltipTiempo, setMostrarTooltipTiempo] = useState(false);
+  const [mostrarTooltipSeguridad, setMostrarTooltipSeguridad] = useState(false);
+
   const [herramientasActivas, setHerramientasActivas] = useState({
     dibujo: false,
     calculadora: false,
@@ -98,6 +126,54 @@ export default function CrearExamen({
     javascript: false,
     python: false,
   });
+
+  const obtenerFechaMinima = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    const hours = String(now.getHours()).padStart(2, '0');
+    const minutes = String(now.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  const handleFechaInicioChange = (nuevaFecha: string) => {
+    setFechaInicio(nuevaFecha);
+    if (fechaCierreHabilitada && nuevaFecha >= fechaCierre) {
+      const fecha = new Date(nuevaFecha);
+      fecha.setHours(fecha.getHours() + 1);
+      const year = fecha.getFullYear();
+      const month = String(fecha.getMonth() + 1).padStart(2, '0');
+      const day = String(fecha.getDate()).padStart(2, '0');
+      const hours = String(fecha.getHours()).padStart(2, '0');
+      const minutes = String(fecha.getMinutes()).padStart(2, '0');
+      setFechaCierre(`${year}-${month}-${day}T${hours}:${minutes}`);
+    }
+  };
+
+  const handleFechaCierreChange = (nuevaFecha: string) => {
+    setFechaCierre(nuevaFecha);
+  };
+
+  const validarFechaCierre = () => {
+    if (fechaInicioHabilitada && fechaCierre) {
+      const fechaInicioDate = new Date(fechaInicio);
+      const fechaCierreDate = new Date(fechaCierre);
+      
+      if (fechaCierreDate <= fechaInicioDate) {
+        const fechaAjustada = new Date(fechaInicioDate);
+        fechaAjustada.setHours(fechaAjustada.getHours() + 1);
+        
+        const year = fechaAjustada.getFullYear();
+        const month = String(fechaAjustada.getMonth() + 1).padStart(2, '0');
+        const day = String(fechaAjustada.getDate()).padStart(2, '0');
+        const hours = String(fechaAjustada.getHours()).padStart(2, '0');
+        const minutes = String(fechaAjustada.getMinutes()).padStart(2, '0');
+        
+        setFechaCierre(`${year}-${month}-${day}T${hours}:${minutes}`);
+      }
+    }
+  };
 
   const toggleCampo = (id: string) => {
     setCamposEstudiante((campos) =>
@@ -207,7 +283,7 @@ export default function CrearExamen({
     setLimiteHabilitado(false);
     setContraseñaExamen("");
     setContraseñaHabilitada(false);
-    setContraseñaValida(true); // Agregar esta línea
+    setContraseñaValida(true);
     setConsecuenciaAbandono("");
     setHerramientasActivas({
       dibujo: false,
@@ -239,6 +315,11 @@ export default function CrearExamen({
       return;
     }
 
+    if (!camposEstudiante.some((c) => c.activo)) {
+      alert("Por favor, seleccione al menos un dato del estudiante");
+      return;
+    }
+
     if (!consecuenciaAbandono) {
       alert("Por favor, seleccione una consecuencia de abandono");
       return;
@@ -254,8 +335,6 @@ export default function CrearExamen({
       return;
     }
 
-    // Validar contraseña si está habilitada
-    // ✅ NUEVA VALIDACIÓN
     if (contraseñaHabilitada) {
       if (!contraseñaExamen.trim()) {
         alert("Por favor, ingrese una contraseña para el examen");
@@ -383,9 +462,20 @@ export default function CrearExamen({
             scrollbar-width: thin;
             scrollbar-color: #475569 #1e293b;
           }
+
+          input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+            background: transparent;
+          }
           
-          input[type="datetime-local"] {
-            color-scheme: light !important;
+          input[type="datetime-local"]::-webkit-datetime-edit {
+            background: transparent;
+          }
+          
+          input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>');
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
           }
         `
             : `
@@ -413,6 +503,10 @@ export default function CrearExamen({
             scrollbar-width: thin;
             scrollbar-color: #cbd5e1 #f1f5f9;
           }
+          
+          input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+            cursor: pointer;
+          }
         `
         }
       `}</style>
@@ -436,6 +530,23 @@ export default function CrearExamen({
             >
               Información básica
             </div>
+            {nombreExamen.trim() ? (
+              <Check className={`w-5 h-5 ${textCheck}`} />
+            ) : (
+              <div className="relative">
+                <AlertCircle
+                  className="w-5 h-5 text-red-500 cursor-pointer"
+                  onMouseEnter={() => setMostrarTooltipNombre(true)}
+                  onMouseLeave={() => setMostrarTooltipNombre(false)}
+                />
+                {mostrarTooltipNombre && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 ml-7 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                    Debes escribir el nombre del examen
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {seccion1Abierta ? (
             <ChevronUp
@@ -450,16 +561,29 @@ export default function CrearExamen({
         {seccion1Abierta && (
           <div className="px-6 pb-6 space-y-4">
             <div className="space-y-2">
-              <label
-                className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Nombre del examen
-              </label>
+              <div className="flex items-center justify-between">
+                <label
+                  className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                >
+                  Nombre del examen <span className="text-red-500">*</span>
+                </label>
+                <span
+                  className={`text-xs ${nombreExamen.length > 100 ? "text-red-500" : darkMode ? "text-gray-500" : "text-gray-400"}`}
+                >
+                  {nombreExamen.length}/100
+                </span>
+              </div>
               <input
                 type="text"
                 value={nombreExamen}
-                onChange={(e) => setNombreExamen(e.target.value)}
+                onChange={(e) => {
+                  const nuevoValor = e.target.value;
+                  if (nuevoValor.length <= 100) {
+                    setNombreExamen(nuevoValor);
+                  }
+                }}
                 placeholder="Examen Parcial #1"
+                maxLength={100}
                 className={`w-full px-4 py-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
               />
             </div>
@@ -471,9 +595,10 @@ export default function CrearExamen({
               </label>
               <EditorTexto
                 value={descripcionExamen}
-                onChange={setDescripcionExamen}
+                onChange={(value) => setDescripcionExamen(value)}
                 darkMode={darkMode}
                 placeholder="Instrucciones..."
+                maxLength={1000}
               />
             </div>
           </div>
@@ -499,7 +624,29 @@ export default function CrearExamen({
             >
               Preguntas del examen
             </div>
-            {tipoPregunta && <Check className={`w-5 h-5 ${textCheck}`} />}
+            {tipoPregunta && 
+              ((tipoPregunta === "pdf" && archivoPDF) || 
+               (tipoPregunta === "automatico" && preguntasAutomaticas.length > 0)) ? (
+              <Check className={`w-5 h-5 ${textCheck}`} />
+            ) : (
+              <div className="relative">
+                <AlertCircle
+                  className="w-5 h-5 text-red-500 cursor-pointer"
+                  onMouseEnter={() => setMostrarTooltipPregunta(true)}
+                  onMouseLeave={() => setMostrarTooltipPregunta(false)}
+                />
+                {mostrarTooltipPregunta && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 ml-7 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                    {!tipoPregunta 
+                      ? "Debes seleccionar una opción"
+                      : tipoPregunta === "pdf" 
+                      ? "Debes subir un archivo PDF" 
+                      : "Debes añadir al menos una pregunta"}
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
           {seccion2Abierta ? (
             <ChevronUp
@@ -543,9 +690,10 @@ export default function CrearExamen({
                       className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
                     >
                       {titulo}
+                      {tipoPregunta === tipo && <span className="text-red-500 ml-1">*</span>}
                     </div>
                     <p
-                      className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                      className={`text-base mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
                     >
                       {desc}
                     </p>
@@ -620,8 +768,22 @@ export default function CrearExamen({
             >
               Datos del estudiante
             </div>
-            {camposEstudiante.some((c) => c.activo) && (
+            {camposEstudiante.some((c) => c.activo) ? (
               <Check className={`w-5 h-5 ${textCheck}`} />
+            ) : (
+              <div className="relative">
+                <AlertCircle
+                  className="w-5 h-5 text-red-500 cursor-pointer"
+                  onMouseEnter={() => setMostrarTooltipDatosEstudiante(true)}
+                  onMouseLeave={() => setMostrarTooltipDatosEstudiante(false)}
+                />
+                {mostrarTooltipDatosEstudiante && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 ml-7 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                    Debes seleccionar al menos un dato del estudiante
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           {seccion3Abierta ? (
@@ -637,10 +799,10 @@ export default function CrearExamen({
         {seccion3Abierta && (
           <div className="px-6 pb-6 space-y-3">
             <p
-              className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"} mb-4`}
+              className={`text-base ${darkMode ? "text-gray-400" : "text-gray-600"} mb-4`}
             >
               Seleccione qué información deberá proporcionar el estudiante antes
-              de iniciar el examen.
+              de iniciar el examen. <span className="text-red-500">*</span>
             </p>
             {camposEstudiante.map((campo) => (
               <div
@@ -683,9 +845,23 @@ export default function CrearExamen({
             >
               Tiempo
             </div>
-            {(fechaInicioHabilitada ||
-              fechaCierreHabilitada ||
-              limiteHabilitado) && <Check className={`w-5 h-5 ${textCheck}`} />}
+            {limiteHabilitado && !opcionTiempoAgotado ? (
+              <div className="relative">
+                <AlertCircle
+                  className="w-5 h-5 text-red-500 cursor-pointer"
+                  onMouseEnter={() => setMostrarTooltipTiempo(true)}
+                  onMouseLeave={() => setMostrarTooltipTiempo(false)}
+                />
+                {mostrarTooltipTiempo && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 ml-7 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                    Debes seleccionar qué pasa cuando se agote el tiempo
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Check className={`w-5 h-5 ${textCheck}`} />
+            )}
           </div>
           {seccion4Abierta ? (
             <ChevronUp
@@ -707,12 +883,12 @@ export default function CrearExamen({
                   Abrir el examen
                 </label>
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <Calendar className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                   <button
                     onClick={() =>
                       setFechaInicioHabilitada(!fechaInicioHabilitada)
                     }
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${fechaInicioHabilitada ? bgCheckbox : "border-gray-300"}`}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${fechaInicioHabilitada ? bgCheckbox : darkMode ? "border-gray-600" : "border-gray-300"}`}
                   >
                     {fechaInicioHabilitada && (
                       <Check className="w-3 h-3 text-white" />
@@ -729,10 +905,11 @@ export default function CrearExamen({
                 <input
                   type="datetime-local"
                   value={fechaInicio}
-                  onChange={(e) => setFechaInicio(e.target.value)}
+                  onChange={(e) => handleFechaInicioChange(e.target.value)}
+                  min={obtenerFechaMinima()}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     darkMode
-                      ? "bg-slate-700 border-slate-600 text-white"
+                      ? "bg-slate-800 border-slate-700 text-white [color-scheme:dark]"
                       : "bg-white border-gray-300"
                   }`}
                 />
@@ -747,12 +924,12 @@ export default function CrearExamen({
                   Cerrar el examen
                 </label>
                 <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-gray-400" />
+                  <Calendar className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                   <button
                     onClick={() =>
                       setFechaCierreHabilitada(!fechaCierreHabilitada)
                     }
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${fechaCierreHabilitada ? bgCheckbox : "border-gray-300"}`}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${fechaCierreHabilitada ? bgCheckbox : darkMode ? "border-gray-600" : "border-gray-300"}`}
                   >
                     {fechaCierreHabilitada && (
                       <Check className="w-3 h-3 text-white" />
@@ -769,10 +946,11 @@ export default function CrearExamen({
                 <input
                   type="datetime-local"
                   value={fechaCierre}
-                  onChange={(e) => setFechaCierre(e.target.value)}
+                  onChange={(e) => handleFechaCierreChange(e.target.value)}
+                  onBlur={validarFechaCierre}
                   className={`w-full px-4 py-2.5 rounded-lg border ${
                     darkMode
-                      ? "bg-slate-700 border-slate-600 text-white"
+                      ? "bg-slate-800 border-slate-700 text-white [color-scheme:dark]"
                       : "bg-white border-gray-300"
                   }`}
                 />
@@ -786,9 +964,16 @@ export default function CrearExamen({
                 >
                   Límite de tiempo
                 </label>
+                <div className="relative group">
+                  <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                  <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '200px' }}>
+                    Establece un tiempo máximo para completar el examen
+                    <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                </div>
                 <button
                   onClick={() => setLimiteHabilitado(!limiteHabilitado)}
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center ${limiteHabilitado ? bgCheckbox : "border-gray-300"}`}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center ${limiteHabilitado ? bgCheckbox : darkMode ? "border-gray-600" : "border-gray-300"}`}
                 >
                   {limiteHabilitado && <Check className="w-3 h-3 text-white" />}
                 </button>
@@ -815,26 +1000,38 @@ export default function CrearExamen({
               )}
             </div>
 
-            <div className="space-y-3">
-              <label
-                className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-              >
-                Cuando se agote el tiempo
-              </label>
-              <select
-                value={opcionTiempoAgotado}
-                onChange={(e) =>
-                  setOpcionTiempoAgotado(e.target.value as OpcionTiempoAgotado)
-                }
-                className={`w-full px-4 py-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
-              >
-                {opcionesTiempoAgotado.map((op) => (
-                  <option key={op.value} value={op.value}>
-                    {op.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {limiteHabilitado && (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <label
+                    className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  >
+                    Cuando se agote el tiempo
+                  </label>
+                  <span className="text-red-500">*</span>
+                  <div className="relative group">
+                    <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                    <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '220px', maxWidth: '280px' }}>
+                      Define qué sucede cuando el tiempo límite se agota
+                      <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                    </div>
+                  </div>
+                </div>
+                <select
+                  value={opcionTiempoAgotado}
+                  onChange={(e) =>
+                    setOpcionTiempoAgotado(e.target.value as OpcionTiempoAgotado)
+                  }
+                  className={`w-full px-4 py-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
+                >
+                  {opcionesTiempoAgotado.map((op) => (
+                    <option key={op.value} value={op.value}>
+                      {op.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -858,9 +1055,7 @@ export default function CrearExamen({
             >
               Herramientas
             </div>
-            {Object.values(herramientasActivas).some((v) => v) && (
-              <Check className={`w-5 h-5 ${textCheck}`} />
-            )}
+            <Check className={`w-5 h-5 ${textCheck}`} />
           </div>
           {seccion5Abierta ? (
             <ChevronUp
@@ -900,8 +1095,24 @@ export default function CrearExamen({
             >
               Seguridad
             </div>
-            {consecuenciaAbandono && (
+            {consecuenciaAbandono && (!contraseñaHabilitada || (contraseñaHabilitada && contraseñaValida && contraseñaExamen.trim())) ? (
               <Check className={`w-5 h-5 ${textCheck}`} />
+            ) : (
+              <div className="relative">
+                <AlertCircle
+                  className="w-5 h-5 text-red-500 cursor-pointer"
+                  onMouseEnter={() => setMostrarTooltipSeguridad(true)}
+                  onMouseLeave={() => setMostrarTooltipSeguridad(false)}
+                />
+                {mostrarTooltipSeguridad && (
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 ml-7 z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-nowrap">
+                    {!consecuenciaAbandono 
+                      ? "Debes seleccionar la consecuencia de abandono"
+                      : "Debes ingresar una contraseña válida"}
+                    <div className="absolute top-1/2 -translate-y-1/2 -left-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                  </div>
+                )}
+              </div>
             )}
           </div>
           {seccion6Abierta ? (
@@ -950,6 +1161,7 @@ export default function CrearExamen({
           disabled={
             !nombreExamen.trim() ||
             !tipoPregunta ||
+            !camposEstudiante.some((c) => c.activo) ||
             !consecuenciaAbandono ||
             guardando ||
             (contraseñaHabilitada && !contraseñaValida)

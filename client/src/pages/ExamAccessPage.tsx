@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { ArrowLeft, Moon, Sun } from "lucide-react";
+import { Moon, Sun } from "lucide-react";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import fondoImagen from "../../assets/fondo.webp";
 import { examsService } from "../services/examsService";
+
 // Tipos para los datos del formulario
 interface FormData {
   nombre?: string;
@@ -74,8 +75,7 @@ export default function ExamAccessPage() {
       console.log("📊 currentExam:", examen);
 
       // Redirigir en la misma ventana a ExamSolver
-      // Intentar diferentes rutas posibles
-      const rutaExamen = "/exam-solver"; // Cambia esto si tu ruta es diferente
+      const rutaExamen = "/exam-solver";
       console.log("➡️ Redirigiendo a:", rutaExamen);
 
       // Usar setTimeout para asegurar que localStorage se guarde antes de navegar
@@ -250,11 +250,7 @@ export default function ExamAccessPage() {
     }
   };
 
-  const handleBackToLogin = () => {
-    navigate("/teacher-login");
-  };
-
-  // ✅ CORREGIDO: Validar campos del formulario sin apellido
+  // Validar campos del formulario
   const validateForm = (): boolean => {
     const errors: Partial<FormData> = {};
 
@@ -301,12 +297,12 @@ export default function ExamAccessPage() {
     setError("");
 
     try {
-      // ✅ PRIMERO: Validar contraseña con el backend
+      // Validar contraseña con el backend
       await examsService.validatePassword(examCode, formData.contrasena);
 
       console.log("✅ Contraseña validada correctamente");
 
-      // ✅ SEGUNDO: Guardar datos en localStorage (SIN intento)
+      // Guardar datos en localStorage
       const studentData = {
         nombre: formData.nombre,
         correoElectronico: formData.correoElectronico,
@@ -321,7 +317,7 @@ export default function ExamAccessPage() {
 
       console.log("💾 Datos guardados (sin intento):", studentData);
 
-      // ✅ TERCERO: Navegar a exam-solver
+      // Navegar a exam-solver
       setTimeout(() => {
         navigate("/exam-solver");
       }, 100);
@@ -409,22 +405,6 @@ export default function ExamAccessPage() {
           />
         </div>
       </div>
-
-      {/* Botón Volver */}
-      <button
-        type="button"
-        onClick={handleBackToLogin}
-        className={`absolute top-8 left-8 z-10 flex items-center gap-2 px-4 py-2 
-                   backdrop-blur-sm rounded-lg text-sm font-medium
-                   transition-all hover:shadow-lg ${
-                     darkMode
-                       ? "bg-slate-800/90 text-gray-200 hover:bg-slate-800"
-                       : "bg-white/90 text-[#003876] hover:bg-white"
-                   }`}
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Iniciar Sesión
-      </button>
 
       {/* Botón de tema */}
       <button
@@ -527,7 +507,7 @@ export default function ExamAccessPage() {
               </div>
             </div>
 
-            {/* ✅ CORREGIDO: Campos del formulario sin apellido */}
+            {/* Campos del formulario */}
             {renderField("nombre", "nombre", "Nombre completo")}
             {renderField(
               "correoElectronico",

@@ -1,5 +1,5 @@
 import { useEditor, EditorContent } from '@tiptap/react';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
@@ -86,6 +86,7 @@ interface EditorTextoProps {
   darkMode?: boolean;
   placeholder?: string;
   minHeight?: string;
+  maxLength?: number;
 }
 
 export default function EditorTexto({
@@ -94,7 +95,10 @@ export default function EditorTexto({
   darkMode = false,
   placeholder = 'Escribe aquí...',
   minHeight = '200px',
+  maxLength,
 }: EditorTextoProps) {
+  const [characterCount, setCharacterCount] = useState(0);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -116,7 +120,22 @@ export default function EditorTexto({
     ],
     content: value,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      
+      // Calcular caracteres del texto plano
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = html;
+      const textLength = (tempDiv.textContent || tempDiv.innerText || '').length;
+      setCharacterCount(textLength);
+      
+      // Si hay límite y se excede, revertir al contenido anterior
+      if (maxLength && textLength > maxLength) {
+        editor.commands.setContent(value);
+        setCharacterCount(getTextLength(value));
+        return;
+      }
+      
+      onChange(html);
     },
     editorProps: {
       attributes: {
@@ -127,12 +146,28 @@ export default function EditorTexto({
     },
   });
 
+  // Función auxiliar para obtener longitud del texto
+  const getTextLength = (html: string) => {
+    if (!html) return 0;
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    return (tempDiv.textContent || tempDiv.innerText || '').length;
+  };
+
   // Sincronizar el contenido del editor cuando value cambie externamente
   useEffect(() => {
     if (editor && value !== editor.getHTML()) {
       editor.commands.setContent(value);
+      setCharacterCount(getTextLength(value));
     }
   }, [value, editor]);
+
+  // Actualizar contador inicial
+  useEffect(() => {
+    if (editor && characterCount === 0) {
+      setCharacterCount(getTextLength(value));
+    }
+  }, [editor]);
 
   if (!editor) {
     return null;
@@ -189,6 +224,9 @@ export default function EditorTexto({
       {children}
     </button>
   );
+
+  const isLimitReached = maxLength && characterCount >= maxLength;
+  const isNearLimit = maxLength && characterCount >= maxLength * 0.95;
 
   return (
     <div className="w-full">
@@ -344,16 +382,41 @@ export default function EditorTexto({
         >
           <ListOrdered className="w-4 h-4" />
         </ToolbarButton>
+
+        {/* Contador de caracteres si hay límite */}
+        {maxLength && (
+          <>
+            <div className={`w-px h-6 ${darkMode ? 'bg-slate-600' : 'bg-gray-400'}`} />
+            <div className={`text-xs px-2 font-medium ${
+              isLimitReached 
+                ? 'text-red-500' 
+                : isNearLimit 
+                ? 'text-yellow-500' 
+                : darkMode 
+                ? 'text-gray-400' 
+                : 'text-gray-600'
+            }`}>
+              {characterCount}/{maxLength}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Editor */}
       <div
         className={`rounded-b-lg border border-t-0 ${
           darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-300'
-        }`}
+        } ${isLimitReached ? 'ring-2 ring-red-500' : ''}`}
       >
         <EditorContent editor={editor} />
       </div>
+
+      {/* Advertencia de límite alcanzado */}
+      {maxLength && isLimitReached && (
+        <p className="text-xs text-red-500 mt-1">
+          ⚠️ Has alcanzado el límite de {maxLength} caracteres. No se puede agregar más texto.
+        </p>
+      )}
 
       {/* Estilos */}
       <style>{`

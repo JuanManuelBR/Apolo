@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Eye, EyeOff, Check } from 'lucide-react';
+import { Shield, Eye, EyeOff, Check, HelpCircle } from 'lucide-react';
 
 interface SeccionSeguridadProps {
   darkMode: boolean;
@@ -33,7 +33,6 @@ export default function SeccionSeguridad({
   }, [contraseña, contraseñaHabilitada]);
 
   const validarContraseña = (pass: string) => {
-    // Si la contraseña no está habilitada, siempre es válida
     if (!contraseñaHabilitada) {
       setContraseñaValida(true);
       if (onContraseñaValidaChange) {
@@ -42,7 +41,6 @@ export default function SeccionSeguridad({
       return;
     }
     
-    // Si está habilitada pero vacía, no es válida
     if (pass === '') {
       setContraseñaValida(false);
       if (onContraseñaValidaChange) {
@@ -51,7 +49,6 @@ export default function SeccionSeguridad({
       return;
     }
     
-    // ✅ NUEVAS REGLAS: Mínimo 5, máximo 10, cualquier carácter
     const longitudValida = pass.length >= 5 && pass.length <= 10;
     setContraseñaValida(longitudValida);
     if (onContraseñaValidaChange) {
@@ -61,7 +58,6 @@ export default function SeccionSeguridad({
 
   const handleContraseñaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const nuevaContraseña = e.target.value;
-    // Limitar a 10 caracteres máximo
     if (nuevaContraseña.length <= 10) {
       setContraseña(nuevaContraseña);
       onContraseñaChange(nuevaContraseña);
@@ -175,10 +171,19 @@ export default function SeccionSeguridad({
 
       {/* Consecuencia de abandono */}
       <div className="space-y-3">
-        <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-          Consecuencia de abandono <span className="text-red-500">*</span>
-        </label>
-        <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <label className={`block text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+            Consecuencia de abandono <span className="text-red-500">*</span>
+          </label>
+          <div className="relative group">
+            <HelpCircle className={`w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'} cursor-help`} />
+            <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '240px', maxWidth: '320px' }}>
+              Define qué sucede si el estudiante cambia de pestaña o abandona la ventana del examen durante su realización
+              <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+            </div>
+          </div>
+        </div>
+        <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
           ¿Qué sucede si el estudiante abandona la ventana del examen?
         </p>
         <select
@@ -192,21 +197,9 @@ export default function SeccionSeguridad({
         >
           <option value="">Seleccionar una consecuencia...</option>
           <option value="notificar-profesor">Notificar al profesor pero no bloquear al alumno</option>
-          <option value="desbloqueo-manual">Pedir una explicación y desbloqueo manual (por el profesor)</option>
+          <option value="desbloqueo-manual">Desbloqueo manual (por el profesor)</option>
           <option value="desactivar-proteccion">Desactivar por completo la protección contra trampas</option>
         </select>
-      </div>
-
-      {/* Información adicional */}
-      <div className={`p-4 rounded-lg border ${
-        darkMode 
-          ? 'bg-slate-800/50 border-slate-700' 
-          : 'bg-blue-50 border-blue-200'
-      }`}>
-        <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-blue-900'}`}>
-          <strong>Nota:</strong> Las opciones de seguridad ayudan a mantener la integridad del examen.
-          {contraseñaHabilitada && ' Los estudiantes necesitarán la contraseña para acceder al examen.'}
-        </p>
       </div>
     </div>
   );
