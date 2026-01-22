@@ -5,14 +5,13 @@
 
 // Importar componentes reutilizables
 import ListaExamenes from "../components/ListaExamen";
-import StudentMonitor from "../components/StudentMonitor";
 import NotificationItem from "../components/NotificationItem";
 import MiPerfil from "../components/MiPerfil";
 import CrearExamen from "../components/CrearExamen";
 import HomeContent from "../components/Homecontent";
+import ExamenVigilancia from "../components/ExamenVigilancia";
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
-import { io, Socket } from "socket.io-client";
 import { useState, useEffect } from "react";
 import {
   Home,
@@ -28,9 +27,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
-import { examsService } from "../services/examsService";
-import { examsAttemptsService } from "../services/examsAttempts";
-import AlertasModal from "../components/AlertasModal";
 
 export default function LMSDashboard() {
   const [activeMenu, setActiveMenu] = useState("home");
@@ -653,86 +649,21 @@ function ListaExamenesContent({
   );
 }
 
+
 function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
   const [selectedExam, setSelectedExam] = useState<any>(null);
   const [openExams, setOpenExams] = useState<any[]>([]);
-  const [activeAttempts, setActiveAttempts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [socket, setSocket] = useState<Socket | null>(null);
-  const [modalAlertas, setModalAlertas] = useState<{
-    show: boolean;
-    attemptId: number | null;
-    nombre: string;
-  }>({
-    show: false,
-    attemptId: null,
-    nombre: "",
-  });
-  const [alertasDetalle, setAlertasDetalle] = useState<any[]>([]);
-
-  // ✅ NUEVO: Estado para el filtro
-  const [filtroEstado, setFiltroEstado] = useState<string>("todos");
 
   const usuarioData = JSON.parse(localStorage.getItem("usuario") || "{}");
-
-  const traducirEstado = (
-    estado: string,
-  ): "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado" => {
-    const traducciones: Record<
-      string,
-      "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado"
-    > = {
-      activo: "Activo",
-      blocked: "Bloqueado",
-      paused: "Pausado",
-      finished: "Terminado",
-      abandonado: "Abandonado",
-    };
-    return traducciones[estado] || "Abandonado";
-  };
-
-  // ✅ NUEVO: Función para obtener estado normalizado (para comparación)
-  const normalizarEstado = (estado: string): string => {
-    const normalizaciones: Record<string, string> = {
-      blocked: "bloqueado",
-      paused: "pausado",
-      finished: "terminado",
-    };
-    return normalizaciones[estado] || estado;
-  };
-
-  // ✅ NUEVO: Calcular contadores por estado
-  const contadores = {
-    activos: activeAttempts.filter(
-      (a) => normalizarEstado(a.estado) === "activo",
-    ).length,
-    bloqueados: activeAttempts.filter(
-      (a) => normalizarEstado(a.estado) === "bloqueado",
-    ).length,
-    pausados: activeAttempts.filter(
-      (a) => normalizarEstado(a.estado) === "pausado",
-    ).length,
-    terminados: activeAttempts.filter(
-      (a) => normalizarEstado(a.estado) === "terminado",
-    ).length,
-    abandonados: activeAttempts.filter(
-      (a) => normalizarEstado(a.estado) === "abandonado",
-    ).length,
-    total: activeAttempts.length,
-  };
-
-  // ✅ NUEVO: Filtrar intentos según el estado seleccionado
-  const intentosFiltrados =
-    filtroEstado === "todos"
-      ? activeAttempts
-      : activeAttempts.filter((a) => a.estado === filtroEstado);
 
   // Cargar exámenes abiertos del profesor
   useEffect(() => {
     const loadOpenExams = async () => {
       try {
         setLoading(true);
-        const exams = await examsService.obtenerMisExamenes(usuarioData.id);
+        const examsServiceModule = await import("../services/examsService");
+        const exams = await examsServiceModule.examsService.obtenerMisExamenes(usuarioData.id);
         const open = exams.filter((e: any) => e.estado === "open");
         setOpenExams(open);
       } catch (error) {
@@ -745,549 +676,69 @@ function VigilanciaContent({ darkMode }: { darkMode: boolean }) {
     loadOpenExams();
   }, [usuarioData.id]);
 
-  // Conectar a WebSocket cuando se selecciona un examen
-  useEffect(() => {
-    if (!selectedExam) return;
-
-    console.log("🔌 Conectando a WebSocket para examen:", selectedExam.id);
-
-    const newSocket = io("http://localhost:3002");
-
-    newSocket.on("connect", () => {
-      console.log("✅ Conectado al WebSocket");
-      newSocket.emit("join_exam_monitoring", selectedExam.id);
-
-      // ✅ Cargar intentos iniciales
-      examsAttemptsService
-        .getActiveAttemptsByExam(selectedExam.id)
-        .then((attempts) => {
-          console.log("📊 Intentos iniciales cargados:", attempts);
-          setActiveAttempts(attempts);
-        });
-    });
-
-    // ✅ Estudiante inició examen
-    newSocket.on("student_started_exam", (data) => {
-      console.log("👨‍🎓 Estudiante inició examen:", data);
-
-      setActiveAttempts((prev) => {
-        // Si ya existe, actualizar solo el estado y fecha_inicio
-        if (prev.some((a) => a.id === data.attemptId)) {
-          return prev.map((a) =>
-            a.id === data.attemptId
-              ? { ...a, estado: "activo", fecha_inicio: data.fecha_inicio }
-              : a,
-          );
-        }
-
-        // Si no existe, agregarlo (mantener alertas que vengan de la BD)
-        return [
-          ...prev,
-          {
-            id: data.attemptId,
-            nombre_estudiante: data.estudiante.nombre || "Sin nombre",
-            correo_estudiante: data.estudiante.correo,
-            identificacion_estudiante: data.estudiante.identificacion,
-            estado: "activo",
-            fecha_inicio: data.fecha_inicio,
-            tiempoTranscurrido: "0 min",
-            progreso: 0,
-            alertas: data.alertas || 0,
-            alertasNoLeidas: data.alertasNoLeidas || 0,
-          },
-        ];
-      });
-    });
-
-    // ✅ Intento bloqueado
-    newSocket.on("attempt_blocked_notification", (data) => {
-      console.log("🔒 Intento bloqueado:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, estado: "blocked" }
-            : attempt,
-        ),
-      );
-    });
-
-    // ✅ Estudiante abandonó
-    newSocket.on("student_abandoned_exam", (data) => {
-      console.log("🚪 Estudiante abandonó examen:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, estado: "abandonado" }
-            : attempt,
-        ),
-      );
-    });
-
-    // ✅ Estudiante terminó
-    newSocket.on("student_finished_exam", (data) => {
-      console.log("✅ Estudiante terminó examen:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, estado: "finished" }
-            : attempt,
-        ),
-      );
-    });
-
-    newSocket.on("progress_updated", (data) => {
-      console.log("📊 Progreso actualizado:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, progreso: data.progreso }
-            : attempt,
-        ),
-      );
-    });
-
-    // ✅ MODIFICADO: Actualizar tiempo transcurrido solo para intentos ACTIVOS
-    const timeInterval = setInterval(() => {
-      setActiveAttempts((prev) =>
-        prev.map((attempt) => {
-          // ✅ Solo actualizar tiempo si está activo
-          if (normalizarEstado(attempt.estado) !== "activo") {
-            return attempt; // No modificar el tiempo si no está activo
-          }
-
-          const now = new Date();
-          const elapsed =
-            now.getTime() - new Date(attempt.fecha_inicio).getTime();
-          const elapsedMinutes = Math.floor(elapsed / 60000);
-
-          return {
-            ...attempt,
-            tiempoTranscurrido: `${elapsedMinutes} min`,
-          };
-        }),
-      );
-    }, 60000); // Cada minuto
-
-    setSocket(newSocket);
-
-    return () => {
-      console.log("🔌 Desconectando WebSocket");
-      clearInterval(timeInterval);
-      newSocket.disconnect();
-    };
-  }, [selectedExam]);
-
-  // ✅ Escuchar nuevas alertas por WebSocket
-  useEffect(() => {
-    if (!socket) return;
-
-    socket.on("new_alert", (data) => {
-      console.log("🆕 Nueva alerta:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? {
-                ...attempt,
-                alertasNoLeidas: (attempt.alertasNoLeidas || 0) + 1,
-                alertas: attempt.alertas + 1,
-              }
-            : attempt,
-        ),
-      );
-    });
-
-    socket.on("alerts_read", (data) => {
-      console.log("✅ Alertas marcadas como leídas:", data);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === data.attemptId
-            ? { ...attempt, alertasNoLeidas: 0 }
-            : attempt,
-        ),
-      );
-    });
-
-    return () => {
-      socket.off("new_alert");
-      socket.off("alerts_read");
-      socket.off("progress_updated");
-    };
-  }, [socket]);
-
-  const handleUnlockAttempt = async (attemptId: number) => {
-    try {
-      await examsAttemptsService.unlockAttempt(attemptId);
-
-      setActiveAttempts((prev) =>
-        prev.map((attempt) =>
-          attempt.id === attemptId ? { ...attempt, estado: "activo" } : attempt,
-        ),
-      );
-    } catch (error) {
-      console.error("Error desbloqueando intento:", error);
-    }
-  };
-
-  const handleVerAlertas = async (attemptId: number, nombre: string) => {
-    try {
-      const alertas = await examsAttemptsService.getAttemptEvents(attemptId);
-      setAlertasDetalle(alertas);
-      setModalAlertas({ show: true, attemptId, nombre });
-
-      // Marcar como leídas
-      await examsAttemptsService.markEventsAsRead(attemptId);
-    } catch (error) {
-      console.error("Error cargando alertas:", error);
-    }
-  };
-
-  const handleViewDetails = (attemptId: number) => {
-    console.log("Ver detalles del intento:", attemptId);
-  };
-
-  if (loading) {
+  // Si hay un examen seleccionado, mostrar el componente ExamenVigilancia
+  if (selectedExam) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div
-          className={`text-lg ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-        >
-          Cargando exámenes...
-        </div>
-      </div>
+      <ExamenVigilancia
+        selectedExam={selectedExam}
+        onVolver={() => setSelectedExam(null)}
+        darkMode={darkMode}
+        usuarioData={usuarioData}
+      />
     );
   }
 
-  if (!selectedExam) {
-    return (
-      <div className="max-w-4xl mx-auto">
-        <div
-          className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm p-6 transition-colors duration-300`}
-        >
-          <h2
-            className={`text-xl font-semibold mb-6 ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            Selecciona un Examen para Monitorear
-          </h2>
-
-          {openExams.length === 0 ? (
-            <div className="text-center py-12">
-              <p
-                className={`text-lg mb-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-              >
-                No tienes exámenes abiertos en este momento
-              </p>
-              <p
-                className={`text-sm ${darkMode ? "text-gray-500" : "text-gray-500"}`}
-              >
-                Los exámenes deben estar en estado "abierto" para ser
-                monitoreados
-              </p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {openExams.map((exam) => (
-                <button
-                  key={exam.id}
-                  onClick={() => setSelectedExam(exam)}
-                  className={`p-6 rounded-lg border-2 text-left transition-all hover:shadow-md ${
-                    darkMode
-                      ? "bg-slate-800 border-slate-700 hover:border-blue-500"
-                      : "bg-gray-50 border-gray-200 hover:border-blue-500"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <h3
-                        className={`text-lg font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}
-                      >
-                        {exam.nombre}
-                      </h3>
-                      <p
-                        className={`text-sm mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-                      >
-                        {exam.descripcion
-                          ?.replace(/<[^>]*>/g, "")
-                          .substring(0, 100) || "Sin descripción"}
-                      </p>
-                      <div
-                        className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}
-                      >
-                        Código: {exam.codigoExamen}
-                      </div>
-                    </div>
-                    <span className="px-3 py-1 rounded-full text-xs font-semibold bg-green-500/20 text-green-400">
-                      Abierto
-                    </span>
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
+  // Vista de selección de examen
   return (
-    <div className="max-w-7xl mx-auto">
-      {/* Header con botón volver */}
+    <div className="p-6">
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm p-6 mb-6 transition-colors duration-300`}
+        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm p-6 transition-colors duration-300`}
       >
-        <div className="flex items-center justify-between mb-4">
-          <button
-            onClick={() => {
-              setSelectedExam(null);
-              setActiveAttempts([]);
-              setFiltroEstado("todos");
-            }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              darkMode
-                ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M15 19l-7-7 7-7"
-              />
-            </svg>
-            Volver
-          </button>
-        </div>
-
-        <div className="mb-6">
-          <h2
-            className={`text-xl font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
-            {selectedExam.nombre}
-          </h2>
-          <div
-            className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-          >
-            Código: {selectedExam.codigoExamen}
-          </div>
-        </div>
-
-        {/* ✅ Contadores por estado */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div
-              className={`text-xs font-semibold mb-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-            >
-              Total
-            </div>
-            <div
-              className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-            >
-              {contadores.total}
-            </div>
-          </div>
-
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div className="text-xs font-semibold mb-1 text-green-400">
-              Activos
-            </div>
-            <div className="text-2xl font-bold text-green-400">
-              {contadores.activos}
-            </div>
-          </div>
-
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div className="text-xs font-semibold mb-1 text-red-400">
-              Bloqueados
-            </div>
-            <div className="text-2xl font-bold text-red-400">
-              {contadores.bloqueados}
-            </div>
-          </div>
-
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div className="text-xs font-semibold mb-1 text-yellow-400">
-              En Pausa
-            </div>
-            <div className="text-2xl font-bold text-yellow-400">
-              {contadores.pausados}
-            </div>
-          </div>
-
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div className="text-xs font-semibold mb-1 text-blue-400">
-              Terminados
-            </div>
-            <div className="text-2xl font-bold text-blue-400">
-              {contadores.terminados}
-            </div>
-          </div>
-
-          <div
-            className={`p-4 rounded-lg ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div className="text-xs font-semibold mb-1 text-gray-400">
-              Abandonados
-            </div>
-            <div className="text-2xl font-bold text-gray-400">
-              {contadores.abandonados}
-            </div>
-          </div>
-        </div>
-
-        {/* ✅ NUEVO: Botones de filtro */}
-        <div className="mt-6 flex flex-wrap gap-2">
-          <button
-            onClick={() => setFiltroEstado("todos")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "todos"
-                ? darkMode
-                  ? "bg-blue-600 text-white"
-                  : "bg-blue-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Todos ({contadores.total})
-          </button>
-
-          <button
-            onClick={() => setFiltroEstado("activo")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "activo"
-                ? "bg-green-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Activos ({contadores.activos})
-          </button>
-
-          <button
-            onClick={() => setFiltroEstado("blocked")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "blocked"
-                ? "bg-red-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Bloqueados ({contadores.bloqueados})
-          </button>
-
-          <button
-            onClick={() => setFiltroEstado("paused")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "paused"
-                ? "bg-yellow-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            En Pausa ({contadores.pausados})
-          </button>
-
-          <button
-            onClick={() => setFiltroEstado("finished")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "finished"
-                ? "bg-blue-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Terminados ({contadores.terminados})
-          </button>
-
-          <button
-            onClick={() => setFiltroEstado("abandonado")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              filtroEstado === "abandonado"
-                ? "bg-gray-600 text-white"
-                : darkMode
-                  ? "bg-slate-800 text-gray-300 hover:bg-slate-700"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Abandonados ({contadores.abandonados})
-          </button>
-        </div>
-      </div>
-
-      {/* Lista de estudiantes FILTRADA */}
-      {intentosFiltrados.length === 0 ? (
-        <div
-          className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm p-12 text-center`}
+        <h2
+          className={`text-2xl font-semibold mb-6 ${darkMode ? "text-white" : "text-gray-900"}`}
         >
-          <p
-            className={`text-lg ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+          Exámenes Abiertos
+        </h2>
+
+        {loading ? (
+          <div
+            className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
           >
-            {filtroEstado === "todos"
-              ? "No hay estudiantes en este momento"
-              : `No hay estudiantes en estado "${filtroEstado}"`}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {intentosFiltrados.map((attempt) => (
-            <StudentMonitor
-              key={attempt.id}
-              id={attempt.id}
-              nombre={attempt.nombre_estudiante}
-              email={attempt.correo_estudiante || "Sin correo"}
-              examen={selectedExam.nombre}
-              estado={traducirEstado(attempt.estado)}
-              tiempoTranscurrido={attempt.tiempoTranscurrido}
-              progreso={attempt.progreso}
-              alertas={attempt.alertas}
-              alertasNoLeidas={attempt.alertasNoLeidas || 0}
-              darkMode={darkMode}
-              onRestablecerAcceso={handleUnlockAttempt}
-              onVerDetalles={handleViewDetails}
-              onVerAlertas={(id) =>
-                handleVerAlertas(id, attempt.nombre_estudiante)
-              }
-            />
-          ))}
-          {modalAlertas.show && (
-            <AlertasModal
-              mostrar={modalAlertas.show}
-              darkMode={darkMode}
-              alertas={alertasDetalle}
-              nombreEstudiante={modalAlertas.nombre}
-              onCerrar={() =>
-                setModalAlertas({ show: false, attemptId: null, nombre: "" })
-              }
-            />
-          )}
-        </div>
-      )}
+            Cargando...
+          </div>
+        ) : openExams.length === 0 ? (
+          <div
+            className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+          >
+            No hay exámenes abiertos en este momento
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {openExams.map((exam: any) => (
+              <div
+                key={exam.id}
+                className={`p-4 rounded-lg border cursor-pointer hover:shadow-lg transition-all ${
+                  darkMode
+                    ? "bg-slate-800 border-slate-700 hover:border-blue-500"
+                    : "bg-white border-gray-200 hover:border-blue-500"
+                }`}
+                onClick={() => setSelectedExam(exam)}
+              >
+                <h3
+                  className={`font-semibold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}
+                >
+                  {exam.nombre}
+                </h3>
+                <p
+                  className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                >
+                  Código: {exam.codigoExamen}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
