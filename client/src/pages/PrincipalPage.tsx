@@ -1,6 +1,6 @@
 // ============================================
-// LMSDashboard.tsx - VERSIÓN MEJORADA
-// Con mejor integración de vigilancia/resultados
+// LMSDashboard.tsx - VERSIÓN CORREGIDA
+// Sin botones anidados + Sin scroll lateral en vigilancia
 // ============================================
 
 // Importar componentes reutilizables
@@ -9,11 +9,11 @@ import NotificationItem from "../components/NotificationItem";
 import MiPerfil from "../components/MiPerfil";
 import CrearExamen from "../components/CrearExamen";
 import HomeContent from "../components/Homecontent";
-import ExamenVigilancia from "../components/ExamenVigilancia";
+import VigilanciaExamenesLista from "../components/Listaexamenesvigilancia";
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import fondoImagen from "../../assets/fondo.webp";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Home,
   Bell,
@@ -33,6 +33,7 @@ export default function LMSDashboard() {
   const [activeMenu, setActiveMenu] = useState("home");
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   // Estado para notificaciones
   const [notificaciones, setNotificaciones] = useState([
@@ -178,6 +179,23 @@ export default function LMSDashboard() {
     };
   }, []);
 
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    }
+
+    if (showProfileMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showProfileMenu]);
+
   // Función auxiliar para capitalizar (Primera letra mayúscula, resto minúscula)
   const capitalizeWord = (word: string): string => {
     if (!word) return "";
@@ -225,7 +243,7 @@ export default function LMSDashboard() {
 
   const handleLogout = async () => {
     try {
-      if (usuarioData?.id) {
+      if (usuarioData && usuarioData.id) {
         // Llamar al backend para marcar como inactivo
         await fetch("/api/users/logout", {
           method: "POST",
@@ -290,12 +308,14 @@ export default function LMSDashboard() {
       <div
         className={`relative z-10 ${darkMode ? "bg-slate-900/80 backdrop-blur-md" : "bg-white border-r border-gray-200"} flex flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? "w-16" : "w-64"}`}
       >
+        {/* ✅ PERFIL - CAMBIADO DE BUTTON A DIV */}
         <div
           className={`p-4 ${darkMode ? "border-slate-800/50" : "border-gray-200"} relative`}
+          ref={profileMenuRef}
         >
-          <button
+          <div
             onClick={() => setShowProfileMenu(!showProfileMenu)}
-            className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"} ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-gray-100/50"} rounded-lg p-1 transition-colors`}
+            className={`w-full flex items-center ${sidebarCollapsed ? "justify-center" : "gap-2"} ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-gray-100/50"} rounded-lg p-1 transition-colors cursor-pointer`}
           >
             <div className="w-10 h-10 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-blue-400 to-purple-500 shadow-lg">
               {usuarioData?.picture || usuarioData?.foto_perfil ? (
@@ -331,7 +351,7 @@ export default function LMSDashboard() {
                 className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-400"} transition-transform flex-shrink-0 ${showProfileMenu ? "rotate-180" : ""}`}
               />
             )}
-          </button>
+          </div>
 
           {showProfileMenu && !sidebarCollapsed && (
             <div
@@ -467,10 +487,10 @@ export default function LMSDashboard() {
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative z-10">
+      {/* Main Content - SCROLL CONDICIONAL */}
+      <div className="flex-1 flex flex-col relative z-10" style={{ overflow: activeMenu === 'vigilancia-resultados' ? 'hidden' : 'auto' }}>
         <header
-          className="bg-transparent px-8 py-4 transition-colors duration-300"
+          className="bg-transparent px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
           <div className="flex items-center justify-end">
             <div className="flex items-center">
@@ -483,7 +503,7 @@ export default function LMSDashboard() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-auto p-8">
+        <main className={`flex-1 px-8 py-6 min-h-0 ${activeMenu === 'vigilancia-resultados' ? 'overflow-hidden' : 'overflow-auto'}`}>
           {activeMenu === "home" && <HomeContent darkMode={darkMode} />}
           {activeMenu === "notifications" && (
             <NotificationsContent
@@ -504,7 +524,6 @@ export default function LMSDashboard() {
           {activeMenu === "lista-examenes" && (
             <ListaExamenesContent
               darkMode={darkMode}
-              onCrearExamen={() => setActiveMenu("nuevo-examen")}
             />
           )}
           {activeMenu === "vigilancia-resultados" && (
@@ -671,14 +690,12 @@ function NuevoExamenContent({
 
 function ListaExamenesContent({
   darkMode,
-  onCrearExamen,
 }: {
   darkMode: boolean;
-  onCrearExamen: () => void;
 }) {
   return (
     <div className="max-w-7xl mx-auto">
-      <ListaExamenes darkMode={darkMode} onCrearExamen={onCrearExamen} />
+      <ListaExamenes darkMode={darkMode} />
     </div>
   );
 }
@@ -690,182 +707,10 @@ function VigilanciaContent({
   darkMode: boolean;
   usuarioData: any;
 }) {
-  const [selectedExam, setSelectedExam] = useState<any>(null);
-
-  // Si hay un examen seleccionado, mostrar directamente la vista de vigilancia
-  if (selectedExam) {
-    return (
-      <ExamenVigilancia
-        selectedExam={selectedExam}
-        onVolver={() => setSelectedExam(null)}
-        darkMode={darkMode}
-        usuarioData={usuarioData}
-      />
-    );
-  }
-
-  // Vista de selección de examen - versión simplificada
   return (
-    <ExamenesAbiertosLista
+    <VigilanciaExamenesLista
       darkMode={darkMode}
-      onSelectExam={setSelectedExam}
       usuarioData={usuarioData}
     />
-  );
-}
-
-// Componente para mostrar la lista de exámenes abiertos - REDISEÑADO
-function ExamenesAbiertosLista({
-  darkMode,
-  onSelectExam,
-  usuarioData,
-}: {
-  darkMode: boolean;
-  onSelectExam: (exam: any) => void;
-  usuarioData: any;
-}) {
-  const [openExams, setOpenExams] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Cargar exámenes abiertos del profesor
-  useEffect(() => {
-    const loadOpenExams = async () => {
-      try {
-        setLoading(true);
-        const examsServiceModule = await import("../services/examsService");
-        const exams = await examsServiceModule.examsService.obtenerMisExamenes(usuarioData.id);
-        const open = exams.filter((e: any) => e.estado === "open");
-        setOpenExams(open);
-      } catch (error) {
-        console.error("Error cargando exámenes:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadOpenExams();
-  }, [usuarioData.id]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-teal-500 border-t-transparent mx-auto mb-4"></div>
-          <p className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-            Cargando exámenes...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  if (openExams.length === 0) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center max-w-md">
-          <div className={`w-24 h-24 mx-auto mb-6 rounded-full flex items-center justify-center ${darkMode ? "bg-slate-800" : "bg-gray-100"}`}>
-            <Monitor className={`w-12 h-12 ${darkMode ? "text-gray-600" : "text-gray-400"}`} />
-          </div>
-          <h3 className={`text-2xl font-bold mb-3 ${darkMode ? "text-white" : "text-gray-900"}`}>
-            No hay exámenes activos
-          </h3>
-          <p className={`text-base ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Los exámenes que abras aparecerán aquí para que puedas monitorear a tus estudiantes en tiempo real.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
-            Vigilancia de Exámenes
-          </h1>
-          <p className={`mt-2 text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Selecciona un examen para monitorear a los estudiantes
-          </p>
-        </div>
-        <div className={`px-4 py-2 rounded-lg ${darkMode ? "bg-teal-900/30" : "bg-teal-50"}`}>
-          <span className={`text-sm font-medium ${darkMode ? "text-teal-400" : "text-teal-700"}`}>
-            {openExams.length} {openExams.length === 1 ? "examen activo" : "exámenes activos"}
-          </span>
-        </div>
-      </div>
-
-      {/* Grid de exámenes */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-        {openExams.map((exam: any) => (
-          <button
-            key={exam.id}
-            onClick={() => onSelectExam(exam)}
-            className={`group relative overflow-hidden rounded-xl transition-all duration-300 hover:scale-105 hover:shadow-2xl ${
-              darkMode
-                ? "bg-gradient-to-br from-slate-800 to-slate-900 border border-slate-700/50 hover:border-teal-500/50"
-                : "bg-white border-2 border-gray-200 hover:border-teal-500 shadow-lg"
-            }`}
-          >
-            {/* Efecto de brillo en hover */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-teal-500/10 to-transparent translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-1000"></div>
-            
-            {/* Contenido */}
-            <div className="relative p-6">
-              {/* Badge de estado */}
-              <div className="flex items-center justify-between mb-4">
-                <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-xs font-semibold">
-                  <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></span>
-                  En vivo
-                </span>
-                <div className={`p-2 rounded-lg ${darkMode ? "bg-slate-700/50" : "bg-gray-100"}`}>
-                  <Monitor className={`w-5 h-5 ${darkMode ? "text-gray-400" : "text-gray-600"}`} />
-                </div>
-              </div>
-
-              {/* Título del examen */}
-              <h3 className={`text-xl font-bold mb-3 line-clamp-2 ${darkMode ? "text-white" : "text-gray-900"}`}>
-                {exam.nombre}
-              </h3>
-
-              {/* Código */}
-              <div className="mb-4">
-                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ${darkMode ? "bg-slate-700/50" : "bg-gray-100"}`}>
-                  <svg className="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
-                  </svg>
-                  <span className={`text-sm font-mono font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-                    {exam.codigoExamen}
-                  </span>
-                </div>
-              </div>
-
-              {/* Descripción (si existe) */}
-              {exam.descripcion && (
-                <p className={`text-sm mb-4 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-                  {exam.descripcion}
-                </p>
-              )}
-
-              {/* Botón de acción */}
-              <div className="flex items-center justify-between pt-4 border-t border-gray-700/30">
-                <span className="text-teal-400 font-semibold text-sm group-hover:text-teal-300 transition-colors">
-                  Ir a vigilancia
-                </span>
-                <svg 
-                  className="w-5 h-5 text-teal-400 transform group-hover:translate-x-1 transition-transform" 
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }

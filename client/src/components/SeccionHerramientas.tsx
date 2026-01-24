@@ -54,7 +54,7 @@ export default function SeccionHerramientas({
   return (
     <div className="px-6 pb-6 space-y-6">
       <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-        Dar acceso al alumno a una herramienta.
+        Seleccione las herramientas que se habilitarán durante el examen.
       </p>
 
       {/* Herramientas principales */}
