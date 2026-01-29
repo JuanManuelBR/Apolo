@@ -500,31 +500,38 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         </div>
 
         {/* Editor de pregunta e imagen */}
-        <div className="flex items-start gap-4 mb-4">
-          <div className="flex-1">
-            <EditorTexto
-              value={pregunta.titulo}
-              onChange={(html) => actualizarPregunta(pregunta.id, { titulo: html })}
-              darkMode={darkMode}
-              placeholder="Escribe tu pregunta aquí..."
-              minHeight="80px"
-            />
-          </div>
-
-          <label className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border-2 border-dashed self-start mt-2 ${
-            darkMode 
-              ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700 text-gray-300 hover:text-white' 
-              : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600'
+        <div className="mb-4">
+          <label className={`block text-sm font-medium mb-2 ${
+            darkMode ? 'text-gray-400' : 'text-gray-600'
           }`}>
-            <ImageIcon className="w-5 h-5" />
-            <span className="text-xs font-medium whitespace-nowrap">Subir imagen</span>
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => handleImagenCarga(pregunta.id, e)}
-            />
+            Pregunta
           </label>
+          <div className="flex items-start gap-4">
+            <div className="flex-1">
+              <EditorTexto
+                value={pregunta.titulo}
+                onChange={(html) => actualizarPregunta(pregunta.id, { titulo: html })}
+                darkMode={darkMode}
+                placeholder="Escribe tu pregunta aquí..."
+                minHeight="80px"
+              />
+            </div>
+
+            <label className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border-2 border-dashed self-start mt-2 ${
+              darkMode 
+                ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700 text-gray-300 hover:text-white' 
+                : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600'
+            }`}>
+              <ImageIcon className="w-5 h-5" />
+              <span className="text-xs font-medium whitespace-nowrap">Subir imagen</span>
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => handleImagenCarga(pregunta.id, e)}
+              />
+            </label>
+          </div>
         </div>
 
         {pregunta.imagen && (
@@ -541,64 +548,76 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {/* Contenido según tipo de pregunta */}
         {pregunta.tipo === 'seleccion-multiple' && (
-          <div className="space-y-2 mb-4">
-            {pregunta.opciones?.map((opcion, index) => (
-              <div key={opcion.id} className="flex items-center gap-3">
-                <button
-                  onClick={() => toggleRespuestaCorrecta(pregunta.id, opcion.id)}
-                  className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-all ${
-                    opcion.esCorrecta
-                      ? 'bg-green-500 border-green-500'
-                      : darkMode 
-                        ? 'border-gray-500 hover:border-green-400' 
-                        : 'border-gray-400 hover:border-green-500'
-                  }`}
-                  title={opcion.esCorrecta ? 'Respuesta correcta' : 'Marcar como correcta'}
-                >
-                  {opcion.esCorrecta && <Check className="w-3 h-3 text-white" />}
-                </button>
-                <input
-                  type="text"
-                  value={opcion.texto}
-                  onChange={(e) => actualizarOpcion(pregunta.id, opcion.id, e.target.value)}
-                  className={`flex-1 px-3 py-2 rounded border ${
-                    darkMode 
-                      ? 'bg-slate-700 border-slate-600 text-white' 
-                      : 'bg-white border-gray-300'
-                  }`}
-                />
-                {pregunta.opciones && pregunta.opciones.length > 1 && (
+          <div className="mb-4">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Opciones
+            </label>
+            <div className="space-y-2">
+              {pregunta.opciones?.map((opcion, index) => (
+                <div key={opcion.id} className="flex items-center gap-3">
                   <button
-                    onClick={() => eliminarOpcion(pregunta.id, opcion.id)}
-                    className={`p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                    onClick={() => toggleRespuestaCorrecta(pregunta.id, opcion.id)}
+                    className={`w-5 h-5 rounded-full border-2 flex-shrink-0 flex items-center justify-center cursor-pointer transition-all ${
+                      opcion.esCorrecta
+                        ? 'bg-green-500 border-green-500'
+                        : darkMode 
+                          ? 'border-gray-500 hover:border-green-400' 
+                          : 'border-gray-400 hover:border-green-500'
+                    }`}
+                    title={opcion.esCorrecta ? 'Respuesta correcta' : 'Marcar como correcta'}
                   >
-                    <X className="w-4 h-4" />
+                    {opcion.esCorrecta && <Check className="w-3 h-3 text-white" />}
                   </button>
-                )}
-              </div>
-            ))}
-            {pregunta.opciones && pregunta.opciones.length < 10 ? (
-              <button
-                onClick={() => agregarOpcion(pregunta.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                  darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
-                }`}
-              >
-                <div className={`w-5 h-5 rounded-full border-2 ${
-                  darkMode ? 'border-gray-500' : 'border-gray-400'
-                }`} />
-                <span>Agregar una opción</span>
-              </button>
-            ) : (
-              <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                Máximo 10 opciones alcanzado
-              </p>
-            )}
+                  <input
+                    type="text"
+                    value={opcion.texto}
+                    onChange={(e) => actualizarOpcion(pregunta.id, opcion.id, e.target.value)}
+                    className={`flex-1 px-3 py-2 rounded border ${
+                      darkMode 
+                        ? 'bg-slate-700 border-slate-600 text-white' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                  {pregunta.opciones && pregunta.opciones.length > 1 && (
+                    <button
+                      onClick={() => eliminarOpcion(pregunta.id, opcion.id)}
+                      className={`p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {pregunta.opciones && pregunta.opciones.length < 10 ? (
+                <button
+                  onClick={() => agregarOpcion(pregunta.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                    darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-full border-2 ${
+                    darkMode ? 'border-gray-500' : 'border-gray-400'
+                  }`} />
+                  <span>Agregar una opción</span>
+                </button>
+              ) : (
+                <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Máximo 10 opciones alcanzado
+                </p>
+              )}
+            </div>
           </div>
         )}
 
         {pregunta.tipo === 'rellenar-espacios' && (
           <div className="mb-4">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Texto completo
+            </label>
             <div className="relative">
               {/* Capa de fondo con resaltado de palabras seleccionadas */}
               {pregunta.textoCompleto && pregunta.palabrasSeleccionadas && pregunta.palabrasSeleccionadas.length > 0 && (
@@ -722,62 +741,74 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         )}
 
         {pregunta.tipo === 'conectar' && (
-          <div className="space-y-3 mb-4">
-            {pregunta.paresConexion?.map((par) => (
-              <div key={par.id} className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={par.izquierda}
-                  onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'izquierda', e.target.value)}
-                  placeholder="Elemento izquierdo"
-                  className={`flex-1 px-3 py-2 rounded border ${
-                    darkMode 
-                      ? 'bg-slate-700 border-slate-600 text-white' 
-                      : 'bg-white border-gray-300'
+          <div className="mb-4">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Pares de conexión
+            </label>
+            <div className="space-y-3">
+              {pregunta.paresConexion?.map((par) => (
+                <div key={par.id} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={par.izquierda}
+                    onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'izquierda', e.target.value)}
+                    placeholder="Elemento izquierdo"
+                    className={`flex-1 px-3 py-2 rounded border ${
+                      darkMode 
+                        ? 'bg-slate-700 border-slate-600 text-white' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                  <span className={`text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>⟷</span>
+                  <input
+                    type="text"
+                    value={par.derecha}
+                    onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'derecha', e.target.value)}
+                    placeholder="Elemento derecho"
+                    className={`flex-1 px-3 py-2 rounded border ${
+                      darkMode 
+                        ? 'bg-slate-700 border-slate-600 text-white' 
+                        : 'bg-white border-gray-300'
+                    }`}
+                  />
+                  {pregunta.paresConexion && pregunta.paresConexion.length > 1 && (
+                    <button
+                      onClick={() => eliminarParConexion(pregunta.id, par.id)}
+                      className={`p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {pregunta.paresConexion && pregunta.paresConexion.length < 10 ? (
+                <button
+                  onClick={() => agregarParConexion(pregunta.id)}
+                  className={`flex items-center gap-2 px-3 py-2 text-sm ${
+                    darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
                   }`}
-                />
-                <span className={`text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>⟷</span>
-                <input
-                  type="text"
-                  value={par.derecha}
-                  onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'derecha', e.target.value)}
-                  placeholder="Elemento derecho"
-                  className={`flex-1 px-3 py-2 rounded border ${
-                    darkMode 
-                      ? 'bg-slate-700 border-slate-600 text-white' 
-                      : 'bg-white border-gray-300'
-                  }`}
-                />
-                {pregunta.paresConexion && pregunta.paresConexion.length > 1 && (
-                  <button
-                    onClick={() => eliminarParConexion(pregunta.id, par.id)}
-                    className={`p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-            ))}
-            {pregunta.paresConexion && pregunta.paresConexion.length < 10 ? (
-              <button
-                onClick={() => agregarParConexion(pregunta.id)}
-                className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                  darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
-                }`}
-              >
-                <Plus className="w-4 h-4" />
-                <span>Agregar par</span>
-              </button>
-            ) : (
-              <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
-                Máximo 10 pares alcanzado
-              </p>
-            )}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Agregar par</span>
+                </button>
+              ) : (
+                <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                  Máximo 10 pares alcanzado
+                </p>
+              )}
+            </div>
           </div>
         )}
 
         {pregunta.tipo === 'abierta' && (
           <div className="mb-4">
+            <label className={`block text-sm font-medium mb-2 ${
+              darkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>
+              Respuesta del estudiante
+            </label>
             <div className={`px-4 py-3 rounded-lg border ${
               darkMode ? 'bg-slate-700 border-slate-600 text-gray-400' : 'bg-gray-50 border-gray-300 text-gray-500'
             }`}>

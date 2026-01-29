@@ -93,10 +93,13 @@ export default function ListaExamenes({
     }
   };
 
+  // CAMBIO: Eliminamos el reordenamiento automático por estado
+  // Solo ordenamos por archivado/no archivado
   const ordenarExamenes = (exams: ExamenConEstado[]) => {
     return [...exams].sort((a, b) => {
+      // Solo ordenar por archivado
       if (a.archivado !== b.archivado) return a.archivado ? 1 : -1;
-      if (a.activoManual !== b.activoManual) return b.activoManual ? 1 : -1;
+      // Mantener el orden original (por ID o fecha de creación)
       return 0;
     });
   };
@@ -114,7 +117,7 @@ export default function ListaExamenes({
 
       await examsService.updateExamStatus(id, nuevoEstado);
 
-      // Actualizar estado local
+      // Actualizar estado local SIN reordenar
       setExamenes((prev) =>
         prev.map((ex) =>
           ex.id === id
@@ -575,10 +578,7 @@ export default function ListaExamenes({
             return (
               <div
                 key={examen.id}
-                style={{
-                  transition: "all 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
-                }}
-                className={`group rounded-2xl p-5 border ${
+                className={`group rounded-2xl p-5 border transition-all duration-300 ${
                   isMenuOpen ? "z-50 relative shadow-xl" : "z-0 relative"
                 } ${
                   isInactive
@@ -592,12 +592,12 @@ export default function ListaExamenes({
               >
                 <div className="flex items-center gap-5">
                   <div
-                    className={`flex-1 flex items-center gap-5 transition-all duration-300 ${
+                    className={`flex-1 flex items-center gap-5 transition-opacity duration-300 ${
                       isInactive ? "opacity-50" : "opacity-100"
                     }`}
                   >
                     <div
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                      className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
                         isInactive
                           ? darkMode
                             ? "bg-slate-700/50"
@@ -626,7 +626,7 @@ export default function ListaExamenes({
                           {examen.nombre}
                         </h3>
                         <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide transition-all duration-300 ${
                             estado === "Activo"
                               ? darkMode
                                 ? "bg-emerald-500/20 text-emerald-400"
