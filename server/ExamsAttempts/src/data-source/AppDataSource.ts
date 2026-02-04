@@ -20,7 +20,7 @@ export const AppDataSource = new DataSource({
   password: DB_PASS,
   port: DB_PORT,
   username: DB_USER,
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entities: [ExamAttempt, ExamAnswer, ExamEvent, ExamInProgress],
   migrations: ["src/migrations/*.ts"],

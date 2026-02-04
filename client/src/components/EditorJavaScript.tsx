@@ -46,7 +46,7 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const lineNumbersRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
   const iframeReadyRef = useRef(false);
   const isMounted = useRef(true);
   const [isReady, setIsReady] = useState(false);

@@ -102,6 +102,57 @@ function SavingIndicator({
   );
 }
 
+// --- COMPONENTE NOTIFICACIÓN TIMER ---
+function TimerNotification({ alert, onClose, darkMode }: { alert: {message: string, type: 'warning' | 'critical'} | null, onClose: () => void, darkMode: boolean }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    if (alert) {
+      const showTimer = setTimeout(() => setIsVisible(true), 10);
+      const hideTimer = setTimeout(() => setIsVisible(false), 6000); // 6 segundos de duración
+      return () => {
+        clearTimeout(showTimer);
+        clearTimeout(hideTimer);
+      };
+    }
+  }, [alert]);
+
+  useEffect(() => {
+    if (!isVisible && alert) {
+      const closeTimer = setTimeout(onClose, 500); // Esperar a que termine la animación de salida
+      return () => clearTimeout(closeTimer);
+    }
+  }, [isVisible, alert, onClose]);
+
+  if (!alert) return null;
+  
+  const isCritical = alert.type === 'critical';
+  
+  return (
+    <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-max px-6 py-3 rounded-xl shadow-2xl border backdrop-blur-md flex items-center gap-4 transition-all duration-500 ease-in-out ${
+        isVisible 
+        ? "opacity-100 scale-100" 
+        : "opacity-0 scale-95 pointer-events-none"
+    } ${
+        isCritical 
+        ? (darkMode ? "bg-red-900/90 border-red-500 text-red-100" : "bg-red-50 border-red-200 text-red-800")
+        : (darkMode ? "bg-amber-900/90 border-amber-500 text-amber-100" : "bg-amber-50 border-amber-200 text-amber-800")
+    }`}>
+       <div className={`p-2 rounded-full flex-shrink-0 ${
+           isCritical 
+           ? (darkMode ? "bg-red-800 text-red-200" : "bg-red-100 text-red-600")
+           : (darkMode ? "bg-amber-800 text-amber-200" : "bg-amber-100 text-amber-600")
+       }`}>
+           {isCritical ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+       </div>
+       <div>
+         <h4 className="font-bold text-sm">{isCritical ? "¡Atención!" : "Recordatorio"}</h4>
+         <p className="text-xs opacity-90 font-medium">{alert.message}</p>
+       </div>
+    </div>
+  );
+}
+
 // --- COMPONENTE PRINCIPAL ---
 export default function SecureExamPlatform() {
   // ----------------------------------------------------------------------
@@ -119,6 +170,11 @@ export default function SecureExamPlatform() {
 
   useEffect(() => {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [darkMode]);
 
   const toggleTheme = () => {
@@ -126,6 +182,10 @@ export default function SecureExamPlatform() {
   };
 
   const [remainingTime, setRemainingTime] = useState("02:30:00");
+  const [timerStatus, setTimerStatus] = useState<'normal' | 'warning' | 'critical'>('normal');
+  const [timerAlert, setTimerAlert] = useState<{message: string, type: 'warning' | 'critical'} | null>(null);
+  const alertsShownRef = useRef<{warning: boolean, critical: boolean}>({ warning: false, critical: false });
+
   const [currentTime, setCurrentTime] = useState(new Date());
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [isCharging, setIsCharging] = useState(false);
@@ -174,6 +234,9 @@ export default function SecureExamPlatform() {
       status: 'idle'
     }
   ]);
+
+  // Estado persistente para Lienzo (Dibujo)
+  const [lienzoState, setLienzoState] = useState<any>(null);
 
   // Estados para Modales de Confirmación
   const [showExitModal, setShowExitModal] = useState(false);
@@ -323,6 +386,26 @@ export default function SecureExamPlatform() {
       const remSeconds = Math.floor((remaining % (1000 * 60)) / 1000);
       
       const timeString = `${String(remHours).padStart(2, "0")}:${String(remMinutes).padStart(2,"0")}:${String(remSeconds).padStart(2, "0")}`;
+      
+      // --- LÓGICA DE ALERTAS DE TIEMPO ---
+      const percentage = (remaining / duration) * 100;
+      let newStatus: 'normal' | 'warning' | 'critical' = 'normal';
+
+      if (percentage <= 10) {
+          newStatus = 'critical';
+          if (!alertsShownRef.current.critical) {
+              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.`, type: 'critical' });
+              alertsShownRef.current.critical = true;
+          }
+      } else if (percentage <= 40) {
+          newStatus = 'warning';
+          if (!alertsShownRef.current.warning) {
+              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.`, type: 'warning' });
+              alertsShownRef.current.warning = true;
+          }
+      }
+      
+      setTimerStatus(newStatus);
       // Solo actualizamos si el texto cambia, evitando renders innecesarios
       setRemainingTime(prev => prev !== timeString ? timeString : prev);
     };
@@ -581,6 +664,12 @@ export default function SecureExamPlatform() {
 
       setSocket(newSocket);
       setExamStarted(true);
+      
+      // Resetear alertas de tiempo
+      alertsShownRef.current = { warning: false, critical: false };
+      setTimerStatus('normal');
+      setTimerAlert(null);
+
       setOpenPanels(["exam"]);
       setPanelSizes([100]);
       setPanelZooms([100]);
@@ -671,7 +760,16 @@ export default function SecureExamPlatform() {
     if (openPanels.length >= 3) { alert("Máximo 3 paneles"); return; }
     const newPanels = [...openPanels, panelType];
     setOpenPanels(newPanels);
-    setPanelSizes(newPanels.map(() => 100 / newPanels.length));
+    
+    // Ajustar tamaños: Dar más espacio al panel principal (65% vs 35%)
+    if (newPanels.length === 2) {
+      setPanelSizes([65, 35]);
+    } else if (newPanels.length === 3) {
+      setPanelSizes([50, 25, 25]);
+    } else {
+      setPanelSizes(newPanels.map(() => 100 / newPanels.length));
+    }
+    
     setPanelZooms([...panelZooms, 100]);
   };
 
@@ -747,19 +845,6 @@ export default function SecureExamPlatform() {
   // 5. RENDERIZADO DE PANELES - ✅ AQUÍ ESTÁN LAS HERRAMIENTAS INTEGRADAS
   // ----------------------------------------------------------------------
   
-  // MANTENER EDITORES MONTADOS (Evita recargas al cambiar pestañas)
-  const [jsEditorMounted, setJsEditorMounted] = useState(false);
-  const [pythonEditorMounted, setPythonEditorMounted] = useState(false);
-
-  useEffect(() => {
-    if (openPanels.includes('javascript') && !jsEditorMounted) {
-      setJsEditorMounted(true);
-    }
-    if (openPanels.includes('python') && !pythonEditorMounted) {
-      setPythonEditorMounted(true);
-    }
-  }, [openPanels]);
-
   const renderPanel = (panel: PanelType, zoomLevel: number = 100) => {
     switch (panel) {
         case "exam": 
@@ -785,7 +870,7 @@ export default function SecureExamPlatform() {
           return <HojaCalculo darkMode={darkMode} />;
         
         case "dibujo": 
-          return <Lienzo darkMode={darkMode} />;
+          return <Lienzo darkMode={darkMode} initialData={lienzoState} onSave={setLienzoState} />;
         
         case "javascript": 
           return (
@@ -818,7 +903,7 @@ export default function SecureExamPlatform() {
 
   if (!examStarted) {
     return (
-      <div className={`min-h-screen ${darkMode ? "bg-slate-900" : "bg-[#f0f4f8]"}`}>
+      <div className={`min-h-screen ${darkMode ? "bg-slate-900" : "bg-gray-50"}`}>
         <button onClick={toggleTheme} className={`fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-yellow-400" : "bg-white border-gray-200 text-gray-600"}`}>
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
@@ -847,45 +932,41 @@ export default function SecureExamPlatform() {
     >
       {/* Estilos de Scrollbar personalizados (Sincronizados con CrearExamen) */}
       <style>{`
-        ${
-          darkMode
-            ? `
+          /* Estilos Base (Modo Día) */
           ::-webkit-scrollbar {
             width: 10px;
             height: 10px;
           }
-          
           ::-webkit-scrollbar-track {
+            background: #f3f4f6;
+          }
+          ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 5px;
+            border: 2px solid #f3f4f6;
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+          }
+          * {
+            scrollbar-width: thin;
+            scrollbar-color: #d1d5db #f3f4f6;
+          }
+
+          /* Estilos Modo Noche (Overrides) */
+          .dark ::-webkit-scrollbar-track {
             background: #0f172a;
           }
-          
-          ::-webkit-scrollbar-thumb {
+          .dark ::-webkit-scrollbar-thumb {
             background: #334155;
-            border-radius: 5px;
             border: 2px solid #0f172a;
           }
-          
-          ::-webkit-scrollbar-thumb:hover {
+          .dark ::-webkit-scrollbar-thumb:hover {
             background: #475569;
           }
-          
-          * {
-            scrollbar-width: thin;
+          .dark * {
             scrollbar-color: #334155 #0f172a;
           }
-        `
-            : `
-          /* En modo día usamos los estilos por defecto o sutiles */
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
-          }
-          ::-webkit-scrollbar { width: 10px; height: 10px; }
-          ::-webkit-scrollbar-track { background: #f1f5f9; }
-          ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 5px; border: 2px solid #f1f5f9; }
-          ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-        `
-        }
       `}</style>
 
       {/* --- MODALES DE CONFIRMACIÓN --- */}
@@ -942,11 +1023,12 @@ export default function SecureExamPlatform() {
       <div className={`absolute inset-0 backdrop-blur-sm transition-all duration-300 ${
         darkMode
           ? "bg-gradient-to-br from-gray-900/80 via-slate-900/70 to-gray-900/80"
-          : "bg-gradient-to-br from-white/80 via-gray-50/70 to-white/80"
+          : "bg-white"
       }`}></div>
 
       <div className="relative z-10 h-full w-full flex overflow-hidden">
         <SavingIndicator savingStates={savingStates} darkMode={darkMode} />
+        <TimerNotification alert={timerAlert} onClose={() => setTimerAlert(null)} darkMode={darkMode} />
 
         {/* --- SIDEBAR REFACTORIZADO (Estilo Dashboard) --- */}
         <div className={`relative z-30 flex flex-col transition-all duration-300 ease-in-out border-r ${
@@ -954,19 +1036,19 @@ export default function SecureExamPlatform() {
           } ${
             darkMode 
               ? "bg-slate-900/80 backdrop-blur-md border-slate-800" 
-              : "bg-white/80 backdrop-blur-md border-gray-200"
+              : "bg-white border-gray-200"
           }`}>
           
           {/* Header Sidebar */}
           <div className="p-4">
             <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"}`}>
-              <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-lg flex-shrink-0">
+              <div className={`w-10 h-10 rounded-lg flex items-center justify-center shadow-lg flex-shrink-0 ${darkMode ? "bg-blue-900/50 text-blue-100" : "bg-slate-800"}`}>
                  <User className="w-5 h-5 text-white" />
               </div>
               {!sidebarCollapsed && (
                   <div className="overflow-hidden transition-all duration-300">
-                      <p className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-blue-600"}`}>Estudiante</p>
-                      <p className={`font-bold text-sm truncate ${darkMode ? "text-white" : "text-gray-800"}`}>{studentData?.nombre || "Usuario"}</p>
+                      <p className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Candidato</p>
+                      <p className={`font-bold text-sm truncate ${darkMode ? "text-slate-200" : "text-slate-800"}`}>{studentData?.nombre || "Usuario"}</p>
                   </div>
               )}
             </div>
@@ -1051,16 +1133,16 @@ export default function SecureExamPlatform() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           
           {/* Header Superior Flotante */}
-          <div className="h-20 px-6 flex items-center justify-between absolute top-0 left-0 right-0 z-20">
+          <div className="h-24 px-6 flex items-center justify-between absolute top-0 left-0 right-0 z-20">
               {/* Left: Control Layout */}
-              <div className={`flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border border-gray-200/50 shadow-md"}`}>
-                  <button onClick={() => setLayout("vertical")} className={`p-1.5 rounded ${layout === "vertical" ? (darkMode ? "bg-blue-600 text-white" : "bg-white text-blue-700 shadow-sm") : (darkMode ? "text-slate-300" : "text-gray-500")}`}><Columns className="w-4 h-4"/></button>
-                  <button onClick={() => setLayout("horizontal")} className={`p-1.5 rounded ${layout === "horizontal" ? (darkMode ? "bg-blue-600 text-white" : "bg-white text-blue-700 shadow-sm") : (darkMode ? "text-slate-300" : "text-gray-500")}`}><Rows className="w-4 h-4"/></button>
+              <div className={`flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
+                  <button onClick={() => setLayout("vertical")} className={`p-1.5 rounded ${layout === "vertical" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Columns className="w-4 h-4"/></button>
+                  <button onClick={() => setLayout("horizontal")} className={`p-1.5 rounded ${layout === "horizontal" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Rows className="w-4 h-4"/></button>
               </div>
 
               {/* Right: Timer and logo */}
               <div className="flex items-center gap-4">
-                  {/* Info Hora y Batería (Movido para mayor visibilidad) */}
+                  {/* Info Hora y Batería */}
                   <div className={`hidden md:flex items-center gap-5 px-5 py-2 rounded-xl border ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
                       <span className={`font-mono text-xl font-bold tracking-widest ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                           {currentTime.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
@@ -1074,13 +1156,21 @@ export default function SecureExamPlatform() {
                               <Battery className={`w-6 h-6 ${batteryLevel !== null && batteryLevel <= 20 ? "text-red-500 animate-pulse" : ""}`}/>
                           )}
                       </div>
+                      <div className={`w-px h-6 ${darkMode ? "bg-slate-700" : "bg-gray-300"}`}></div>
+                      <div className={`flex items-center gap-3 ${
+                          timerStatus === 'critical' ? "text-red-500 animate-pulse" : 
+                          timerStatus === 'warning' ? "text-amber-500" : 
+                          (darkMode ? "text-blue-400" : "text-blue-700")
+                      }`}>
+                          <Clock className="w-5 h-5" />
+                          <span className={`font-mono text-xl font-bold ${
+                              timerStatus === 'critical' ? "text-red-500" : 
+                              timerStatus === 'warning' ? "text-amber-500" : 
+                              (darkMode ? "text-white" : "text-slate-800")
+                          }`}>{remainingTime}</span>
+                      </div>
                   </div>
-
-                  {/* Timer Estilizado */}
-                  <div className={`flex items-center gap-3 px-4 py-2 rounded-xl border ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
-                      <Clock className={`w-5 h-5 ${darkMode ? "text-blue-400" : "text-blue-700"}`} />
-                      <span className={`font-mono text-xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{remainingTime}</span>
-                  </div>
+                  
                   {/* Logo */}
                   <img
                     src={darkMode ? logoUniversidadNoche : logoUniversidad}
@@ -1104,22 +1194,22 @@ export default function SecureExamPlatform() {
                               onDragOver={(e) => handleDragOver(e, index)} 
                               onDrop={() => handleDrop(index)}
                               style={{ [layout === "vertical" ? "width" : "height"]: `${panelSizes[index]}%` }}
-                              className={`flex flex-col rounded-xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-900/80 backdrop-blur-md border-slate-800" : "bg-white/80 backdrop-blur-md border-gray-200"}`}
+                              className={`flex flex-col rounded-xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-900/80 backdrop-blur-md border-slate-800" : "bg-white border-gray-200"}`}
                           >
                               {/* Panel Header */}
                               <div 
-                                draggable 
+                                draggable  
                                 onDragStart={() => handleDragStart(index)}
-                                className={`h-10 flex items-center justify-between px-4 border-b cursor-move ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-[#2c3e50] border-[#2c3e50]"}`}
+                                className={`h-10 flex items-center justify-between px-4 border-b cursor-move ${darkMode ? "bg-blue-900/20 border-blue-800/30" : "bg-slate-800 border-slate-800"}`}
                               >
                                   <div className="flex items-center gap-2">
-                                      <GripVertical className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-white/50"}`} />
+                                      <GripVertical className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
                                       <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-400" : "text-white"}`}>{panel}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                      <button onClick={() => adjustPanelZoom(index, -10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/20"}`}><Minimize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-white"}`}/></button>
-                                      <button onClick={() => adjustPanelZoom(index, 10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/20"}`}><Maximize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-white"}`}/></button>
-                                      <button onClick={() => closePanel(index)} className={`p-1 rounded ml-2 ${darkMode ? "hover:bg-red-500/10 text-gray-400 hover:text-red-500" : "hover:bg-red-500/20 text-white hover:text-red-200"}`}><X className="w-4 h-4"/></button>
+                                      <button onClick={() => adjustPanelZoom(index, -10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Minimize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
+                                      <button onClick={() => adjustPanelZoom(index, 10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Maximize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
+                                      <button onClick={() => closePanel(index)} className={`p-1 rounded ml-2 ${darkMode ? "hover:bg-red-500/10 text-gray-400 hover:text-red-500" : "hover:bg-red-500/20 text-gray-300 hover:text-red-400"}`}><X className="w-4 h-4"/></button>
                                   </div>
                               </div>
                               <div className="flex-1 overflow-hidden relative">
@@ -1171,7 +1261,7 @@ function SidebarNavItem({ icon: Icon, label, active, collapsed, darkMode, onClic
                 active
                     ? darkMode
                         ? "bg-blue-900/30 text-blue-100 border border-blue-800/50"
-                        : "bg-[#2c3e50] text-white shadow-md"
+                        : "bg-slate-800 text-white shadow-md"
                     : darkMode
                         ? "text-gray-400 hover:bg-slate-800 hover:text-white"
                         : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
