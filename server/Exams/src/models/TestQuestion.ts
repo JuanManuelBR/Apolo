@@ -11,10 +11,7 @@ export class TestQuestion extends Question {
   @OneToMany(() => TestOption, (option) => option.question, {
     onDelete: "CASCADE",
     eager: true,
-    cascade: true
+    cascade: true,
   })
   options!: TestOption[];
-
-  @Column({type: "text"})
-  nombreImagen ?: string;
 }

@@ -15,6 +15,7 @@ import { CreateExamEventDto } from "@src/dtos/Create-ExamEvent.dto";
 import { StartExamAttemptDto } from "@src/dtos/Start-ExamAttempt.dto";
 import { ResumeExamAttemptDto } from "@src/dtos/Resume-ExamAttempt.dto";
 import { GradingService } from "./GradingService";
+import axios from "axios";
 
 export class ExamService {
   static async startAttempt(data: StartExamAttemptDto, io: Server) {
@@ -489,6 +490,7 @@ export class ExamService {
 
       let puntajeTotal = 0;
       let puntajePosibleTotal = 0;
+      const answerRepo = AppDataSource.getRepository(ExamAnswer);
 
       console.log("\n" + "📝".repeat(30));
       console.log("RECORRIENDO PREGUNTAS DEL EXAMEN");
@@ -530,20 +532,23 @@ export class ExamService {
             break;
 
           case "open":
-            console.log(
-              `    ⏭️ Pregunta OPEN - Calificación pendiente de implementar`,
+            puntajePregunta = GradingService.gradeOpenQuestion(
+              question,
+              studentAnswer,
             );
             break;
 
           case "fill_blanks":
-            console.log(
-              `    ⏭️ Pregunta FILL_BLANKS - Calificación pendiente de implementar`,
+            puntajePregunta = GradingService.gradeFillBlanksQuestion(
+              question,
+              studentAnswer,
             );
             break;
 
           case "match":
-            console.log(
-              `    ⏭️ Pregunta MATCH - Calificación pendiente de implementar`,
+            puntajePregunta = GradingService.gradeMatchQuestion(
+              question,
+              studentAnswer,
             );
             break;
 
@@ -553,16 +558,25 @@ export class ExamService {
             );
         }
 
+        // ✅ 5. GUARDAR EL PUNTAJE INDIVIDUAL EN LA RESPUESTA
+        if (studentAnswer) {
+          studentAnswer.puntaje = puntajePregunta;
+          await answerRepo.save(studentAnswer);
+          console.log(
+            `    💾 Puntaje guardado en respuesta: ${puntajePregunta.toFixed(5)}`,
+          );
+        }
+
         puntajeTotal += puntajePregunta;
         console.log(
           `    💰 Puntaje acumulado hasta ahora: ${puntajeTotal.toFixed(5)}/${puntajePosibleTotal.toFixed(5)}`,
         );
       }
 
-      const porcentaje =
-        puntajePosibleTotal > 0
-          ? ((puntajeTotal / puntajePosibleTotal) * 100).toFixed(5)
-          : "0.00000";
+      const { porcentaje, notaFinal } = GradingService.calculateFinalGrade(
+        puntajeTotal,
+        puntajePosibleTotal,
+      );
 
       console.log("\n" + "🏆".repeat(30));
       console.log("🏆 CALIFICACIÓN FINALIZADA");
@@ -571,9 +585,17 @@ export class ExamService {
       console.log(
         `📊 Puntaje máximo posible: ${puntajePosibleTotal.toFixed(5)}`,
       );
-      console.log(`📊 Porcentaje: ${porcentaje}%`);
+      console.log(`📊 Porcentaje: ${porcentaje.toFixed(2)}%`);
+      console.log(`📊 Nota final (1-5): ${notaFinal.toFixed(2)}`);
       console.log("🏆".repeat(30) + "\n");
-      return Math.round(puntajeTotal * 100000) / 100000;
+
+      // ✅ 7. GUARDAR PORCENTAJE Y NOTA FINAL EN EL INTENTO
+      const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+      attempt.porcentaje = porcentaje;
+      attempt.notaFinal = notaFinal;
+      await attemptRepo.save(attempt);
+
+      return Math.round(puntajeTotal * 100000) / 100000; // 5 decimales
     } catch (error) {
       console.error("❌ ERROR CRÍTICO al calcular puntaje:", error);
       return 0;
@@ -732,5 +754,321 @@ export class ExamService {
     }
 
     return { message: "Alertas marcadas como leídas" };
+  }
+
+  /**
+   * Obtiene toda la información detallada de un intento de examen
+   * Incluye: intento, respuestas con puntajes, eventos, preguntas correctas
+   */
+  static async getAttemptDetails(intento_id: number) {
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+    const eventRepo = AppDataSource.getRepository(ExamEvent);
+
+    // 1. Obtener el intento con todas sus respuestas
+    const attempt = await attemptRepo.findOne({
+      where: { id: intento_id },
+      relations: ["respuestas"],
+    });
+
+    if (!attempt) {
+      throwHttpError("Intento no encontrado", 404);
+    }
+
+    // 2. Obtener todos los eventos de seguridad
+    const eventos = await eventRepo.find({
+      where: { intento_id },
+      order: { fecha_envio: "DESC" },
+    });
+
+    // 3. Obtener el examen completo usando el código del examen
+    // Primero obtenemos info básica para conseguir el código
+    const examBasic = await ExamAttemptValidator.validateExamExistsById(
+      attempt.examen_id,
+    );
+
+    // Ahora usamos el endpoint correcto que tiene toda la info
+    const EXAM_MS_URL = process.env.EXAM_MS_URL;
+
+    console.log(
+      `🔍 Obteniendo examen completo desde: ${EXAM_MS_URL}/api/exams/forAttempt/${examBasic.codigoExamen}`,
+    );
+
+    const examResponse = await axios.get(
+      `${EXAM_MS_URL}/api/exams/forAttempt/${examBasic.codigoExamen}`,
+    );
+    const exam = examResponse.data;
+
+    if (!exam || !exam.questions) {
+      throwHttpError(
+        "No se pudo obtener la información completa del examen",
+        500,
+      );
+    }
+
+    console.log(
+      `✅ Examen obtenido: "${exam.nombre}" con ${exam.questions.length} preguntas`,
+    );
+
+    // 4. Función auxiliar para parsear respuesta del estudiante según tipo
+    const parseStudentAnswer = (type: string, respuesta: string) => {
+      try {
+        return JSON.parse(respuesta);
+      } catch {
+        return respuesta; // Si no es JSON, retornar como string
+      }
+    };
+
+    // 5. Construir respuesta detallada con información de cada pregunta
+    const preguntasConRespuestas = exam.questions.map((pregunta: any) => {
+      console.log(
+        `📝 Procesando pregunta ${pregunta.id}: "${pregunta.enunciado}" (${pregunta.type})`,
+      );
+
+      // Buscar la respuesta del estudiante para esta pregunta
+      const respuestaEstudiante = attempt.respuestas?.find(
+        (r) => r.pregunta_id === pregunta.id,
+      );
+
+      // ✅ Parsear la respuesta RAW una sola vez para evitar doble escape
+      let respuestaParsed = null;
+      if (respuestaEstudiante) {
+        respuestaParsed = parseStudentAnswer(
+          pregunta.type,
+          respuestaEstudiante.respuesta,
+        );
+      }
+
+      // Preparar información base de la pregunta
+      const preguntaDetalle: any = {
+        id: pregunta.id,
+        enunciado: pregunta.enunciado, // ✅ Viene del endpoint /forAttempt/
+        type: pregunta.type,
+        puntajeMaximo: pregunta.puntaje,
+        calificacionParcial: pregunta.calificacionParcial,
+        nombreImagen: pregunta.nombreImagen,
+
+        // Respuesta del estudiante (info básica)
+        respuestaEstudiante: respuestaEstudiante
+          ? {
+              id: respuestaEstudiante.id,
+              respuestaParsed: respuestaParsed, // ✅ Ya parseada, sin escapes
+              puntajeObtenido: respuestaEstudiante.puntaje || 0,
+              fecha_respuesta: respuestaEstudiante.fecha_respuesta,
+            }
+          : null,
+      };
+
+      // Agregar información específica según el tipo de pregunta
+      switch (pregunta.type) {
+        case "test": {
+          // Todas las opciones con indicador de correcta
+          preguntaDetalle.opciones = pregunta.options?.map((opt: any) => ({
+            id: opt.id,
+            texto: opt.texto,
+            esCorrecta: opt.esCorrecta,
+          }));
+          preguntaDetalle.cantidadRespuestasCorrectas =
+            pregunta.cantidadRespuestasCorrectas;
+
+          // ✅ Usar respuesta ya parseada
+          if (respuestaEstudiante && respuestaParsed) {
+            preguntaDetalle.respuestaEstudiante.opcionesSeleccionadas =
+              pregunta.options
+                ?.filter((opt: any) => respuestaParsed.includes(opt.id))
+                .map((opt: any) => ({
+                  id: opt.id,
+                  texto: opt.texto,
+                  esCorrecta: opt.esCorrecta,
+                }));
+          }
+          break;
+        }
+
+        case "open": {
+          preguntaDetalle.textoRespuesta = pregunta.textoRespuesta;
+          preguntaDetalle.keywords = pregunta.keywords?.map((kw: any) => ({
+            id: kw.id,
+            texto: kw.texto,
+          }));
+
+          // ✅ La respuesta ya viene parseada
+          if (respuestaEstudiante && respuestaParsed) {
+            let textoRespuesta = respuestaParsed;
+
+            // Si aún es string con comillas, limpiar
+            if (
+              typeof textoRespuesta === "string" &&
+              textoRespuesta.startsWith('"') &&
+              textoRespuesta.endsWith('"')
+            ) {
+              textoRespuesta = textoRespuesta.slice(1, -1);
+            }
+
+            preguntaDetalle.respuestaEstudiante.textoEscrito = textoRespuesta;
+          }
+          break;
+        }
+
+        case "fill_blanks": {
+          preguntaDetalle.textoCorrecto = pregunta.textoCorrecto;
+          preguntaDetalle.respuestasCorrectas = pregunta.blanks?.map(
+            (r: any) => ({
+              id: r.id,
+              posicion: r.posicion,
+              textoCorrecto: r.textoCorrecto,
+            }),
+          );
+
+          // ✅ Usar respuesta ya parseada
+          if (
+            respuestaEstudiante &&
+            respuestaParsed &&
+            Array.isArray(respuestaParsed)
+          ) {
+            // Mapear con las respuestas correctas
+            preguntaDetalle.respuestaEstudiante.espaciosLlenados =
+              pregunta.blanks
+                ?.sort((a: any, b: any) => a.posicion - b.posicion)
+                .map((blank: any, index: number) => ({
+                  posicion: blank.posicion,
+                  respuestaEstudiante: respuestaParsed[index] || "",
+                  respuestaCorrecta: blank.textoCorrecto,
+                  esCorrecta:
+                    String(respuestaParsed[index] || "")
+                      .toLowerCase()
+                      .trim() ===
+                    String(blank.textoCorrecto || "")
+                      .toLowerCase()
+                      .trim(),
+                }));
+          }
+          break;
+        }
+
+        case "match": {
+          preguntaDetalle.paresCorrectos = pregunta.pares?.map((par: any) => ({
+            id: par.id,
+            itemA: {
+              id: par.itemA.id,
+              text: par.itemA.text,
+            },
+            itemB: {
+              id: par.itemB.id,
+              text: par.itemB.text,
+            },
+          }));
+
+          // ✅ Usar respuesta ya parseada
+          if (
+            respuestaEstudiante &&
+            respuestaParsed &&
+            Array.isArray(respuestaParsed)
+          ) {
+            preguntaDetalle.respuestaEstudiante.paresSeleccionados =
+              respuestaParsed.map((parEst: any) => {
+                // Buscar el itemA y itemB en los pares originales
+                const itemA = pregunta.pares
+                  ?.flatMap((p: any) => [p.itemA, p.itemB])
+                  .find((item: any) => item.id === parEst.itemA_id);
+
+                const itemB = pregunta.pares
+                  ?.flatMap((p: any) => [p.itemA, p.itemB])
+                  .find((item: any) => item.id === parEst.itemB_id);
+
+                // Verificar si este par es correcto
+                const esCorrecto = pregunta.pares?.some(
+                  (p: any) =>
+                    p.itemA.id === parEst.itemA_id &&
+                    p.itemB.id === parEst.itemB_id,
+                );
+
+                return {
+                  itemA: itemA
+                    ? { id: itemA.id, text: itemA.text }
+                    : { id: parEst.itemA_id, text: "Desconocido" },
+                  itemB: itemB
+                    ? { id: itemB.id, text: itemB.text }
+                    : { id: parEst.itemB_id, text: "Desconocido" },
+                  esCorrecto,
+                };
+              });
+          }
+          break;
+        }
+      }
+
+      return preguntaDetalle;
+    });
+
+    // 6. Calcular estadísticas adicionales
+    const totalPreguntas = exam.questions.length;
+    const preguntasRespondidas = attempt.respuestas?.length || 0;
+    const preguntasCorrectas = preguntasConRespuestas.filter(
+      (p: any) =>
+        p.respuestaEstudiante &&
+        p.respuestaEstudiante.puntajeObtenido === p.puntajeMaximo,
+    ).length;
+
+    // 7. Construir respuesta completa
+    return {
+      // Información del intento
+      intento: {
+        id: attempt.id,
+        examen_id: attempt.examen_id,
+        estado: attempt.estado,
+        nombre_estudiante: attempt.nombre_estudiante,
+        correo_estudiante: attempt.correo_estudiante,
+        identificacion_estudiante: attempt.identificacion_estudiante,
+        fecha_inicio: attempt.fecha_inicio,
+        fecha_fin: attempt.fecha_fin,
+        limiteTiempoCumplido: attempt.limiteTiempoCumplido,
+        consecuencia: attempt.consecuencia,
+
+        // Calificaciones
+        puntaje: attempt.puntaje,
+        puntajeMaximo: attempt.puntajeMaximo,
+        porcentaje: attempt.porcentaje,
+        notaFinal: attempt.notaFinal,
+        progreso: attempt.progreso,
+      },
+
+      // Información del examen
+      examen: {
+        id: exam.id,
+        nombre: exam.nombre,
+        descripcion: exam.descripcion,
+        codigoExamen: exam.codigoExamen,
+        estado: exam.estado,
+        nombreProfesor: exam.nombreProfesor,
+      },
+
+      // Estadísticas
+      estadisticas: {
+        totalPreguntas,
+        preguntasRespondidas,
+        preguntasCorrectas,
+        preguntasIncorrectas: preguntasRespondidas - preguntasCorrectas,
+        preguntasSinResponder: totalPreguntas - preguntasRespondidas,
+        tiempoTotal:
+          attempt.fecha_fin && attempt.fecha_inicio
+            ? Math.floor(
+                (new Date(attempt.fecha_fin).getTime() -
+                  new Date(attempt.fecha_inicio).getTime()) /
+                  1000,
+              ) // segundos
+            : null,
+      },
+
+      // Preguntas con respuestas y calificaciones
+      preguntas: preguntasConRespuestas,
+
+      // Eventos de seguridad
+      eventos: eventos.map((e) => ({
+        id: e.id,
+        tipo_evento: e.tipo_evento,
+        fecha_envio: e.fecha_envio,
+        leido: e.leido,
+      })),
+    };
   }
 }

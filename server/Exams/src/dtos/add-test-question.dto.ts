@@ -27,8 +27,4 @@ export class TestQuestionDto extends BaseQuestionDto {
   @Type(() => TestOptionDto)
   @IsNotEmpty({ message: "Debe proporcionar al menos una opción" })
   options!: TestOptionDto[];
-
-  @IsString({ message: "El nombre de la imagen debe ser una cadena de texto" })
-  @IsOptional()
-  nombreImagen?: string;
 }

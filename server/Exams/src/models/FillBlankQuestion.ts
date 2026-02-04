@@ -14,6 +14,5 @@ export class FillBlankQuestion extends Question {
   })
   respuestas!: BlankAnswer[];
 
-  @Column({type: "text"})
-  nombreImagen ?: string;
+  
 }

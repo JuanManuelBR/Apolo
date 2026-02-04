@@ -18,6 +18,5 @@ export class OpenQuestion extends Question {
   })
   keywords?: OpenQuestionKeyword[];
 
-  @Column({type: "text"})
-  nombreImagen ?: string;
+
 }

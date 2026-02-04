@@ -14,6 +14,8 @@ import { omit } from "lodash";
 import { NextFunction } from "express";
 import axios from "axios";
 import { ExamenState } from "@src/types/Exam";
+import { UpdateExamDto } from "@src/dtos/update-exam.dto";
+import { BaseQuestionDto } from "@src/dtos/base-question.dto";
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
@@ -136,6 +138,223 @@ export class ExamService {
     });
   }
 
+  async updateExam(
+    examId: number,
+    rawData: any,
+    profesorId: number,
+    cookies?: string,
+  ) {
+    const validator = new CommonValidator();
+    const data = await validator.validateDto(UpdateExamDto, rawData);
+
+    // Validar fechas si se envían
+    if (data.horaApertura && data.horaCierre) {
+      const apertura = new Date(data.horaApertura);
+      const cierre = new Date(data.horaCierre);
+
+      if (isNaN(apertura.getTime()) || isNaN(cierre.getTime())) {
+        throwHttpError(
+          "Formato de fecha inválido en horaApertura u horaCierre",
+          400,
+        );
+      }
+
+      if (apertura >= cierre) {
+        throwHttpError(
+          "La fecha y hora de apertura deben ser anteriores a la fecha y hora de cierre",
+          400,
+        );
+      }
+    }
+
+    // Verificar que el profesor es dueño del examen
+    const existingExam = await examenValidator.verificarPropietarioExamen(
+      examId,
+      profesorId,
+      cookies,
+    );
+
+    // Si se cambia el nombre, verificar que no esté duplicado
+    if (data.nombre && data.nombre !== existingExam.nombre) {
+      await examenValidator.verificarNombreDuplicadoUpdate(
+        data.nombre,
+        profesorId,
+        examId,
+      );
+    }
+
+    return await AppDataSource.transaction(async (manager) => {
+      const { imageService } = await import("./ImageService");
+      const { pdfService } = await import("./PDFService");
+
+      // 1. MANEJAR PDF
+      let pdfAnterior = existingExam.archivoPDF;
+
+      if (data.archivoPDF !== undefined) {
+        // Si envían un nuevo PDF o null
+        if (pdfAnterior && pdfAnterior !== data.archivoPDF) {
+          // Eliminar PDF anterior
+          await pdfService.deletePDF(pdfAnterior);
+        }
+        existingExam.archivoPDF = data.archivoPDF || null;
+      }
+
+      // 2. MANEJAR PREGUNTAS
+      const imagenesAEliminar: string[] = [];
+
+      if (data.questions !== undefined) {
+        // ✅ Las preguntas vienen del DTO validado, tienen nombreImagen
+        // pero necesitamos acceder a 'id' que solo existe en runtime
+        const questionsFromRequest = data.questions as (BaseQuestionDto & {
+          id?: number;
+        })[];
+
+        // Obtener IDs de preguntas en el request (las que tienen id son existentes)
+        const preguntasNuevasIds = questionsFromRequest
+          .filter((q) => q.id !== undefined)
+          .map((q) => q.id!);
+
+        // Identificar preguntas que se eliminaron
+        const preguntasEliminadas = existingExam.questions.filter(
+          (q: any) => !preguntasNuevasIds.includes(q.id),
+        );
+
+        // Guardar imágenes de preguntas eliminadas para borrarlas
+        for (const pregunta of preguntasEliminadas) {
+          if ((pregunta as any).nombreImagen) {
+            imagenesAEliminar.push((pregunta as any).nombreImagen);
+          }
+        }
+
+        // Eliminar preguntas viejas completamente
+        if (preguntasEliminadas.length > 0) {
+          for (const preguntaVieja of preguntasEliminadas) {
+            await manager.remove(preguntaVieja);
+          }
+        }
+
+        // Procesar preguntas actualizadas y nuevas
+        const preguntasProcesadas = QuestionValidator.crearPreguntasDesdeDto(
+          data.questions,
+          existingExam,
+        );
+
+        // Identificar cambios en imágenes de preguntas existentes
+        for (let i = 0; i < questionsFromRequest.length; i++) {
+          const preguntaDto = questionsFromRequest[i];
+          const preguntaProcesada = preguntasProcesadas[i];
+
+          if (preguntaDto.id !== undefined) {
+            // Es una pregunta existente
+            const preguntaExistente = existingExam.questions.find(
+              (q: any) => q.id === preguntaDto.id,
+            );
+
+            if (preguntaExistente) {
+              const imagenAnterior = (preguntaExistente as any).nombreImagen;
+              const imagenNueva = preguntaDto.nombreImagen; // ✅ Ahora existe en BaseQuestionDto
+
+              // Si la imagen cambió, marcar la anterior para eliminar
+              if (
+                imagenAnterior &&
+                imagenAnterior !== imagenNueva &&
+                !imagenesAEliminar.includes(imagenAnterior)
+              ) {
+                imagenesAEliminar.push(imagenAnterior);
+              }
+
+              // Mantener el ID de la pregunta existente
+              (preguntaProcesada as any).id = preguntaDto.id;
+            }
+          }
+        }
+
+        // Guardar preguntas (actualiza existentes, crea nuevas)
+        const preguntasGuardadas = await manager.save(
+          Question,
+          preguntasProcesadas,
+        );
+
+        existingExam.questions = preguntasGuardadas.map((q: any) => {
+          delete q.exam;
+          if (q.type === "matching" && q.pares) {
+            q.pares.forEach((p: any) => {
+              delete p.question;
+            });
+          }
+          return q;
+        });
+      }
+
+      // 3. ACTUALIZAR CAMPOS DEL EXAMEN
+      if (data.nombre !== undefined) existingExam.nombre = data.nombre;
+      if (data.descripcion !== undefined)
+        existingExam.descripcion = data.descripcion;
+      if (data.contrasena !== undefined)
+        existingExam.contrasena = data.contrasena;
+      if (data.estado !== undefined) existingExam.estado = data.estado;
+      if (data.necesitaNombreCompleto !== undefined)
+        existingExam.necesitaNombreCompleto = data.necesitaNombreCompleto;
+      if (data.necesitaCorreoElectrónico !== undefined)
+        existingExam.necesitaCorreoElectrónico = data.necesitaCorreoElectrónico;
+      if (data.necesitaCodigoEstudiantil !== undefined)
+        existingExam.necesitaCodigoEstudiantil = data.necesitaCodigoEstudiantil;
+      if (data.necesitaContrasena !== undefined)
+        existingExam.necesitaContrasena = data.necesitaContrasena;
+      if (data.incluirHerramientaDibujo !== undefined)
+        existingExam.incluirHerramientaDibujo = data.incluirHerramientaDibujo;
+      if (data.incluirCalculadoraCientifica !== undefined)
+        existingExam.incluirCalculadoraCientifica =
+          data.incluirCalculadoraCientifica;
+      if (data.incluirHojaExcel !== undefined)
+        existingExam.incluirHojaExcel = data.incluirHojaExcel;
+      if (data.incluirJavascript !== undefined)
+        existingExam.incluirJavascript = data.incluirJavascript;
+      if (data.incluirPython !== undefined)
+        existingExam.incluirPython = data.incluirPython;
+      if (data.horaApertura !== undefined)
+        existingExam.horaApertura = data.horaApertura;
+      if (data.horaCierre !== undefined)
+        existingExam.horaCierre = data.horaCierre;
+      if (data.limiteTiempo !== undefined)
+        existingExam.limiteTiempo = data.limiteTiempo;
+      if (data.limiteTiempoCumplido !== undefined)
+        existingExam.limiteTiempoCumplido = data.limiteTiempo
+          ? data.limiteTiempoCumplido
+          : null;
+      if (data.consecuencia !== undefined)
+        existingExam.consecuencia = data.consecuencia;
+
+      // Actualizar cambio de estado automático
+      const cambioEstadoAutomatico = !!(
+        existingExam.horaApertura && existingExam.horaCierre
+      );
+      existingExam.cambioEstadoAutomatico = cambioEstadoAutomatico;
+
+      // Guardar examen actualizado
+      const examActualizado = await manager.save(Exam, existingExam);
+
+      // 4. ELIMINAR IMÁGENES ANTIGUAS
+      for (const imagenAEliminar of imagenesAEliminar) {
+        try {
+          await imageService.deleteImage(imagenAEliminar);
+        } catch (error) {
+          console.error(`Error al eliminar imagen ${imagenAEliminar}:`, error);
+        }
+      }
+
+      // 5. ACTUALIZAR SCHEDULER
+      if (cambioEstadoAutomatico) {
+        schedulerService.programarCambioEstado(examActualizado);
+      } else if (existingExam.cambioEstadoAutomatico) {
+        // Si antes tenía cambio automático y ahora no
+        schedulerService.cancelarCambioEstado(examId);
+      }
+
+      return examActualizado;
+    });
+  }
+
   async listExams() {
     const examenes = await this.examRepo.find({
       relations: ["questions"],
@@ -206,7 +425,15 @@ export class ExamService {
     const repo = AppDataSource.getRepository(Exam);
     const exam = await repo.findOne({
       where: { id },
-      relations: ["questions"],
+      relations: [
+        "questions",
+        "questions.options",
+        "questions.respuestas",
+        "questions.keywords",
+        "questions.pares",
+        "questions.pares.itemA",
+        "questions.pares.itemB",
+      ],
     });
 
     if (!exam) {
@@ -308,7 +535,7 @@ export class ExamService {
             options: q.options?.map((opt: any) => ({
               id: opt.id,
               texto: opt.texto,
-                        })),
+            })),
           };
 
         default:
