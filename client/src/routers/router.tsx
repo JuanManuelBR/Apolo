@@ -34,14 +34,14 @@ export function MyRoutes() {
         {/* Ruta del Examen (pública) - NUEVA */}
         <Route path="/exam-solver" element={<ExamSolver />} />
         
-        {/* Ruta Principal (protegida) */}
-        <Route 
-          path="/" 
+        {/* Ruta Principal (protegida) - usa /* para permitir sub-rutas internas */}
+        <Route
+          path="/*"
           element={
             <RutaProtegida>
               <PrincipalPage />
             </RutaProtegida>
-          } 
+          }
         />
         
         {/* Cualquier otra ruta redirige al login */}

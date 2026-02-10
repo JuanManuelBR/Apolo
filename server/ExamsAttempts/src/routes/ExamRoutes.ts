@@ -30,5 +30,7 @@ router.get("/attempt/:attemptId/events", ExamController.getAttemptEvents);
 
 router.patch("/attempt/:attemptId/events/read", ExamController.markEventsAsRead);
 
+// Obtener detalles completos de un intento (para el profesor)
+router.get('/attempt/:intento_id/details', ExamController.getAttemptDetails);
 
 export default router;

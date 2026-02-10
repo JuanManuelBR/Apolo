@@ -58,6 +58,12 @@ export class ExamAttempt {
   @Column({ type: "varchar", length: 50 })
   consecuencia!: string; // "ninguna", "notificar", "bloquear"
 
+  @Column({ type: "double", nullable: true, default: null })
+  porcentaje?: number | null;
+
+  @Column({ type: "double", nullable: true, default: null })
+  notaFinal?: number | null;
+
   @OneToMany(() => ExamAnswer, (answer) => answer.intento, {
     cascade: true,
     eager: true,

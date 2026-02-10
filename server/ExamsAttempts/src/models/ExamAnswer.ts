@@ -27,4 +27,9 @@ export class ExamAnswer {
   @ManyToOne("ExamAttempt", "respuestas")
   @JoinColumn({ name: "intento_id" })
   intento!: ExamAttempt;
+
+  @Column({ type: "double", nullable: true, default: null })
+  puntaje?: number | null;
+
+
 }

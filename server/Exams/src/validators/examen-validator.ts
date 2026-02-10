@@ -13,7 +13,7 @@ export class examenValidator {
         {
           headers: { Cookie: cookies || "" },
           timeout: 5000,
-        }
+        },
       );
 
       const profesor = response.data;
@@ -21,7 +21,7 @@ export class examenValidator {
       if (!profesor?.id) {
         throwHttpError(
           "No se encontró el profesor con el id proporcionado",
-          404
+          404,
         );
       }
 
@@ -32,7 +32,7 @@ export class examenValidator {
         if (error.response?.status === 404) {
           throwHttpError(
             "No se encontró el profesor con el id proporcionado",
-            404
+            404,
           );
         }
 
@@ -61,6 +61,59 @@ export class examenValidator {
 
     if (examen_existente) {
       throwHttpError("No puedes tener 2 exámenes con el mismo nombre", 409);
+    }
+  }
+
+  /**
+   * Verifica que el profesor sea dueño del examen que quiere actualizar
+   */
+  static async verificarPropietarioExamen(
+    examId: number,
+    profesorId: number,
+    cookies?: string,
+  ): Promise<Exam> {
+    await this.verificarProfesor(profesorId, cookies);
+
+    const examRepo = AppDataSource.getRepository(Exam);
+    const exam = await examRepo.findOne({
+      where: { id: examId },
+      relations: [
+        "questions",
+        "questions.options",
+        "questions.respuestas",
+        "questions.keywords",
+        "questions.pares",
+        "questions.pares.itemA",
+        "questions.pares.itemB",
+      ],
+    });
+
+    if (!exam) {
+      throwHttpError("Examen no encontrado", 404);
+    }
+
+    if (exam.id_profesor !== profesorId) {
+      throwHttpError("No tienes permiso para modificar este examen", 403);
+    }
+
+    return exam;
+  }
+
+  /**
+   * Verifica que el nuevo nombre no esté duplicado (excepto el mismo examen)
+   */
+  static async verificarNombreDuplicadoUpdate(
+    nuevoNombre: string,
+    profesorId: number,
+    examIdActual: number,
+  ) {
+    const examRepo = AppDataSource.getRepository(Exam);
+    const examenDuplicado = await examRepo.findOne({
+      where: { nombre: nuevoNombre, id_profesor: profesorId },
+    });
+
+    if (examenDuplicado && examenDuplicado.id !== examIdActual) {
+      throwHttpError("Ya tienes un examen con ese nombre", 409);
     }
   }
 }

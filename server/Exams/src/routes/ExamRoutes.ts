@@ -15,6 +15,8 @@ router.get(
 
 router.post("/", upload.any(), ExamsController.addExam, authenticateToken);
 
+router.put("/:id", authenticateToken, upload.any(), ExamsController.updateExam);
+
 router.get("/", ExamsController.listExams, authenticateToken);
 
 router.delete("/:id", ExamsController.deleteExamsByUser, authenticateToken);
@@ -24,7 +26,11 @@ router.get("/:codigoExamen", ExamsController.getExamByCodigo);
 router.get("/forAttempt/:codigo", ExamsController.getExamForAttempt);
 router.post("/validate-password", ExamsController.validatePassword);
 
-router.patch("/:id/status", authenticateToken, ExamsController.updateExamStatus);
+router.patch(
+  "/:id/status",
+  authenticateToken,
+  ExamsController.updateExamStatus,
+);
 
 router.delete("/:id/single", authenticateToken, ExamsController.deleteExamById);
 

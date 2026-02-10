@@ -174,4 +174,23 @@ export class ExamController {
       next(err);
     }
   }
+
+  static async getAttemptDetails(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const intento_id = Number(req.params.intento_id);
+
+      if (isNaN(intento_id)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const details = await ExamService.getAttemptDetails(intento_id);
+      res.status(200).json(details);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

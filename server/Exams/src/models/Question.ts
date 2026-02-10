@@ -27,4 +27,7 @@ export abstract class Question {
 
   @ManyToOne("Exam", "questions", { onDelete: "CASCADE" })
   exam!: Exam;
+
+  @Column({ type: "text", nullable: true })
+  nombreImagen?: string;
 }

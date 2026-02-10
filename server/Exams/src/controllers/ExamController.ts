@@ -270,4 +270,81 @@ export class ExamsController {
       next(error);
     }
   }
+  static async updateExam(
+    req: AuthenticatedRequest,
+    res: Response,
+    next: NextFunction,
+  ) {
+    const uploadedImages: string[] = [];
+    let uploadedPDF: string | null = null;
+
+    try {
+      const examId = Number(req.params.id);
+      const profesorId = req.user.id;
+
+      if (isNaN(examId)) {
+        throwHttpError("ID de examen inválido", 400);
+      }
+
+      // ✅ DEBUG: Ver qué contiene req.body
+      console.log("📦 req.body completo:", req.body);
+      console.log("📦 req.body.data:", req.body.data);
+      console.log("📦 req.files:", req.files);
+
+      // ✅ Verificar si req.body.data existe
+      if (!req.body.data) {
+        throwHttpError("El campo 'data' es requerido en el body", 400);
+      }
+
+      const data = JSON.parse(req.body.data);
+      const cookies = req.headers.cookie;
+      const files = req.files as any[];
+
+      if (files && files.length > 0) {
+        for (const file of files) {
+          // Manejar archivo PDF
+          if (file.fieldname === "examPDF") {
+            const pdfFileName = await pdfService.savePDF(file);
+            uploadedPDF = pdfFileName;
+            data.archivoPDF = pdfFileName;
+          }
+          // Manejar imágenes de preguntas
+          else {
+            const match = file.fieldname.match(/^image_(\d+)$/);
+            if (match) {
+              const index = parseInt(match[1]);
+              if (data.questions && data.questions[index]) {
+                const fileName = await imageService.saveImage(file);
+                uploadedImages.push(fileName);
+                data.questions[index].nombreImagen = fileName;
+              }
+            }
+          }
+        }
+      }
+
+      const examen = await exam_service.updateExam(
+        examId,
+        data,
+        profesorId,
+        cookies,
+      );
+
+      return res.status(200).json({
+        message: "Examen actualizado correctamente",
+        examen,
+      });
+    } catch (error) {
+      // Limpiar archivos subidos en caso de error
+      for (const fileName of uploadedImages) {
+        await imageService.deleteImage(fileName);
+      }
+
+      if (uploadedPDF) {
+        await pdfService.deletePDF(uploadedPDF);
+      }
+
+      next(error);
+    }
+  }
 }

@@ -27,6 +27,10 @@ export abstract class BaseQuestionDto {
   })
   calificacionParcial!: boolean;
 
+  @IsString({ message: "El nombre de la imagen debe ser una cadena de texto" })
+  @IsOptional()
+  nombreImagen?: string;
+
   @IsNumber({}, { message: "El ID del examen debe ser un número." })
   @IsOptional()
   id_examen?: number;

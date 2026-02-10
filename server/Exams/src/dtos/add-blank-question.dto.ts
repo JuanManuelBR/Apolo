@@ -20,10 +20,6 @@ export class FillBlankQuestionDto extends BaseQuestionDto {
   @IsNotEmpty()
   textoCorrecto!: string;
 
-  @IsString({ message: "El nombre de la imagen debe ser una cadena de texto" })
-  @IsOptional()
-  nombreImagen?: string;
-
   @IsArray({ message: "Las respuestas deben ser un arreglo." })
   @ValidateNested({ each: true })
   @Type(() => FillBlankAnswerDto)
