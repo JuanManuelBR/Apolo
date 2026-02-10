@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Download, Upload, Plus, Trash2 } from 'lucide-react';
+import { useState } from 'react';
+import { Download, Plus } from 'lucide-react';
 
 interface HojaCalculoProps {
   darkMode: boolean;

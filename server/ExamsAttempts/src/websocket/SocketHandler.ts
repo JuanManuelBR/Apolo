@@ -31,6 +31,12 @@ export class SocketHandler {
         console.log(`👨‍🏫 Profesor ${socket.id} monitoreando exam_${examId}`);
       });
 
+      socket.on("leave_exam_monitoring", (examId: number) => {
+        socket.leave(`exam_${examId}`);
+        this.connections.delete(socket.id);
+        console.log(`👋 Profesor ${socket.id} dejó de monitorear exam_${examId}`);
+      });
+
       socket.on("leave_attempt", (attemptId: number) => {
         socket.leave(`attempt_${attemptId}`);
         this.stopTimer(attemptId);

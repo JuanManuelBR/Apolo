@@ -1706,7 +1706,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
         <div className="flex flex-1 overflow-hidden relative">
             
             {/* LEFT SIDEBAR */}
-            <div className="w-64 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col z-10 min-h-0">
+            <div className="w-52 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col z-10 min-h-0">
                 
                 <div className="p-2 grid grid-cols-4 gap-1 border-b border-gray-200 dark:border-slate-700">
                     <ToolBtn icon={MousePointer2} label="Select" isSelected={tool === 'select'} onClick={() => setTool('select')} />
@@ -1806,7 +1806,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
             </div>
 
             {/* RIGHT SIDEBAR (INSPECTOR) */}
-            <div className="w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
+            <div className="w-44 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 font-bold text-sm uppercase tracking-wider flex justify-between items-center text-gray-700 dark:text-gray-300">
                     <span>Propiedades</span>
                 </div>

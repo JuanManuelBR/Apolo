@@ -25,8 +25,8 @@ import {
   LogOut
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
-import ExamPanel from "../components/ExamenPreguntas";
-import MonitoreoSupervisado from "../components/ExamenAcceso";
+import ExamPanel from "./ExamenPreguntas";
+import MonitoreoSupervisado from "./ExamenAcceso";
 import EditorTexto from '../components/EditorTexto';
 import Calculadora from '../components/Calculadora';
 import HojaCalculo from '../components/HojaCalculo';
@@ -162,6 +162,8 @@ export default function SecureExamPlatform() {
   const [examBlocked, setExamBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [examFinished, setExamFinished] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
@@ -241,6 +243,30 @@ export default function SecureExamPlatform() {
   // Estados para Modales de Confirmación
   const [showExitModal, setShowExitModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+
+  // --- HELPERS DE DIMENSIONAMIENTO ---
+  const getMinSize = (type: PanelType, panelCount: number) => {
+      if (type === "dibujo") return 50; // Lienzo requiere 60% mínimo
+      // Si hay 3 paneles, relajamos un poco los mínimos para que quepan
+      if (type === "exam") return 50;
+      if (type === "python" || type === "javascript") return panelCount === 3 ? 30 : 40;
+      if (type === "answer") return 30;
+      return 20; // Calculadora, Excel, etc.
+  };
+
+  const calculateOptimalSizes = (panels: PanelType[]) => {
+      const count = panels.length;
+      const minSizes = panels.map(p => getMinSize(p, count));
+      const totalMin = minSizes.reduce((a, b) => a + b, 0);
+      
+      // Si los mínimos superan el 100% (raro con la lógica actual), escalamos
+      if (totalMin > 100) return minSizes.map(m => (m / totalMin) * 100);
+      
+      // Si sobra espacio, se lo damos al primer panel (Examen)
+      const sizes = [...minSizes];
+      sizes[0] += (100 - totalMin);
+      return sizes;
+  };
 
   // ----------------------------------------------------------------------
   // 2. EFECTOS LÓGICOS (Carga, Seguridad, Timer)
@@ -554,6 +580,7 @@ export default function SecureExamPlatform() {
 
   // Lógica de entrega final
   const submitExam = async () => {
+      setIsSubmitting(true);
       console.log("💾 Guardando respuestas pendientes antes de entregar...");
       const savePromises = Object.entries(saveTimersRef.current).map(async ([preguntaIdStr, timer]) => {
           const preguntaId = Number(preguntaIdStr);
@@ -570,10 +597,35 @@ export default function SecureExamPlatform() {
                   method: "POST",
                   headers: { "Content-Type": "application/json" }
               });
-              // Cerrar página tras éxito
-              handleCloseApp();
-          } catch (error) { console.error("Error:", error); alert("Error al entregar el examen"); }
+              // Mostrar pantalla de finalización
+              setExamFinished(true);
+              
+              // Salir de pantalla completa
+              if (document.fullscreenElement) {
+                  document.exitFullscreen().catch(() => {});
+              }
+
+              try {
+                  window.close();
+              } catch (e) { console.log("No se pudo cerrar automáticamente"); }
+          } catch (error) { 
+              console.error("Error:", error); 
+              alert("Error al entregar el examen");
+              setIsSubmitting(false);
+          }
+      } else {
+          setIsSubmitting(false);
       }
+  };
+
+  // Función auxiliar para mezclar array (Fisher-Yates Shuffle)
+  const shuffleArray = (array: any[]) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
   };
 
   // ✅ FUNCION startExam RESTAURADA COMPLETAMENTE
@@ -626,6 +678,12 @@ export default function SecureExamPlatform() {
       if (!examDetailsRes.ok) throw new Error("Error al cargar detalles del examen");
 
       const examDetails = await examDetailsRes.json();
+      
+      // Aleatorizar el orden de las preguntas
+      if (examDetails.questions && Array.isArray(examDetails.questions)) {
+        examDetails.questions = shuffleArray(examDetails.questions);
+      }
+      
       console.log("✅ Preguntas cargadas:", examDetails);
 
       setExamData(examDetails);
@@ -695,7 +753,7 @@ export default function SecureExamPlatform() {
     const handleFullscreenChange = () => {
       clearTimeout(fullscreenTimeout);
       fullscreenTimeout = setTimeout(() => {
-        if (examStarted && !document.fullscreenElement && !examBlocked) {
+        if (examStarted && !document.fullscreenElement && !examBlocked && !isSubmitting && !examFinished) {
           blockExam("Salida de pantalla completa detectada", "CRITICAL");
         }
       }, 100);
@@ -711,11 +769,11 @@ export default function SecureExamPlatform() {
     };
 
     const handleVisibilityChange = () => {
-      if (examStarted && document.hidden && !examBlocked) blockExam("Cambio de pestaña detectado", "CRITICAL");
+      if (examStarted && document.hidden && !examBlocked && !isSubmitting && !examFinished) blockExam("Cambio de pestaña detectado", "CRITICAL");
     };
 
     const handleBlur = () => {
-      if (examStarted && !examBlocked) blockExam("Pérdida de foco detectada", "CRITICAL");
+      if (examStarted && !examBlocked && !isSubmitting && !examFinished) blockExam("Pérdida de foco detectada", "CRITICAL");
     };
 
     document.addEventListener("fullscreenchange", handleFullscreenChange);
@@ -728,8 +786,9 @@ export default function SecureExamPlatform() {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
+      clearTimeout(fullscreenTimeout);
     };
-  }, [examStarted, examBlocked]);
+  }, [examStarted, examBlocked, isSubmitting, examFinished]);
 
   const handleEscapeFromBlock = () => {
     if (document.fullscreenElement) document.exitFullscreen();
@@ -747,29 +806,44 @@ export default function SecureExamPlatform() {
     if (tools.includes(panelType)) {
       const existingToolIndex = openPanels.findIndex((p) => tools.includes(p));
       if (existingToolIndex !== -1) {
-        const newPanels = [...openPanels];
+        let newPanels = [...openPanels];
         newPanels[existingToolIndex] = panelType;
+        
+        // Restricción Lienzo: Si hay dibujo, máximo 2 paneles para evitar bugs visuales
+        if (newPanels.includes("dibujo") && newPanels.length > 2) {
+             newPanels = [newPanels[0], panelType];
+             setOpenPanels(newPanels);
+             setPanelSizes(calculateOptimalSizes(newPanels));
+             setPanelZooms([panelZooms[0], 100]);
+             return;
+        }
+
         setOpenPanels(newPanels);
         const newZooms = [...panelZooms];
         newZooms[existingToolIndex] = 100;
         setPanelZooms(newZooms);
+
+        // Recalcular tamaños óptimos al cambiar de herramienta
+        setPanelSizes(calculateOptimalSizes(newPanels));
         return;
       }
+    }
+
+    // Restricción Lienzo al agregar nuevo panel: Si ya hay 2 y uno es dibujo o el nuevo es dibujo -> Reemplazar el segundo
+    if (openPanels.length >= 2 && (panelType === "dibujo" || openPanels.includes("dibujo"))) {
+         const newPanels = [openPanels[0], panelType];
+         setOpenPanels(newPanels);
+         setPanelSizes(calculateOptimalSizes(newPanels));
+         setPanelZooms([panelZooms[0], 100]);
+         return;
     }
 
     if (openPanels.length >= 3) { alert("Máximo 3 paneles"); return; }
     const newPanels = [...openPanels, panelType];
     setOpenPanels(newPanels);
     
-    // Ajustar tamaños: Dar más espacio al panel principal (65% vs 35%)
-    if (newPanels.length === 2) {
-      setPanelSizes([65, 35]);
-    } else if (newPanels.length === 3) {
-      setPanelSizes([50, 25, 25]);
-    } else {
-      setPanelSizes(newPanels.map(() => 100 / newPanels.length));
-    }
-    
+    // Calcular tamaños iniciales basados en los mínimos de cada panel
+    setPanelSizes(calculateOptimalSizes(newPanels));
     setPanelZooms([...panelZooms, 100]);
   };
 
@@ -791,8 +865,16 @@ export default function SecureExamPlatform() {
   const handleDrop = (index: number) => { 
       if (draggedPanelIndex !== null && draggedPanelIndex !== index) {
         const newPanels = [...openPanels];
+        const newSizes = [...panelSizes];
+        const newZooms = [...panelZooms];
+
         [newPanels[draggedPanelIndex], newPanels[index]] = [newPanels[index], newPanels[draggedPanelIndex]];
+        [newSizes[draggedPanelIndex], newSizes[index]] = [newSizes[index], newSizes[draggedPanelIndex]];
+        [newZooms[draggedPanelIndex], newZooms[index]] = [newZooms[index], newZooms[draggedPanelIndex]];
+
         setOpenPanels(newPanels);
+        setPanelSizes(newSizes);
+        setPanelZooms(newZooms);
       }
       setDraggedPanelIndex(null); setDragOverIndex(null); 
   };
@@ -812,15 +894,8 @@ export default function SecureExamPlatform() {
         const delta = ((currentPos - startPos) / containerSize) * 100;
         const newSizes = [...panelSizes];
         
-        // Definir límites específicos por tipo de panel
-        const getMinSize = (type: PanelType) => {
-            if (type === "exam") return 40; // El examen necesita más espacio (40%)
-            if (type === "answer") return 15; // El editor puede ser más pequeño (15%)
-            return 20; // Resto de herramientas
-        };
-
-        const minSizeLeft = getMinSize(openPanels[resizingIndex]);
-        const minSizeRight = getMinSize(openPanels[resizingIndex + 1]);
+        const minSizeLeft = getMinSize(openPanels[resizingIndex], openPanels.length);
+        const minSizeRight = getMinSize(openPanels[resizingIndex + 1], openPanels.length);
 
         if (newSizes[resizingIndex] + delta >= minSizeLeft && newSizes[resizingIndex + 1] - delta >= minSizeRight) {
             newSizes[resizingIndex] += delta;
@@ -900,6 +975,24 @@ export default function SecureExamPlatform() {
   // ----------------------------------------------------------------------
   // 6. RENDERIZADO PRINCIPAL (Layout Dashboard)
   // ----------------------------------------------------------------------
+
+  if (examFinished) {
+    return (
+      <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${darkMode ? "bg-slate-900 text-white" : "bg-gray-50 text-gray-900"}`}>
+        <div className="text-center space-y-6 max-w-lg">
+            <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center ${darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-100 text-emerald-600"}`}>
+                <CheckCircle2 className="w-10 h-10" />
+            </div>
+            <h1 className="text-3xl font-bold">¡Examen Entregado!</h1>
+            <p className={`text-lg ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
+                Tus respuestas han sido guardadas correctamente.
+                <br />
+                Ya puedes cerrar esta ventana.
+            </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!examStarted) {
     return (
@@ -1039,6 +1132,19 @@ export default function SecureExamPlatform() {
               : "bg-white border-gray-200"
           }`}>
           
+          {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className={`absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
+              darkMode 
+                ? "bg-slate-800 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-700" 
+                : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+            }`}
+            title={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          </button>
+          
           {/* Header Sidebar */}
           <div className="p-4">
             <div className={`flex items-center ${sidebarCollapsed ? "justify-center" : "gap-3"}`}>
@@ -1115,16 +1221,6 @@ export default function SecureExamPlatform() {
                       <LogOut className="w-5 h-5" />
                       {!sidebarCollapsed && <span className="text-sm font-medium">Salir</span>}
                    </button>
-              </div>
-
-              {/* Botón Colapsar (Ubicado a la derecha inferior) */}
-              <div className="flex justify-end pt-2">
-                  <button
-                      onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                      className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-800 text-slate-400" : "hover:bg-gray-200 text-gray-500"}`}
-                  >
-                      {sidebarCollapsed ? <ChevronRight className="w-4 h-4"/> : <ChevronLeft className="w-4 h-4"/>}
-                  </button>
               </div>
           </div>
         </div>
@@ -1207,8 +1303,12 @@ export default function SecureExamPlatform() {
                                       <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-400" : "text-white"}`}>{panel}</span>
                                   </div>
                                   <div className="flex items-center gap-1">
-                                      <button onClick={() => adjustPanelZoom(index, -10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Minimize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
-                                      <button onClick={() => adjustPanelZoom(index, 10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Maximize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
+                                      {panel !== 'calculadora' && (
+                                          <>
+                                              <button onClick={() => adjustPanelZoom(index, -10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Minimize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
+                                              <button onClick={() => adjustPanelZoom(index, 10)} className={`p-1 rounded ${darkMode ? "hover:bg-gray-200/20" : "hover:bg-white/10"}`}><Maximize2 className={`w-3 h-3 ${darkMode ? "text-gray-400" : "text-gray-300"}`}/></button>
+                                          </>
+                                      )}
                                       <button onClick={() => closePanel(index)} className={`p-1 rounded ml-2 ${darkMode ? "hover:bg-red-500/10 text-gray-400 hover:text-red-500" : "hover:bg-red-500/20 text-gray-300 hover:text-red-400"}`}><X className="w-4 h-4"/></button>
                                   </div>
                               </div>
@@ -1225,7 +1325,7 @@ export default function SecureExamPlatform() {
                                   </div>
                               </div>
                           </div>
-                          {index < openPanels.length - 1 && (
+                          {index < openPanels.length - 1 && panel !== 'calculadora' && openPanels[index + 1] !== 'calculadora' && !((panel === 'exam' && openPanels[index + 1] === 'dibujo') || (panel === 'dibujo' && openPanels[index + 1] === 'exam')) && (
                               <div onMouseDown={(e) => startResize(index, e)} className={`${layout === "vertical" ? "w-2 cursor-col-resize" : "h-2 cursor-row-resize"} transition-all z-20 flex-shrink-0 rounded-full ${darkMode ? "bg-slate-700 hover:bg-blue-500" : "bg-gray-200 hover:bg-blue-400"}`} />
                           )}
                       </React.Fragment>

@@ -4,16 +4,17 @@
 // ============================================
 
 // Importar componentes reutilizables
-import ListaExamenes from "../components/ListaExamen";
+import ListaExamenes from "./ListaExamen";
 import NotificationItem from "../components/NotificationItem";
-import MiPerfil from "../components/MiPerfil";
-import CrearExamen from "../components/CrearExamen";
-import HomeContent from "../components/Homecontent";
-import VigilanciaExamenesLista from "../components/VigilanciaExamen";
+import MiPerfil from "./MiPerfil";
+import CrearExamen from "./CrearExamen";
+import HomeContent from "./Homecontent";
+import VigilanciaExamenesLista from "./VigilanciaExamen";
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import fondoImagen from "../../assets/fondo.webp";
 import { useState, useEffect, useRef } from "react";
+import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import {
   Home,
   Bell,
@@ -30,7 +31,8 @@ import {
 } from "lucide-react";
 
 export default function LMSDashboard() {
-  const [activeMenu, setActiveMenu] = useState("home");
+  const navigate = useNavigate();
+  const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
@@ -264,8 +266,8 @@ export default function LMSDashboard() {
     }
   };
 
-  const handleMenuItemClick = (menu: string) => {
-    setActiveMenu(menu);
+  const handleMenuItemClick = (path: string) => {
+    navigate(path);
     setShowProfileMenu(false);
   };
 
@@ -308,6 +310,19 @@ export default function LMSDashboard() {
       <div
         className={`relative z-10 ${darkMode ? "bg-slate-900/80 backdrop-blur-md" : "bg-white border-r border-gray-200"} flex flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? "w-16" : "w-64"}`}
       >
+        {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) */}
+        <button
+          onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+          className={`absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
+            darkMode 
+              ? "bg-slate-800 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-700" 
+              : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+          }`}
+          title={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
+        >
+          {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
+
         {/* ✅ PERFIL - CAMBIADO DE BUTTON A DIV */}
         <div
           className={`p-4 ${darkMode ? "border-slate-800/50" : "border-gray-200"} relative`}
@@ -358,7 +373,7 @@ export default function LMSDashboard() {
               className={`absolute left-4 top-16 right-4 ${darkMode ? "bg-slate-800/95 backdrop-blur-md border-slate-700/50" : "bg-white/95 backdrop-blur-md border-gray-200/50"} border rounded-lg shadow-2xl z-50 py-1`}
             >
               <button
-                onClick={() => handleMenuItemClick("mi-perfil")}
+                onClick={() => handleMenuItemClick("/mi-perfil")}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-sm ${darkMode ? "text-gray-200 hover:bg-slate-700/50" : "text-gray-700 hover:bg-gray-100/50"} transition-colors`}
               >
                 <User className="w-4 h-4" />
@@ -395,16 +410,16 @@ export default function LMSDashboard() {
             label="Inicio"
             collapsed={sidebarCollapsed}
             darkMode={darkMode}
-            active={activeMenu === "home"}
-            onClick={() => setActiveMenu("home")}
+            active={location.pathname === "/home" || location.pathname === "/"}
+            onClick={() => navigate("/home")}
           />
           <NavItem
             icon={Bell}
             label="Notificaciones"
             collapsed={sidebarCollapsed}
             darkMode={darkMode}
-            active={activeMenu === "notifications"}
-            onClick={() => setActiveMenu("notifications")}
+            active={location.pathname === "/notificaciones"}
+            onClick={() => navigate("/notificaciones")}
             badge={unreadCount}
           />
 
@@ -415,38 +430,35 @@ export default function LMSDashboard() {
                 label="Nuevo Examen"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={activeMenu === "nuevo-examen"}
-                onClick={() => setActiveMenu("nuevo-examen")}
+                active={location.pathname === "/nuevo-examen"}
+                onClick={() => navigate("/nuevo-examen")}
               />
               <NavItem
                 icon={List}
                 label="Lista de Exámenes"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={activeMenu === "lista-examenes"}
-                onClick={() => setActiveMenu("lista-examenes")}
+                active={location.pathname === "/lista-examenes"}
+                onClick={() => navigate("/lista-examenes")}
               />
               <NavItem
                 icon={Monitor}
                 label="Vigilancia/Resultados"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={activeMenu === "vigilancia-resultados"}
-                onClick={() => setActiveMenu("vigilancia-resultados")}
+                active={location.pathname === "/vigilancia"}
+                onClick={() => navigate("/vigilancia")}
               />
             </div>
           </div>
         </nav>
 
-        {/* Espaciador flexible */}
-        <div className="flex-1 min-h-[4px]"></div>
-
-        {/* Botón de Salir pegado al botón de minimizar */}
-        <div className="px-4">
+        {/* Footer Sidebar (Botones de acción) - Igual que en ExamSolver */}
+        <div className={`p-3 mt-auto ${darkMode ? "bg-slate-900/50" : "bg-gray-50/50"}`}>
           <button
             onClick={handleLogout}
             className={`w-full flex items-center rounded-lg text-sm transition-colors ${
-              sidebarCollapsed ? "justify-center px-2 py-2" : "px-3 py-2 gap-3"
+              sidebarCollapsed ? "justify-center p-2" : "px-3 py-2.5 gap-3"
             } ${
               darkMode
                 ? "text-red-400 hover:bg-red-900/20"
@@ -454,41 +466,20 @@ export default function LMSDashboard() {
             }`}
             title={sidebarCollapsed ? "Salir" : ""}
           >
-            <div className="relative flex-shrink-0">
+            <div className={`relative flex-shrink-0 transition-transform duration-200 ${!sidebarCollapsed ? "" : "hover:scale-105"}`}>
               <LogOut className="w-5 h-5" />
             </div>
-            <span
-              className={`whitespace-nowrap transition-all duration-200 ease-in-out overflow-hidden ${
-                sidebarCollapsed ? "opacity-0 w-0" : "opacity-100 delay-100"
-              }`}
-            >
-              Salir
-            </span>
-          </button>
-        </div>
-
-        {/* Botón de contraer/expandir */}
-        <div className="p-3 flex justify-end">
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`p-2 ${darkMode ? "hover:bg-slate-800/50" : "hover:bg-gray-100/50"} rounded-lg transition-colors`}
-            title={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight
-                className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-              />
-            ) : (
-              <ChevronLeft
-                className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
-              />
+            {!sidebarCollapsed && (
+              <span className="font-medium truncate transition-opacity duration-300">
+                Salir
+              </span>
             )}
           </button>
         </div>
       </div>
 
       {/* Main Content - SCROLL CONDICIONAL */}
-      <div className="flex-1 flex flex-col relative z-10" style={{ overflow: activeMenu === 'vigilancia-resultados' ? 'hidden' : 'auto' }}>
+      <div className="flex-1 flex flex-col relative z-10" style={{ overflow: location.pathname === '/vigilancia' ? 'hidden' : 'auto' }}>
         <header
           className="bg-transparent px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
@@ -503,33 +494,30 @@ export default function LMSDashboard() {
           </div>
         </header>
 
-        <main className={`flex-1 px-8 py-6 min-h-0 ${activeMenu === 'vigilancia-resultados' ? 'overflow-hidden' : 'overflow-auto'}`}>
-          {activeMenu === "home" && <HomeContent darkMode={darkMode} />}
-          {activeMenu === "notifications" && (
-            <NotificationsContent
-              darkMode={darkMode}
-              notificaciones={notificaciones}
-              onMarkAsRead={handleMarkAsRead}
-              onDelete={handleDeleteNotification}
-              onClearAll={handleClearAllNotifications}
-              onAcceptExam={handleAcceptExam}
-            />
-          )}
-          {activeMenu === "nuevo-examen" && (
-            <NuevoExamenContent
-              darkMode={darkMode}
-              onNavigate={setActiveMenu}
-            />
-          )}
-          {activeMenu === "lista-examenes" && (
-            <ListaExamenesContent
-              darkMode={darkMode}
-            />
-          )}
-          {activeMenu === "vigilancia-resultados" && (
-            <VigilanciaContent darkMode={darkMode} usuarioData={usuarioData} />
-          )}
-          {activeMenu === "mi-perfil" && <MiPerfil darkMode={darkMode} />}
+        <main className={`flex-1 px-8 py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'overflow-hidden' : 'overflow-auto'}`}>
+          <Routes>
+            <Route index element={<Navigate to="/home" replace />} />
+            <Route path="home" element={<HomeContent darkMode={darkMode} />} />
+            <Route path="notificaciones" element={
+              <NotificationsContent
+                darkMode={darkMode}
+                notificaciones={notificaciones}
+                onMarkAsRead={handleMarkAsRead}
+                onDelete={handleDeleteNotification}
+                onClearAll={handleClearAllNotifications}
+                onAcceptExam={handleAcceptExam}
+              />
+            } />
+            <Route path="nuevo-examen" element={
+              <CrearExamen
+                darkMode={darkMode}
+                onExamenCreado={() => navigate("/lista-examenes")}
+              />
+            } />
+            <Route path="lista-examenes" element={<ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} />} />
+            <Route path="vigilancia" element={<VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} />} />
+            <Route path="mi-perfil" element={<MiPerfil darkMode={darkMode} />} />
+          </Routes>
         </main>
       </div>
 
@@ -670,47 +658,5 @@ function NotificationsContent({
         </div>
       </div>
     </div>
-  );
-}
-
-function NuevoExamenContent({
-  darkMode,
-  onNavigate,
-}: {
-  darkMode: boolean;
-  onNavigate: (menu: string) => void;
-}) {
-  return (
-    <CrearExamen
-      darkMode={darkMode}
-      onExamenCreado={() => onNavigate("lista-examenes")}
-    />
-  );
-}
-
-function ListaExamenesContent({
-  darkMode,
-}: {
-  darkMode: boolean;
-}) {
-  return (
-    <div className="max-w-7xl mx-auto">
-      <ListaExamenes darkMode={darkMode} />
-    </div>
-  );
-}
-
-function VigilanciaContent({ 
-  darkMode,
-  usuarioData
-}: { 
-  darkMode: boolean;
-  usuarioData: any;
-}) {
-  return (
-    <VigilanciaExamenesLista
-      darkMode={darkMode}
-      usuarioData={usuarioData}
-    />
   );
 }

@@ -604,24 +604,48 @@ export class ExamService {
 
   static async unlockAttempt(intento_id: number, io: Server) {
     const progressRepo = AppDataSource.getRepository(ExamInProgress);
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
 
+    // Buscar por intento_id, no por id
     const examInProgress = await progressRepo.findOne({
-      where: { id: intento_id },
+      where: { intento_id: intento_id },
     });
 
     if (!examInProgress) {
       throwHttpError("Examen en progreso no encontrado", 404);
     }
 
-    if (examInProgress.estado !== AttemptState.BLOCKED) {
+    const attempt = await attemptRepo.findOne({
+      where: { id: intento_id },
+    });
+
+    if (!attempt) {
+      throwHttpError("Intento no encontrado", 404);
+    }
+
+    if (attempt.estado !== AttemptState.BLOCKED) {
       throwHttpError("El intento no está bloqueado", 400);
     }
 
+    // Actualizar ambos registros
     examInProgress.estado = AttemptState.ACTIVE;
-    await progressRepo.save(examInProgress);
+    attempt.estado = AttemptState.ACTIVE;
 
+    await progressRepo.save(examInProgress);
+    await attemptRepo.save(attempt);
+
+    // Notificar al estudiante
     io.to(`attempt_${intento_id}`).emit("attempt_unlocked", {
       message: "Tu examen ha sido desbloqueado por el profesor",
+    });
+
+    // Notificar al profesor que el desbloqueo fue exitoso
+    io.to(`exam_${attempt.examen_id}`).emit("attempt_unlocked_notification", {
+      attemptId: intento_id,
+      estudiante: {
+        nombre: attempt.nombre_estudiante,
+        correo: attempt.correo_estudiante,
+      },
     });
 
     return examInProgress;
