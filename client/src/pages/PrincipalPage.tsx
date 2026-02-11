@@ -439,7 +439,7 @@ export default function LMSDashboard() {
                 label="Lista de Exámenes"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={location.pathname === "/lista-examenes"}
+                active={["/lista-examenes", "/ver-examen", "/editar-examen"].includes(location.pathname)}
                 onClick={() => navigate("/lista-examenes")}
               />
               <NavItem
@@ -510,6 +510,12 @@ export default function LMSDashboard() {
               />
             } />
             <Route path="nuevo-examen" element={
+              <CrearExamen
+                darkMode={darkMode}
+                onExamenCreado={() => navigate("/lista-examenes")}
+              />
+            } />
+            <Route path="editar-examen" element={
               <CrearExamen
                 darkMode={darkMode}
                 onExamenCreado={() => navigate("/lista-examenes")}
