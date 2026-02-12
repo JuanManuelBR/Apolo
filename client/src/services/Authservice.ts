@@ -4,11 +4,11 @@
 // ============================================
 
 import { usersApi } from "./api";
-import { 
-  getAuth, 
+import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  signInWithPopup, 
+  signInWithPopup,
   GoogleAuthProvider,
   updateProfile
 } from 'firebase/auth';
@@ -315,7 +315,7 @@ export const authService = {
   },
 
   /**
-   * REGISTRO CON GOOGLE - ✅ CORREGIDO
+   * REGISTRO CON GOOGLE
    */
   registerWithGoogle: async (
     auth: ReturnType<typeof getAuth>,
@@ -324,7 +324,6 @@ export const authService = {
     try {
       console.log('🔄 [REGISTRO GOOGLE] Iniciando...');
 
-      // 1. Autenticar con Google/Firebase
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
@@ -334,7 +333,6 @@ export const authService = {
 
       console.log('✅ [REGISTRO GOOGLE] Autenticado en Firebase');
 
-      // 2. Crear/encontrar usuario en el backend
       const backendPayload: CreateUserPayload = {
         nombres: firstName || 'Usuario',
         apellidos: lastName || 'Google',
@@ -347,25 +345,14 @@ export const authService = {
       };
 
       const backendUser = await usersService.findOrCreateUser(backendPayload);
-      console.log('✅ [REGISTRO GOOGLE] Usuario en backend (MySQL)');
 
-      // 3. HACER LOGIN CON FIREBASE TOKEN PARA OBTENER LA COOKIE
-      console.log('🔄 [REGISTRO GOOGLE] Obteniendo cookie del backend con Firebase token...');
       try {
         const idToken = await firebaseUser.getIdToken();
         await usersService.loginWithGoogleToken(idToken);
-        console.log('✅ [REGISTRO GOOGLE] Cookie obtenida correctamente');
       } catch (loginError: any) {
-        console.error('❌ [REGISTRO GOOGLE] No se pudo obtener cookie:', loginError.message);
-
-        try {
-          await usersService.updateLastAccess(backendUser.id);
-        } catch (accessError) {
-          console.error('❌ [REGISTRO GOOGLE] Error actualizando último acceso:', accessError);
-        }
+        await usersService.updateLastAccess(backendUser.id);
       }
 
-      // 4. Guardar usuario en localStorage
       const localUser: LocalUser = {
         id: backendUser.id,
         backendId: backendUser.id,
@@ -379,19 +366,12 @@ export const authService = {
       };
 
       localStorage.setItem('usuario', JSON.stringify(localUser));
-      console.log('✅ [REGISTRO GOOGLE] Usuario guardado en localStorage');
-      
       return localUser;
 
     } catch (error: any) {
-      console.error('❌ [REGISTRO GOOGLE] Error:', error);
-      
       if (error.code === 'auth/popup-closed-by-user') {
         throw new Error('Autenticación cancelada');
-      } else if (error.code === 'auth/popup-blocked') {
-        throw new Error('Popup bloqueado');
       }
-      
       throw error;
     }
   },
@@ -460,7 +440,7 @@ export const authService = {
   },
 
   /**
-   * LOGIN CON GOOGLE
+   * LOGIN CON GOOGLE (auto-registra si el usuario no existe)
    */
   loginWithGoogle: async (
     auth: ReturnType<typeof getAuth>,
@@ -473,31 +453,28 @@ export const authService = {
       const firebaseUser = result.user;
 
       const email = firebaseUser.email || '';
+      const fullName = firebaseUser.displayName || '';
+      const { firstName, lastName } = splitFullName(fullName);
 
-      console.log('✅ [LOGIN GOOGLE] Autenticado');
+      console.log('✅ [LOGIN GOOGLE] Autenticado en Firebase');
 
-      let backendUser: BackendUser;
-      
-      try {
-        backendUser = await usersService.getUserByFirebaseUid(firebaseUser.uid);
-      } catch (error) {
-        try {
-          backendUser = await usersService.getUserByEmail(email);
-        } catch (emailError) {
-          await auth.signOut();
-          throw new Error('Usuario no registrado. Por favor regístrate primero');
-        }
-      }
+      const backendPayload: CreateUserPayload = {
+        nombres: firstName || 'Usuario',
+        apellidos: lastName || 'Google',
+        email: email,
+        contrasena: `google-oauth-${firebaseUser.uid}`,
+        confirmar_nueva_contrasena: `google-oauth-${firebaseUser.uid}`,
+        firebase_uid: firebaseUser.uid,
+        login_method: 'google',
+        foto_perfil: firebaseUser.photoURL || undefined
+      };
 
-      console.log('✅ [LOGIN GOOGLE] Usuario encontrado');
+      const backendUser = await usersService.findOrCreateUser(backendPayload);
 
-      // Hacer login con Firebase token para obtener la cookie
       try {
         const idToken = await firebaseUser.getIdToken();
         await usersService.loginWithGoogleToken(idToken);
-        console.log('✅ [LOGIN GOOGLE] Cookie obtenida del backend');
       } catch (loginError: any) {
-        console.warn('⚠️ No se pudo obtener cookie, actualizando último acceso manualmente');
         await usersService.updateLastAccess(backendUser.id);
       }
 
@@ -514,16 +491,12 @@ export const authService = {
       };
 
       localStorage.setItem('usuario', JSON.stringify(localUser));
-      
       return localUser;
 
     } catch (error: any) {
-      console.error('❌ [LOGIN GOOGLE] Error:', error);
-      
       if (error.code === 'auth/popup-closed-by-user') {
         throw new Error('Autenticación cancelada');
       }
-      
       throw error;
     }
   },

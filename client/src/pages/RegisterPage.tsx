@@ -238,23 +238,11 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      console.log('📝 Iniciando registro con Google...');
-      
-      // Usar el servicio de autenticación
       await authService.registerWithGoogle(auth, googleProvider);
-
-      console.log('✅ Registro con Google exitoso, redirigiendo...');
-      
-      // Navegar a la página principal
       navigate('/');
-      
     } catch (error: any) {
-      console.error('❌ Error al registrarse con Google:', error);
-      
-      // Mostrar mensaje de error amigable (si no fue cancelado)
-      if (!error.message.includes('cancelada') && 
-          !error.message.includes('cerrado')) {
-        setError(error.message || 'Error al registrarse con Google. Intenta de nuevo.');
+      if (!error.message.includes('cancelada')) {
+        setError(error.message || 'Error al registrarse con Google.');
       }
     } finally {
       setLoading(false);
