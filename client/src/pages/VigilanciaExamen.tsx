@@ -18,6 +18,8 @@ import {
   MousePointer,
   BookOpen,
   Trash2,
+  User,
+  EyeOff,
 } from "lucide-react";
 import { io } from "socket.io-client";
 import AlertasModal from "../components/AlertasModal";
@@ -48,12 +50,14 @@ interface ExamAttempt {
   id: number;
   nombre_estudiante: string;
   correo_estudiante: string | null;
+  identificacion_estudiante?: string | null;
   estado: string;
   tiempoTranscurrido: string;
   progreso: number;
   alertas: number;
   alertasNoLeidas?: number;
   calificacion?: number;
+  preguntasPendientes?: boolean;
 }
 
 interface Alerta {
@@ -66,8 +70,8 @@ interface Alerta {
   leida_ts?: string | null;
 }
 
-type EstadoDisplay = "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado";
-type FiltroEstado = "todos" | "activos" | "bloqueados" | "pausados" | "terminados" | "abandonados";
+type EstadoDisplay = "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado" | "Calificado";
+type FiltroEstado = "todos" | "activos" | "bloqueados" | "pausados" | "terminados" | "abandonados" | "calificados";
 
 const obtenerColoresExamen = (tipo: string): { borde: string; fondo: string } => {
   if (tipo === "pdf") return { borde: "border-rose-500", fondo: "bg-rose-600" };
@@ -95,6 +99,10 @@ export default function VigilanciaExamenesLista({
   const [searchExamen, setSearchExamen] = useState("");
   const [filtrosPorExamen, setFiltrosPorExamen] = useState<{ [key: number]: FiltroEstado }>({});
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [mostrarOpcionesPostCalificacion, setMostrarOpcionesPostCalificacion] = useState(false);
+  const [criterioOrden, setCriterioOrden] = useState<"defecto" | "az" | "za" | "duracion" | "nota">("defecto");
+  const [modoPrivacidad, setModoPrivacidad] = useState(false);
+  const [estudiantesRevelados, setEstudiantesRevelados] = useState<Set<number>>(new Set());
 
   // Refs para evitar stale closures en callbacks del WebSocket
   const estudianteSeleccionadoRef = useRef<ExamAttempt | null>(null);
@@ -104,16 +112,6 @@ export default function VigilanciaExamenesLista({
   // CARGAR DATOS
   // ============================================
   useEffect(() => { cargarExamenes(); }, [usuarioData]);
-
-  const cargarExamenes = async () => {
-    if (!usuarioData?.id) { setLoadingExamenes(false); return; }
-    try {
-      setLoadingExamenes(true);
-      const exams = await examsService.obtenerMisExamenes(usuarioData.id);
-      setExamenes(exams);
-    } catch (error) { console.error("Error cargando exámenes:", error); } 
-    finally { setLoadingExamenes(false); }
-  };
 
   const cargarIntentosExamen = async (examenId: number, silencioso = false) => {
     try {
@@ -126,6 +124,48 @@ export default function VigilanciaExamenesLista({
       if (!silencioso) console.log("🔄 Datos sincronizados");
     } catch (error) { console.error("Error cargando intentos:", error); }
   };
+
+  const cargarExamenes = async () => {
+    if (!usuarioData?.id) { setLoadingExamenes(false); return; }
+    try {
+      setLoadingExamenes(true);
+      const exams = await examsService.obtenerMisExamenes(usuarioData.id);
+      setExamenes(exams);
+
+      // Restaurar estado del examen seleccionado
+      const savedExamId = sessionStorage.getItem("vigilancia_examenId");
+      if (savedExamId) {
+        const examFound = exams.find((e: Examen) => e.id === parseInt(savedExamId));
+        if (examFound) {
+          setExamenExpandido(examFound.id);
+          setExamenActual(examFound);
+          cargarIntentosExamen(examFound.id);
+        }
+      }
+    } catch (error) { console.error("Error cargando exámenes:", error); } 
+    finally { setLoadingExamenes(false); }
+  };
+
+  // Efecto para restaurar estudiante seleccionado una vez que cargan los intentos
+  useEffect(() => {
+    if (examenActual && examAttempts[examenActual.id] && !estudianteSeleccionado) {
+      const savedStudentId = sessionStorage.getItem("vigilancia_estudianteId");
+      if (savedStudentId) {
+        const student = examAttempts[examenActual.id].find(i => i.id === parseInt(savedStudentId));
+        if (student) seleccionarEstudiante(student);
+      }
+    }
+  }, [examAttempts, examenActual]);
+
+  // Efecto para verificar si ya existen calificaciones
+  useEffect(() => {
+    if (examenActual && examAttempts[examenActual.id]) {
+        const hasGrades = examAttempts[examenActual.id].some(a => a.calificacion !== undefined && a.calificacion !== null);
+        setMostrarOpcionesPostCalificacion(!!hasGrades);
+    } else {
+        setMostrarOpcionesPostCalificacion(false);
+    }
+  }, [examenActual, examAttempts]);
 
   // ============================================
   // WEBSOCKET
@@ -154,6 +194,7 @@ export default function VigilanciaExamenesLista({
         id: data.attemptId,
         nombre_estudiante: data.estudiante?.nombre || "Sin nombre",
         correo_estudiante: data.estudiante?.correo || null,
+        identificacion_estudiante: data.estudiante?.identificacion || null,
         estado: "active",
         tiempoTranscurrido: "0 min",
         progreso: 0,
@@ -315,10 +356,14 @@ export default function VigilanciaExamenesLista({
     if (examenExpandido === examen.id) {
       setExamenExpandido(null);
       setExamenActual(null);
+      sessionStorage.removeItem("vigilancia_examenId");
+      sessionStorage.removeItem("vigilancia_estudianteId");
       return;
     }
     setExamenExpandido(examen.id);
     setExamenActual(examen);
+    sessionStorage.setItem("vigilancia_examenId", examen.id.toString());
+    sessionStorage.removeItem("vigilancia_estudianteId"); // Limpiar estudiante al cambiar de examen
     setEstudianteSeleccionado(null);
     if (!filtrosPorExamen[examen.id]) setFiltrosPorExamen(prev => ({ ...prev, [examen.id]: "todos" }));
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -340,6 +385,7 @@ export default function VigilanciaExamenesLista({
 
   const seleccionarEstudiante = async (estudiante: ExamAttempt) => {
     setEstudianteSeleccionado(estudiante);
+    sessionStorage.setItem("vigilancia_estudianteId", estudiante.id.toString());
     await cargarAlertasEstudiante(estudiante.id);
   };
 
@@ -373,7 +419,10 @@ export default function VigilanciaExamenesLista({
     try {
       // await examsAttemptsService.deleteAttempt(attemptId); 
       console.log("Eliminando intento", attemptId);
-      setEstudianteSeleccionado(null);
+      if (estudianteSeleccionado?.id === attemptId) {
+        setEstudianteSeleccionado(null);
+        sessionStorage.removeItem("vigilancia_estudianteId");
+      }
       setExamAttempts(prev => {
          if(!examenActual) return prev;
          return { ...prev, [examenActual.id]: prev[examenActual.id].filter(i => i.id !== attemptId) };
@@ -382,7 +431,23 @@ export default function VigilanciaExamenesLista({
   };
 
   const handleForzarEnvio = async () => { if(confirm("¿Forzar envío?")) console.log("Forzando..."); };
-  const handleCalificarAutomaticamente = async () => console.log("Calificando...");
+  const handleCalificarAutomaticamente = async () => {
+      console.log("Calificando...");
+      setModoPrivacidad(true);
+      // Simulación: Asignar notas y pendientes si no tienen (solo para frontend)
+      if (examenActual) {
+        setExamAttempts(prev => {
+            const currentAttempts = prev[examenActual.id] || [];
+            const updated = currentAttempts.map(att => ({
+                ...att,
+                calificacion: att.calificacion ?? parseFloat((Math.random() * 5).toFixed(1)),
+                preguntasPendientes: att.preguntasPendientes ?? (Math.random() > 0.7), // 30% chance de tener pendientes
+            }));
+            return { ...prev, [examenActual.id]: updated };
+        });
+      }
+      setMostrarOpcionesPostCalificacion(true);
+  };
   const handleDescargarPDF = async () => console.log("Descargando PDF...");
   const handleEnviarNotas = async () => console.log("Enviando notas...");
 
@@ -400,7 +465,8 @@ export default function VigilanciaExamenesLista({
     const map: Record<string, EstadoDisplay> = {
       active: "Activo", activo: "Activo", blocked: "Bloqueado", bloqueado: "Bloqueado",
       paused: "Pausado", pausado: "Pausado", submitted: "Terminado", terminado: "Terminado",
-      abandonado: "Abandonado", abandoned: "Abandonado"
+      abandonado: "Abandonado", abandoned: "Abandonado",
+      graded: "Calificado", calificado: "Calificado"
     };
     return map[st.toLowerCase()] || "Abandonado";
   };
@@ -411,8 +477,43 @@ export default function VigilanciaExamenesLista({
       case "Bloqueado": return dark ? "bg-rose-500/10 text-rose-400 border-rose-500/20" : "bg-rose-50 text-rose-600 border-rose-200";
       case "Terminado": return dark ? "bg-blue-500/10 text-blue-400 border-blue-500/20" : "bg-blue-50 text-blue-600 border-blue-200";
       case "Pausado": return dark ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-amber-50 text-amber-600 border-amber-200";
+      case "Calificado": return dark ? "bg-purple-500/10 text-purple-400 border-purple-500/20" : "bg-purple-50 text-purple-600 border-purple-200";
       default: return dark ? "bg-slate-700 text-slate-400 border-slate-600" : "bg-slate-100 text-slate-600 border-slate-300";
     }
+  };
+
+  const getNotaColor = (nota: number | undefined | null, dark: boolean) => {
+    if (nota === undefined || nota === null) return dark ? "text-slate-400" : "text-slate-600";
+    if (nota >= 4.0) return dark ? "text-emerald-400" : "text-emerald-600";
+    if (nota >= 3.0) return dark ? "text-amber-400" : "text-amber-600";
+    return dark ? "text-rose-400" : "text-rose-600";
+  };
+
+  const obtenerInfoVisual = (est: ExamAttempt) => {
+    const tieneNombre = est.nombre_estudiante && est.nombre_estudiante !== "Sin nombre" && est.nombre_estudiante.trim() !== "";
+    const codigo = est.identificacion_estudiante;
+    const correo = est.correo_estudiante;
+
+    // Caso 1: Tiene nombre -> Nombre es principal
+    if (tieneNombre) {
+        return { 
+            principal: est.nombre_estudiante, 
+            secundario: correo || codigo || "" 
+        };
+    }
+
+    // Caso 2: No tiene nombre, pero tiene código -> Código es principal
+    if (codigo) {
+        return { principal: codigo, secundario: correo || "" };
+    }
+
+    // Caso 3: No tiene nombre ni código, pero tiene correo -> Correo es principal
+    if (correo) {
+        return { principal: correo, secundario: "" };
+    }
+
+    // Caso 4: Nada
+    return { principal: "Estudiante Desconocido", secundario: "" };
   };
 
   // Helper para configuración de alertas
@@ -455,7 +556,24 @@ export default function VigilanciaExamenesLista({
         if (filtroActual === "pausados") return st === "Pausado";
         if (filtroActual === "terminados") return st === "Terminado";
         if (filtroActual === "abandonados") return st === "Abandonado";
+        if (filtroActual === "calificados") return est.calificacion !== undefined && est.calificacion !== null;
         return true;
+      }).sort((a, b) => {
+        if (criterioOrden === "az") return a.nombre_estudiante.localeCompare(b.nombre_estudiante);
+        if (criterioOrden === "za") return b.nombre_estudiante.localeCompare(a.nombre_estudiante);
+        if (criterioOrden === "duracion") {
+            // Asumiendo formato "X min"
+            const tiempoA = parseInt(a.tiempoTranscurrido) || 0;
+            const tiempoB = parseInt(b.tiempoTranscurrido) || 0;
+            return tiempoB - tiempoA; // Mayor duración primero
+        }
+        if (criterioOrden === "nota") {
+            const notaA = a.calificacion || 0;
+            const notaB = b.calificacion || 0;
+            return notaB - notaA; // Mayor nota primero
+        }
+        // defecto: mantener orden original (hora de entrada/id)
+        return 0;
       })
     : [];
 
@@ -466,12 +584,16 @@ export default function VigilanciaExamenesLista({
         bloqueados: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Bloqueado").length,
         pausados: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Pausado").length,
         terminados: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Terminado").length,
+        calificados: examAttempts[examenActual.id].filter(a => a.calificacion !== undefined && a.calificacion !== null).length,
         abandonados: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Abandonado").length,
         hanEmpezado: examAttempts[examenActual.id].filter(a => ["Activo", "Pausado", "Bloqueado"].includes(traducirEstado(a.estado))).length,
-        hanEnviado: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Terminado").length,
+        hanEnviado: examAttempts[examenActual.id].filter(a => ["Terminado", "Calificado"].includes(traducirEstado(a.estado))).length,
         enCurso: examAttempts[examenActual.id].filter(a => traducirEstado(a.estado) === "Activo").length,
       }
-    : { todos: 0, activos: 0, bloqueados: 0, pausados: 0, terminados: 0, abandonados: 0, hanEmpezado: 0, hanEnviado: 0, enCurso: 0 };
+    : { todos: 0, activos: 0, bloqueados: 0, pausados: 0, terminados: 0, calificados: 0, abandonados: 0, hanEmpezado: 0, hanEnviado: 0, enCurso: 0 };
+
+  // Verificar si hay correos disponibles para enviar
+  const hayCorreos = examenActual && examAttempts[examenActual.id]?.some(a => a.correo_estudiante);
 
   const formatearTipoEvento = (texto: string) => {
     if (!texto) return "Evento";
@@ -566,55 +688,6 @@ export default function VigilanciaExamenesLista({
                             </button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-2">
-                           {examen.estado === "open" && (
-                             <button 
-                               onClick={(e) => { e.stopPropagation(); handleForzarEnvio(); }}
-                               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-orange-500 text-slate-200" : "bg-white border-slate-200 hover:border-orange-500 text-slate-700"}`}
-                             >
-                                <div className="p-1.5 rounded-md bg-orange-500/10 text-orange-500">
-                                  <Send className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold">Forzar Envío</span>
-                             </button>
-                           )}
-
-                           {examen.estado === "closed" && (
-                             <button 
-                               onClick={(e) => { e.stopPropagation(); handleDescargarPDF(); }}
-                               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-rose-500 text-slate-200" : "bg-white border-slate-200 hover:border-rose-500 text-slate-700"}`}
-                             >
-                                <div className="p-1.5 rounded-md bg-rose-500/10 text-rose-500">
-                                  <Download className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold">Descargar Notas</span>
-                             </button>
-                           )}
-
-                           {examen.estado === "closed" && (
-                             <button 
-                               onClick={(e) => { e.stopPropagation(); handleEnviarNotas(); }}
-                               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-teal-500 text-slate-200" : "bg-white border-slate-200 hover:border-teal-500 text-slate-700"}`}
-                             >
-                                <div className="p-1.5 rounded-md bg-teal-500/10 text-teal-500">
-                                  <Mail className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold">Enviar Correos</span>
-                             </button>
-                           )}
-                           
-                           {examen.estado === "closed" && tipoExamen !== "pdf" && (
-                             <button 
-                               onClick={(e) => { e.stopPropagation(); handleCalificarAutomaticamente(); }}
-                               className={`w-full flex items-center gap-3 p-2 rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-indigo-500 text-slate-200" : "bg-white border-slate-200 hover:border-indigo-500 text-slate-700"}`}
-                             >
-                                <div className="p-1.5 rounded-md bg-indigo-500/10 text-indigo-500">
-                                  <Zap className="w-4 h-4" />
-                                </div>
-                                <span className="text-xs font-semibold">Calificar Auto</span>
-                             </button>
-                           )}
-                        </div>
                       </div>
                     )}
                   </div>
@@ -677,18 +750,90 @@ export default function VigilanciaExamenesLista({
               <div className="flex flex-col h-full">
                 
                 <div className="p-6 pb-4 flex-shrink-0">
-                    <h1 className={`text-2xl font-bold mb-2 ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
-                    <div className="flex justify-between items-center">
-                        <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{estudiantesFiltrados.length} estudiantes mostrados</p>
-                        <div className="relative w-64">
-                            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-slate-500" : "text-slate-400"}`} />
-                            <input
-                                type="text"
-                                placeholder="Buscar estudiante..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className={`w-full pl-10 pr-4 py-2 text-sm rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-900"} focus:outline-none focus:border-teal-500`}
-                            />
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                        <div>
+                            <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
+                            <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{estudiantesFiltrados.length} estudiantes mostrados</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                            {examenActual.estado === "open" && (
+                                <button 
+                                    onClick={handleForzarEnvio}
+                                    className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-orange-500 text-slate-200" : "bg-white border-slate-200 hover:border-orange-500 text-slate-700"}`}
+                                >
+                                    <Send className="w-3.5 h-3.5 text-orange-500" />
+                                    Forzar Envío
+                                </button>
+                            )}
+
+                            {examenActual.estado === "closed" && (
+                                <>
+                                    {obtenerTipoExamen(examenActual) !== "pdf" && !mostrarOpcionesPostCalificacion && (
+                                        <button 
+                                            onClick={handleCalificarAutomaticamente}
+                                            className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-indigo-500 text-slate-200" : "bg-white border-slate-200 hover:border-indigo-500 text-slate-700"}`}
+                                        >
+                                            <Zap className="w-3.5 h-3.5 text-indigo-500" />
+                                            Calificar Auto
+                                        </button>
+                                    )}
+                                    
+                                    {mostrarOpcionesPostCalificacion && (
+                                        <>
+                                            <button 
+                                                onClick={handleDescargarPDF}
+                                                className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-rose-500 text-slate-200" : "bg-white border-slate-200 hover:border-rose-500 text-slate-700"}`}
+                                            >
+                                                <Download className="w-3.5 h-3.5 text-rose-500" />
+                                                Descargar Notas
+                                            </button>
+                                            {hayCorreos && (
+                                                <button 
+                                                    onClick={handleEnviarNotas}
+                                                    className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-teal-500 text-slate-200" : "bg-white border-slate-200 hover:border-teal-500 text-slate-700"}`}
+                                                >
+                                                    <Mail className="w-3.5 h-3.5 text-teal-500" />
+                                                    Enviar calificaciones
+                                                </button>
+                                            )}
+                                        </>
+                                    )}
+                                </>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="w-full">
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => setModoPrivacidad(!modoPrivacidad)}
+                                className={`p-2 rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400 hover:text-white" : "bg-white border-slate-200 text-slate-500 hover:text-slate-800"}`}
+                                title={modoPrivacidad ? "Mostrar nombres" : "Ocultar nombres (Privacidad)"}
+                            >
+                                {modoPrivacidad ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                            </button>
+                            <div className="relative flex-1">
+                                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${darkMode ? "text-slate-500" : "text-slate-400"}`} />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar estudiante..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className={`w-full pl-10 pr-4 py-2 text-sm rounded-lg border transition-all ${darkMode ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-900"} focus:outline-none focus:border-teal-500`}
+                                />
+                            </div>
+                            <select
+                                value={criterioOrden}
+                                onChange={(e) => setCriterioOrden(e.target.value as any)}
+                                className={`px-3 py-2 rounded-lg border text-sm outline-none focus:border-teal-500 transition-all cursor-pointer ${darkMode ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-700"}`}
+                            >
+                                <option value="defecto">Hora de entrada</option>
+                                <option value="az">A - Z</option>
+                                <option value="za">Z - A</option>
+                                <option value="duracion">Duración</option>
+                                {mostrarOpcionesPostCalificacion && <option value="nota">Nota</option>}
+                            </select>
                         </div>
                     </div>
                 </div>
@@ -696,10 +841,11 @@ export default function VigilanciaExamenesLista({
                 <div className={`flex gap-1 px-6 flex-shrink-0 mb-4 border-b ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
                    {[
                       { key: "todos" as FiltroEstado, label: "Todos", count: contadores.todos },
-                      { key: "activos" as FiltroEstado, label: "Activos", count: contadores.activos },
+                      { key: "activos" as FiltroEstado, label: "En Curso", count: contadores.activos },
                       { key: "bloqueados" as FiltroEstado, label: "Bloqueados", count: contadores.bloqueados },
-                      { key: "abandonados" as FiltroEstado, label: "Abandonado", count: contadores.abandonados },
-                      { key: "terminados" as FiltroEstado, label: "Terminados", count: contadores.terminados },
+                      { key: "terminados" as FiltroEstado, label: "Entregados", count: contadores.terminados },
+                      { key: "calificados" as FiltroEstado, label: "Calificados", count: contadores.calificados },
+                      { key: "abandonados" as FiltroEstado, label: "Abandonos", count: contadores.abandonados },
                    ].map((filtro) => (
                       <button
                         key={filtro.key}
@@ -724,34 +870,77 @@ export default function VigilanciaExamenesLista({
                       <div className="space-y-3">
                         {estudiantesFiltrados.map((estudiante) => {
                            const estado = traducirEstado(estudiante.estado);
+                           const info = obtenerInfoVisual(estudiante);
+                           
+                           const isHidden = modoPrivacidad && !estudiantesRevelados.has(estudiante.id);
+                           const displayName = isHidden ? "******" : info.principal;
+                           const displaySecondary = isHidden ? "******" : info.secundario;
+
                            return (
                              <button
                                key={estudiante.id}
                                onClick={() => seleccionarEstudiante(estudiante)}
-                               className={`w-full text-left p-4 rounded-xl border transition-all group ${
+                               className={`w-full text-left p-4 rounded-xl border transition-all group relative ${
                                   darkMode 
                                   ? "bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-600" 
                                   : "bg-white border-slate-100 hover:border-teal-200 hover:shadow-md"
                                }`}
                              >
                                 <div className="flex items-center gap-4">
-                                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center font-bold text-lg ${darkMode ? "bg-slate-700 text-slate-300" : "bg-teal-50 text-teal-600"}`}>
-                                      {estudiante.nombre_estudiante.charAt(0)}
+                                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${darkMode ? "bg-slate-700 text-slate-300" : "bg-teal-50 text-teal-600"}`}>
+                                      <User className="w-6 h-6" />
+                                      {estudiante.preguntasPendientes && (
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white dark:border-slate-800" title="Preguntas pendientes de calificación manual"></div>
+                                      )}
                                    </div>
 
                                    <div className="flex-1 min-w-0">
                                       <div className="flex items-center gap-2 mb-1">
-                                         <h4 className={`font-bold truncate text-base ${darkMode ? "text-white" : "text-slate-800"}`}>{estudiante.nombre_estudiante}</h4>
+                                         <h4 className={`font-bold truncate text-base ${darkMode ? "text-white" : "text-slate-800"}`}>{displayName}</h4>
+                                         {modoPrivacidad && (
+                                            <div 
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setEstudiantesRevelados(prev => {
+                                                        const newSet = new Set(prev);
+                                                        if (newSet.has(estudiante.id)) newSet.delete(estudiante.id);
+                                                        else newSet.add(estudiante.id);
+                                                        return newSet;
+                                                    });
+                                                }}
+                                                className={`p-1.5 rounded-md cursor-pointer transition-colors ${darkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
+                                            >
+                                                {isHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                                            </div>
+                                         )}
                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getEstadoBadgeColor(estado, darkMode)}`}>{estado}</span>
+                                         {estudiante.calificacion !== undefined && estudiante.calificacion !== null && (
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getEstadoBadgeColor("Calificado", darkMode)}`}>Calificado</span>
+                                         )}
                                       </div>
                                       <div className={`flex items-center gap-4 text-xs font-mono ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                          <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {estudiante.tiempoTranscurrido}</span>
-                                         <span>•</span>
-                                         <span>{estudiante.correo_estudiante || "Sin correo"}</span>
+                                         {displaySecondary && (
+                                            <>
+                                                <span>•</span>
+                                                <span>{displaySecondary}</span>
+                                            </>
+                                         )}
                                       </div>
                                    </div>
 
                                    <div className="flex items-center gap-8 mr-4">
+                                      {mostrarOpcionesPostCalificacion && (
+                                        <div className="flex flex-col items-end">
+                                            <div className="flex items-center gap-1">
+                                                <span className={`text-lg font-bold ${getNotaColor(estudiante.calificacion, darkMode)}`}>
+                                                    {estudiante.calificacion}
+                                                </span>
+                                            </div>
+                                            <span className={`text-[10px] uppercase font-bold ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Nota</span>
+                                        </div>
+                                      )}
+
                                       <div className={`text-center flex flex-col items-center ${estudiante.alertas > 0 ? "text-rose-500" : (darkMode ? "text-slate-600" : "text-slate-300")}`}>
                                          {estudiante.alertasNoLeidas ? (
                                             <div className="relative animate-bounce">
@@ -787,7 +976,7 @@ export default function VigilanciaExamenesLista({
               // ================= VISTA DETALLE ESTUDIANTE =================
               <div className={`flex flex-col h-full ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
                  <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-                    <button onClick={() => setEstudianteSeleccionado(null)} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
+                    <button onClick={() => { setEstudianteSeleccionado(null); sessionStorage.removeItem("vigilancia_estudianteId"); }} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
                        </div>
@@ -808,7 +997,7 @@ export default function VigilanciaExamenesLista({
                            </>
                          ) : (
                             <button onClick={() => console.log("Revisar intento")} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-indigo-900/20 text-indigo-400" : "bg-indigo-600 border-indigo-600 hover:bg-indigo-700 text-white"}`}>
-                               <FileText className="w-3.5 h-3.5" /> Revisar Intento
+                               <FileText className="w-3.5 h-3.5" /> {estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null ? "Revisar Calificación" : "Calificar"}
                             </button>
                          )}
                     </div>
@@ -818,16 +1007,35 @@ export default function VigilanciaExamenesLista({
                      <div className={`p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
                      
                      <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center text-2xl font-bold shadow-sm ${darkMode ? "bg-slate-800 text-teal-400 border border-slate-700" : "bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/20"}`}>
-                            {estudianteSeleccionado.nombre_estudiante.charAt(0)}
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-sm ${darkMode ? "bg-slate-800 text-teal-400 border border-slate-700" : "bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/20"}`}>
+                            <User className="w-7 h-7" />
                         </div>
-                        <div>
-                            <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>{estudianteSeleccionado.nombre_estudiante}</h2>
+                        <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                                <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+                                    {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).principal}
+                                </h2>
+                                {modoPrivacidad && (
+                                    <button
+                                        onClick={() => setEstudiantesRevelados(prev => {
+                                            const newSet = new Set(prev);
+                                            if (newSet.has(estudianteSeleccionado.id)) newSet.delete(estudianteSeleccionado.id);
+                                            else newSet.add(estudianteSeleccionado.id);
+                                            return newSet;
+                                        })}
+                                        className={`p-1.5 rounded-lg transition-colors ${darkMode ? "bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700" : "bg-slate-100 text-slate-500 hover:text-slate-800 hover:bg-slate-200"}`}
+                                    >
+                                        {!estudiantesRevelados.has(estudianteSeleccionado.id) ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                                    </button>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2 mt-1">
                                 <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide border ${getEstadoBadgeColor(traducirEstado(estudianteSeleccionado.estado), darkMode)}`}>
                                     {traducirEstado(estudianteSeleccionado.estado)}
                                 </span>
-                                <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{estudianteSeleccionado.correo_estudiante}</span>
+                                <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                    {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).secundario}
+                                </span>
                             </div>
                         </div>
                      </div>
@@ -915,7 +1123,7 @@ export default function VigilanciaExamenesLista({
                      </div>
 
                  </div>
-                 <div className={`p-4 border-t flex justify-start ${darkMode ? "border-slate-800 bg-slate-900/30" : "border-slate-100 bg-slate-50/50"}`}>
+                 <div className={`p-4 border-t flex justify-end ${darkMode ? "border-slate-800 bg-slate-900/30" : "border-slate-100 bg-slate-50/50"}`}>
                     <button onClick={() => handleEliminarIntento(estudianteSeleccionado.id)} className={`px-4 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-red-900/30 bg-red-900/10 hover:bg-red-900/20 text-red-400" : "bg-white border-red-100 hover:bg-red-50 text-red-600 shadow-sm"}`}>
                        <Trash2 className="w-3.5 h-3.5" /> Eliminar intento
                     </button>
