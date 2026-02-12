@@ -131,29 +131,11 @@ export default function LoginPage() {
     setError('');
 
     try {
-      console.log('🔐 Iniciando login con Google...');
-      
-      // Usar el servicio de autenticación
       await authService.loginWithGoogle(auth, googleProvider);
-
-      console.log('✅ Login con Google exitoso, redirigiendo...');
-      
-      // Navegar a la página principal
       navigate('/');
-      
     } catch (error: any) {
-      console.error('❌ Error al iniciar sesión con Google:', error);
-      
-      // Mostrar mensaje de error amigable
-      if (error.message.includes('no registrado') || 
-          error.message.includes('not found')) {
-        setError('noRegistradoGoogle');
-      } else if (error.message.includes('cancelada') || 
-                 error.message.includes('cerrado')) {
-        // No mostrar error si el usuario canceló
-        setError('');
-      } else {
-        setError(error.message || 'Error al iniciar sesión con Google. Intenta de nuevo.');
+      if (!error.message.includes('cancelada')) {
+        setError(error.message || 'Error al iniciar sesión con Google.');
       }
     } finally {
       setLoading(false);
