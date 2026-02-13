@@ -263,6 +263,9 @@ export default function SecureExamPlatform() {
   // Estado persistente para Lienzo (Dibujo)
   const [lienzoState, setLienzoState] = useState<any>(null);
 
+  // Estado persistente para Calculadora
+  const [calculatorState, setCalculatorState] = useState<any>(null);
+
   // Estados para Modales de Confirmación
   const [showExitModal, setShowExitModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -274,7 +277,8 @@ export default function SecureExamPlatform() {
       if (type === "exam") return 50;
       if (type === "python" || type === "javascript" || type === "java") return panelCount === 3 ? 30 : 40;
       if (type === "answer") return 30;
-      return 20; // Calculadora, Excel, etc.
+      if (type === "calculadora") return 35;
+      return 20; // Excel, etc.
   };
 
   const calculateOptimalSizes = (panels: PanelType[]) => {
@@ -1054,7 +1058,13 @@ export default function SecureExamPlatform() {
           );
         
         case "calculadora": 
-          return <Calculadora darkMode={darkMode} />;
+          return (
+            <Calculadora 
+              darkMode={darkMode} 
+              initialState={calculatorState}
+              onSave={setCalculatorState}
+            />
+          );
         
         case "excel": 
           return <HojaCalculo darkMode={darkMode} />;
@@ -1528,7 +1538,7 @@ export default function SecureExamPlatform() {
                                   </div>
                               </div>
                           </div>
-                          {index < openPanels.length - 1 && panel !== 'calculadora' && openPanels[index + 1] !== 'calculadora' && !((panel === 'exam' && openPanels[index + 1] === 'dibujo') || (panel === 'dibujo' && openPanels[index + 1] === 'exam')) && (
+                          {index < openPanels.length - 1 && !((panel === 'exam' && openPanels[index + 1] === 'dibujo') || (panel === 'dibujo' && openPanels[index + 1] === 'exam')) && (
                               <div onMouseDown={(e) => startResize(index, e)} className={`${layout === "vertical" ? "w-2 cursor-col-resize" : "h-2 cursor-row-resize"} transition-all z-20 flex-shrink-0 rounded-full ${darkMode ? "bg-slate-700 hover:bg-blue-500" : "bg-gray-200 hover:bg-blue-400"}`} />
                           )}
                       </React.Fragment>
