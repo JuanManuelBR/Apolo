@@ -243,4 +243,70 @@ export class ExamController {
       next(err);
     }
   }
+
+  static async deleteAttemptEvents(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.deleteAttemptEvents(
+        attemptId,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async forceFinishSingleAttempt(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.forceFinishSingleAttempt(
+        attemptId,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async deleteAttempt(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.deleteAttempt(
+        attemptId,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
 }

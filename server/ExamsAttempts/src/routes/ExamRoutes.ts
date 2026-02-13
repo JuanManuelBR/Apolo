@@ -235,14 +235,17 @@ router.post("/attempt/:intento_id/finish", ExamController.finishAttempt);
  *     tags:
  *       - Attempts
  *     summary: Desbloquear un intento bloqueado (solo profesor)
- *     description: Permite al profesor desbloquear un intento que fue bloqueado por actividad sospechosa.
+ *     description: |
+ *       Permite al profesor desbloquear un intento que fue bloqueado por actividad sospechosa.
+ *       Actualiza el estado a 'active' en ambas tablas (exams_attempts y exams_in_progress).
+ *       Notifica al estudiante vía WebSocket para que pueda continuar el examen sin perder progreso.
  *     parameters:
  *       - in: path
  *         name: intento_id
  *         required: true
  *         schema:
  *           type: number
- *         description: ID del intento
+ *         description: ID del intento a desbloquear
  *     responses:
  *       200:
  *         description: Intento desbloqueado exitosamente
@@ -251,19 +254,43 @@ router.post("/attempt/:intento_id/finish", ExamController.finishAttempt);
  *             schema:
  *               type: object
  *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Intento desbloqueado exitosamente'
  *                 codigo_acceso:
  *                   type: string
+ *                   example: 'ABC123'
  *                 estado:
  *                   type: string
  *                   enum: [active]
+ *                   example: 'active'
+ *                 attemptId:
+ *                   type: number
+ *                   example: 48
+ *                 estudiante:
+ *                   type: object
+ *                   properties:
+ *                     nombre:
+ *                       type: string
+ *                       example: 'Juan Pérez'
+ *                     correo:
+ *                       type: string
+ *                       example: 'juan@example.com'
+ *                     identificacion:
+ *                       type: string
+ *                       example: '123456'
  *       400:
  *         description: El intento no está bloqueado
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/Error'
+ *             examples:
+ *               not_blocked:
+ *                 value:
+ *                   message: 'El intento no está bloqueado'
  *       404:
- *         description: Intento no encontrado
+ *         description: Intento no encontrado o ExamInProgress no encontrado
  *         content:
  *           application/json:
  *             schema:
@@ -605,5 +632,216 @@ router.patch('/answer/:respuesta_id/manual-grade', ExamController.updateManualGr
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/:examId/force-finish', ExamController.forceFinishActiveAttempts);
+
+/**
+ * @openapi
+ * /api/exam/attempt/{attemptId}/force-finish:
+ *   post:
+ *     tags:
+ *       - Attempts
+ *     summary: Forzar envío de un intento específico (solo profesor)
+ *     description: |
+ *       Finaliza automáticamente un intento específico de examen.
+ *       Califica el intento con las respuestas que tenga hasta el momento y actualiza el estado a 'finished'.
+ *       Solo funciona con intentos en estado 'active'.
+ *       Notifica al estudiante que su examen fue finalizado por el profesor.
+ *     parameters:
+ *       - in: path
+ *         name: attemptId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID del intento a finalizar
+ *     responses:
+ *       200:
+ *         description: Intento finalizado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Intento finalizado exitosamente'
+ *                 intentoId:
+ *                   type: number
+ *                   example: 48
+ *                 estudiante:
+ *                   type: object
+ *                   properties:
+ *                     nombre:
+ *                       type: string
+ *                       example: 'Juan Pérez'
+ *                     correo:
+ *                       type: string
+ *                       example: 'juan@example.com'
+ *                     identificacion:
+ *                       type: string
+ *                       example: '123456'
+ *                 puntaje:
+ *                   type: number
+ *                   example: 7.5
+ *                 puntajeMaximo:
+ *                   type: number
+ *                   example: 10
+ *                 porcentaje:
+ *                   type: number
+ *                   example: 75
+ *                 notaFinal:
+ *                   type: number
+ *                   example: 3.75
+ *                 respuestasGuardadas:
+ *                   type: number
+ *                   description: Número de respuestas que el estudiante había guardado
+ *                   example: 8
+ *       400:
+ *         description: ID de intento inválido o el intento no está en estado activo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *             examples:
+ *               not_active:
+ *                 value:
+ *                   message: 'El intento ya está en estado finished. Solo se pueden forzar intentos activos.'
+ *       404:
+ *         description: Intento no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.post('/attempt/:attemptId/force-finish', ExamController.forceFinishSingleAttempt);
+
+/**
+ * @openapi
+ * /api/exam/attempt/{attemptId}/events:
+ *   delete:
+ *     tags:
+ *       - Events
+ *     summary: Eliminar todas las alertas/eventos de un intento
+ *     description: |
+ *       Elimina todos los eventos de seguridad (alertas) registrados para un intento específico.
+ *       Esta acción es útil cuando el profesor decide limpiar las alertas después de revisar un intento.
+ *       Notifica a través de WebSocket sobre la eliminación.
+ *     parameters:
+ *       - in: path
+ *         name: attemptId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID del intento
+ *     responses:
+ *       200:
+ *         description: Eventos eliminados exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Se eliminaron 5 evento(s) del intento'
+ *                 deletedCount:
+ *                   type: number
+ *                   description: Cantidad de eventos eliminados
+ *                   example: 5
+ *                 attemptId:
+ *                   type: number
+ *                   description: ID del intento
+ *                   example: 123
+ *       400:
+ *         description: ID de intento inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Intento no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/attempt/:attemptId/events', ExamController.deleteAttemptEvents);
+
+/**
+ * @openapi
+ * /api/exam/attempt/{attemptId}:
+ *   delete:
+ *     tags:
+ *       - Attempts
+ *     summary: Eliminar completamente un intento de examen (solo profesor)
+ *     description: |
+ *       Elimina permanentemente un intento de examen y todos sus datos relacionados.
+ *       Esta acción elimina:
+ *       - Todas las respuestas del intento (exam_answers)
+ *       - Todos los eventos de seguridad (exam_events)
+ *       - El registro de ExamInProgress
+ *       - El intento completo (exam_attempts)
+ *       Esta operación es irreversible y se ejecuta dentro de una transacción.
+ *     parameters:
+ *       - in: path
+ *         name: attemptId
+ *         required: true
+ *         schema:
+ *           type: number
+ *         description: ID del intento a eliminar
+ *     responses:
+ *       200:
+ *         description: Intento eliminado exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                   example: 'Intento eliminado exitosamente'
+ *                 attemptId:
+ *                   type: number
+ *                   example: 48
+ *                 estudiante:
+ *                   type: object
+ *                   properties:
+ *                     nombre:
+ *                       type: string
+ *                       example: 'Juan Pérez'
+ *                     correo:
+ *                       type: string
+ *                       example: 'juan@example.com'
+ *                     identificacion:
+ *                       type: string
+ *                       example: '123456'
+ *                 deletedData:
+ *                   type: object
+ *                   description: Resumen de datos eliminados
+ *                   properties:
+ *                     respuestas:
+ *                       type: number
+ *                       description: Cantidad de respuestas eliminadas
+ *                       example: 10
+ *                     eventos:
+ *                       type: number
+ *                       description: Cantidad de eventos eliminados
+ *                       example: 5
+ *                     examInProgress:
+ *                       type: number
+ *                       description: Registros de ExamInProgress eliminados
+ *                       example: 1
+ *       400:
+ *         description: ID de intento inválido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       404:
+ *         description: Intento no encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ */
+router.delete('/attempt/:attemptId', ExamController.deleteAttempt);
 
 export default router;

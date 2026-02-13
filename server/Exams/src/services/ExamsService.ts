@@ -128,6 +128,17 @@ export class ExamService {
           }
           return q;
         });
+
+        // Actualizar flag tienePreguntasAbiertas
+        const tienePreguntasAbiertas = preguntas_guardadas.some(
+          (q: any) => q.type === "open"
+        );
+        examen_guardado.tienePreguntasAbiertas = tienePreguntasAbiertas;
+        await manager.save(Exam, examen_guardado);
+      } else {
+        // Si no hay preguntas, el flag debe estar en false
+        examen_guardado.tienePreguntasAbiertas = false;
+        await manager.save(Exam, examen_guardado);
       }
 
       if (cambioEstadoAutomatico) {
@@ -284,6 +295,12 @@ export class ExamService {
           }
           return q;
         });
+
+        // Actualizar flag tienePreguntasAbiertas basado en las preguntas guardadas
+        const tienePreguntasAbiertas = preguntasGuardadas.some(
+          (q: any) => q.type === "open"
+        );
+        existingExam.tienePreguntasAbiertas = tienePreguntasAbiertas;
       }
 
       // 3. ACTUALIZAR CAMPOS DEL EXAMEN

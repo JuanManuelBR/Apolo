@@ -166,6 +166,7 @@ export default function SecureExamPlatform() {
   const [examStarted, setExamStarted] = useState(false);
   const [examBlocked, setExamBlocked] = useState(false);
   const [blockReason, setBlockReason] = useState("");
+  const [showUnlockScreen, setShowUnlockScreen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
@@ -773,7 +774,19 @@ export default function SecureExamPlatform() {
       });
       newSocket.on("fraud_detected", (data) => addSecurityViolation(`Fraude: ${data.tipo_evento}`));
       newSocket.on("attempt_blocked", (data) => { setExamBlocked(true); setBlockReason(data.message); });
-      newSocket.on("attempt_unlocked", () => { setExamBlocked(false); setBlockReason(""); });
+      newSocket.on("attempt_unlocked", (data) => {
+        console.log("✅ Examen desbloqueado por el profesor", data);
+        setExamBlocked(false);
+        setBlockReason("");
+        setShowUnlockScreen(true);
+
+        // Traer la ventana al frente y darle foco
+        try {
+          window.focus();
+        } catch (err) {
+          console.warn("⚠️ No se pudo dar foco a la ventana:", err);
+        }
+      });
       newSocket.on("attempt_finished", () => {
         setExamFinished(true);
         if (document.fullscreenElement) {
@@ -1133,6 +1146,51 @@ export default function SecureExamPlatform() {
     );
   }
 
+  if (showUnlockScreen) {
+    return (
+        <div
+          ref={fullscreenRef}
+          className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-600 to-emerald-700 p-4"
+        >
+            <div className="bg-white rounded-xl shadow-2xl p-10 text-center max-w-lg animate-in zoom-in duration-500">
+                <CheckCircle2 className="w-20 h-20 text-green-600 mx-auto mb-6 animate-bounce"/>
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">¡Examen Desbloqueado!</h1>
+                <p className="text-gray-600 mb-8 text-lg">
+                    El profesor ha desbloqueado tu examen. Puedes continuar respondiendo donde lo dejaste.
+                </p>
+                <button
+                    type="button"
+                    onClick={async () => {
+                      console.log("🔵 Botón clickeado - Intentando activar pantalla completa");
+                      // Activar pantalla completa
+                      if (fullscreenRef.current) {
+                        try {
+                          await fullscreenRef.current.requestFullscreen();
+                          console.log("✅ Pantalla completa reactivada exitosamente");
+                          // Ocultar pantalla de desbloqueo después de activar pantalla completa
+                          setTimeout(() => {
+                            setShowUnlockScreen(false);
+                          }, 500);
+                        } catch (err) {
+                          console.error("❌ Error al reactivar pantalla completa:", err);
+                          // Intentar de todas formas ocultar la pantalla
+                          setShowUnlockScreen(false);
+                        }
+                      } else {
+                        console.warn("⚠️ fullscreenRef.current es null");
+                        setShowUnlockScreen(false);
+                      }
+                    }}
+                    className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold text-lg shadow-xl hover:from-green-600 hover:to-emerald-700 transition-all hover:scale-105 flex items-center gap-3 mx-auto"
+                >
+                    <Maximize2 className="w-6 h-6" />
+                    Continuar Examen
+                </button>
+            </div>
+        </div>
+    );
+  }
+
   return (
     <div 
       ref={fullscreenRef} 
@@ -1176,6 +1234,7 @@ export default function SecureExamPlatform() {
             scrollbar-color: #334155 #0f172a;
           }
       `}</style>
+
 
       {/* --- MODALES DE CONFIRMACIÓN --- */}
       {showExitModal && (
