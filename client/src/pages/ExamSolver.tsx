@@ -174,7 +174,7 @@ export default function SecureExamPlatform() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
-  const [wasForced, setWasForced] = useState(false);
+  const [wasForced, setWasForced] = useState<"" | "individual" | "todos">("");
   const [wasAbandoned, setWasAbandoned] = useState(false);
   
   const [darkMode, setDarkMode] = useState(() => {
@@ -997,7 +997,7 @@ export default function SecureExamPlatform() {
 
       newSocket.on("forced_finish", (data) => {
         console.log("⚠️ Examen forzado a terminar por el profesor", data);
-        setWasForced(true);
+        setWasForced(data.tipo === "individual" ? "individual" : "todos");
         setExamFinished(true);
         limpiarDatosExamen();
 
@@ -1327,9 +1327,11 @@ export default function SecureExamPlatform() {
             <p className={`text-lg ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
                 {wasAbandoned
                   ? "Has abandonado el examen. Solo podrás reanudarlo si tu profesor lo autoriza."
-                  : wasForced
+                  : wasForced === "todos"
                     ? "El profesor ha finalizado el examen para todos los estudiantes. Tus respuestas han sido guardadas correctamente."
-                    : "Tus respuestas han sido guardadas correctamente."
+                    : wasForced === "individual"
+                      ? "El profesor ha finalizado tu examen. Tus respuestas han sido guardadas correctamente."
+                      : "Tus respuestas han sido guardadas correctamente."
                 }
                 <br />
                 Ya puedes cerrar esta ventana.

@@ -201,6 +201,7 @@ export class ScoringService {
 
         io.to(`attempt_${attempt.id}`).emit("forced_finish", {
           message: "El profesor ha finalizado el examen para todos los estudiantes",
+          tipo: "todos",
           puntaje: attempt.puntaje,
           puntajeMaximo: attempt.puntajeMaximo,
           porcentaje: attempt.porcentaje,
@@ -303,6 +304,7 @@ export class ScoringService {
 
     io.to(`attempt_${attempt.id}`).emit("forced_finish", {
       message: "El profesor ha finalizado tu examen",
+      tipo: "individual",
       puntaje: attempt.puntaje,
       puntajeMaximo: attempt.puntajeMaximo,
       porcentaje: attempt.porcentaje,
