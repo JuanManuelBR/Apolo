@@ -64,6 +64,12 @@ export class ExamAttempt {
   @Column({ type: "double", nullable: true, default: null })
   notaFinal?: number | null;
 
+  @Column({ type: "boolean", default: false })
+  esExamenPDF!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  calificacionPendiente!: boolean;
+
   @OneToMany(() => ExamAnswer, (answer) => answer.intento, {
     cascade: true,
     eager: true,

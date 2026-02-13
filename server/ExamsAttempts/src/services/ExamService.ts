@@ -1,7 +1,7 @@
 import { AppDataSource } from "@src/data-source/AppDataSource";
 import { Server } from "socket.io";
 import { ExamAttempt, AttemptState } from "@src/models/ExamAttempt";
-import { ExamAnswer } from "@src/models/ExamAnswer";
+import { ExamAnswer, TipoRespuesta } from "@src/models/ExamAnswer";
 import { ExamEvent, AttemptEvent } from "@src/models/ExamEvent";
 import { ExamInProgress } from "@src/models/ExamInProgress";
 import { ExamAttemptValidator } from "@src/validators/ExamAttemptValidator";
@@ -34,10 +34,16 @@ export class ExamService {
     );
     ExamAttemptValidator.validateExamPassword(exam, data.contrasena);
 
-    const puntajeMaximo = exam.questions.reduce(
-      (sum: number, q: any) => sum + q.puntaje,
-      0,
-    );
+    // Detectar si es un examen PDF (tiene archivoPDF y no tiene preguntas)
+    const esExamenPDF = !!(exam.archivoPDF && (!exam.questions || exam.questions.length === 0));
+
+    // Para exámenes PDF el puntaje máximo es 5 (calificación directa 0-5)
+    const puntajeMaximo = esExamenPDF
+      ? 5
+      : exam.questions.reduce(
+          (sum: number, q: any) => sum + q.puntaje,
+          0,
+        );
 
     const fecha_inicio = new Date();
 
@@ -51,6 +57,8 @@ export class ExamService {
       identificacion_estudiante: data.identificacion_estudiante || null,
       puntajeMaximo,
       fecha_inicio,
+      esExamenPDF,
+      calificacionPendiente: esExamenPDF,
     });
 
     await attemptRepo.save(attempt);
@@ -182,6 +190,12 @@ export class ExamService {
       if (data.retroalimentacion !== undefined) {
         existingAnswer.retroalimentacion = data.retroalimentacion;
       }
+      if (data.tipo_respuesta !== undefined) {
+        existingAnswer.tipo_respuesta = data.tipo_respuesta;
+      }
+      if (data.metadata_codigo !== undefined) {
+        existingAnswer.metadata_codigo = data.metadata_codigo;
+      }
       answer = await repo.save(existingAnswer);
       io.to(`attempt_${data.intento_id}`).emit("answer_updated", answer);
     } else {
@@ -210,6 +224,20 @@ export class ExamService {
     }
 
     console.log(`✅ Intento encontrado, examen_id: ${attempt.examen_id}`);
+
+    // Para exámenes PDF, el progreso se calcula diferente (no hay preguntas)
+    if (attempt.esExamenPDF) {
+      const progreso = totalAnswers > 0 ? 100 : 0;
+      console.log(`📊 Examen PDF - Progreso: ${progreso}% (${totalAnswers} respuesta(s))`);
+      attempt.progreso = progreso;
+      const savedAttempt = await attemptRepo.save(attempt);
+      console.log(`💾 Progreso guardado: ${savedAttempt.progreso}`);
+      io.to(`exam_${attempt.examen_id}`).emit("progress_updated", {
+        attemptId: data.intento_id,
+        progreso,
+      });
+      return answer;
+    }
 
     const exam = await ExamAttemptValidator.validateExamExistsById(
       attempt.examen_id,
@@ -405,9 +433,17 @@ export class ExamService {
       throwHttpError("Este examen ya fue finalizado", 400);
     }
 
-    const puntaje = await this.calculateScore(attempt);
+    // Para exámenes PDF: no calificar automáticamente, queda pendiente de calificación manual
+    if (attempt.esExamenPDF) {
+      attempt.puntaje = null;
+      attempt.porcentaje = null;
+      attempt.notaFinal = null;
+      attempt.calificacionPendiente = true;
+    } else {
+      const puntaje = await this.calculateScore(attempt);
+      attempt.puntaje = puntaje;
+    }
 
-    attempt.puntaje = puntaje;
     attempt.fecha_fin = new Date();
     attempt.estado = AttemptState.FINISHED;
 
@@ -418,8 +454,10 @@ export class ExamService {
     await progressRepo.save(examInProgress);
 
     io.to(`attempt_${intento_id}`).emit("attempt_finished", {
-      puntaje,
+      puntaje: attempt.puntaje,
       puntajeMaximo: attempt.puntajeMaximo,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     });
 
     io.to(`exam_${attempt.examen_id}`).emit("student_finished_exam", {
@@ -428,7 +466,9 @@ export class ExamService {
         nombre: attempt.nombre_estudiante,
         correo: attempt.correo_estudiante,
       },
-      puntaje,
+      puntaje: attempt.puntaje,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     });
 
     return attempt;
@@ -443,7 +483,17 @@ export class ExamService {
     const progressRepo = AppDataSource.getRepository(ExamInProgress);
 
     // Usar limiteTiempoCumplido guardado en el attempt
-    if (attempt.limiteTiempoCumplido === "descartar") {
+    if (attempt.esExamenPDF) {
+      // Exámenes PDF: no calificar automáticamente
+      if (attempt.limiteTiempoCumplido === "descartar") {
+        attempt.puntaje = 0;
+        attempt.calificacionPendiente = false;
+      } else {
+        // "enviar" - guardar respuestas sin calificar
+        attempt.puntaje = null;
+        attempt.calificacionPendiente = true;
+      }
+    } else if (attempt.limiteTiempoCumplido === "descartar") {
       attempt.puntaje = 0;
     } else {
       // "enviar" - calificar hasta donde llegó
@@ -462,6 +512,8 @@ export class ExamService {
     io.to(`attempt_${attempt.id}`).emit("time_expired", {
       message: "El tiempo del examen ha expirado",
       puntaje: attempt.puntaje,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     });
   }
 
@@ -715,6 +767,8 @@ export class ExamService {
           alertasNoLeidas: unreadEvents.length,
           codigo_acceso: progress?.codigo_acceso,
           fecha_expiracion: progress?.fecha_expiracion,
+          esExamenPDF: attempt.esExamenPDF,
+          calificacionPendiente: attempt.calificacionPendiente,
         };
       }),
     );
@@ -955,11 +1009,16 @@ export class ExamService {
           continue;
         }
 
-        // Calificar el intento con las respuestas que tenga hasta ahora
-        const puntaje = await this.calculateScore(attempt);
+        // Para exámenes PDF: no calificar automáticamente
+        if (attempt.esExamenPDF) {
+          attempt.puntaje = null;
+          attempt.calificacionPendiente = true;
+        } else {
+          const puntaje = await this.calculateScore(attempt);
+          attempt.puntaje = puntaje;
+        }
 
         // Actualizar el intento
-        attempt.puntaje = puntaje;
         attempt.fecha_fin = new Date();
         attempt.estado = AttemptState.FINISHED;
 
@@ -970,17 +1029,18 @@ export class ExamService {
         await attemptRepo.save(attempt);
         await progressRepo.save(examInProgress);
 
-        console.log(`✅ Intento ${attempt.id} finalizado - Puntaje: ${puntaje.toFixed(2)}/${attempt.puntajeMaximo}`);
+        console.log(`✅ Intento ${attempt.id} finalizado - Puntaje: ${attempt.puntaje ?? "Pendiente"}/${attempt.puntajeMaximo}`);
 
         // Notificar al estudiante que su examen fue forzado a terminar
-        // Esto desconectará al estudiante del WebSocket y lo sacará del examen
         io.to(`attempt_${attempt.id}`).emit("forced_finish", {
           message: "El profesor ha finalizado el examen para todos los estudiantes",
-          puntaje,
+          puntaje: attempt.puntaje,
           puntajeMaximo: attempt.puntajeMaximo,
           porcentaje: attempt.porcentaje,
           notaFinal: attempt.notaFinal,
           attemptId: attempt.id,
+          esExamenPDF: attempt.esExamenPDF,
+          calificacionPendiente: attempt.calificacionPendiente,
         });
 
         resultados.push({
@@ -990,11 +1050,13 @@ export class ExamService {
             correo: attempt.correo_estudiante,
             identificacion: attempt.identificacion_estudiante,
           },
-          puntaje,
+          puntaje: attempt.puntaje,
           puntajeMaximo: attempt.puntajeMaximo,
           porcentaje: attempt.porcentaje,
           notaFinal: attempt.notaFinal,
           respuestasGuardadas: attempt.respuestas?.length || 0,
+          esExamenPDF: attempt.esExamenPDF,
+          calificacionPendiente: attempt.calificacionPendiente,
         });
       } catch (error) {
         console.error(`❌ Error al finalizar intento ${attempt.id}:`, error);
@@ -1062,11 +1124,16 @@ export class ExamService {
       );
     }
 
-    // Calificar el intento con las respuestas que tenga hasta ahora
-    const puntaje = await this.calculateScore(attempt);
+    // Para exámenes PDF: no calificar automáticamente
+    if (attempt.esExamenPDF) {
+      attempt.puntaje = null;
+      attempt.calificacionPendiente = true;
+    } else {
+      const puntaje = await this.calculateScore(attempt);
+      attempt.puntaje = puntaje;
+    }
 
     // Actualizar el intento
-    attempt.puntaje = puntaje;
     attempt.fecha_fin = new Date();
     attempt.estado = AttemptState.FINISHED;
 
@@ -1077,16 +1144,18 @@ export class ExamService {
     await attemptRepo.save(attempt);
     await progressRepo.save(examInProgress);
 
-    console.log(`✅ Intento ${attempt.id} finalizado - Puntaje: ${puntaje.toFixed(2)}/${attempt.puntajeMaximo}`);
+    console.log(`✅ Intento ${attempt.id} finalizado - Puntaje: ${attempt.puntaje ?? "Pendiente"}/${attempt.puntajeMaximo}`);
 
     // Notificar al estudiante que su examen fue forzado a terminar
     io.to(`attempt_${attempt.id}`).emit("forced_finish", {
       message: "El profesor ha finalizado tu examen",
-      puntaje,
+      puntaje: attempt.puntaje,
       puntajeMaximo: attempt.puntajeMaximo,
       porcentaje: attempt.porcentaje,
       notaFinal: attempt.notaFinal,
       attemptId: attempt.id,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     });
 
     // Notificar al profesor (room del examen)
@@ -1097,10 +1166,12 @@ export class ExamService {
         correo: attempt.correo_estudiante,
         identificacion: attempt.identificacion_estudiante,
       },
-      puntaje,
+      puntaje: attempt.puntaje,
       puntajeMaximo: attempt.puntajeMaximo,
       porcentaje: attempt.porcentaje,
       notaFinal: attempt.notaFinal,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     });
 
     return {
@@ -1111,11 +1182,13 @@ export class ExamService {
         correo: attempt.correo_estudiante,
         identificacion: attempt.identificacion_estudiante,
       },
-      puntaje,
+      puntaje: attempt.puntaje,
       puntajeMaximo: attempt.puntajeMaximo,
       porcentaje: attempt.porcentaje,
       notaFinal: attempt.notaFinal,
       respuestasGuardadas: attempt.respuestas?.length || 0,
+      esExamenPDF: attempt.esExamenPDF,
+      calificacionPendiente: attempt.calificacionPendiente,
     };
   }
 
@@ -1246,7 +1319,7 @@ export class ExamService {
     );
     const exam = examResponse.data;
 
-    if (!exam || !exam.questions) {
+    if (!exam) {
       throwHttpError(
         "No se pudo obtener la información completa del examen",
         500,
@@ -1254,8 +1327,106 @@ export class ExamService {
     }
 
     console.log(
-      `✅ Examen obtenido: "${exam.nombre}" con ${exam.questions.length} preguntas`,
+      `✅ Examen obtenido: "${exam.nombre}" con ${exam.questions?.length || 0} preguntas`,
     );
+
+    // Si es examen PDF, retornar estructura especial con respuestas directas
+    if (attempt.esExamenPDF) {
+      const respuestasPDF = (attempt.respuestas || []).map((r) => {
+        let metadataParsed = null;
+        if (r.metadata_codigo) {
+          try {
+            metadataParsed = JSON.parse(r.metadata_codigo);
+          } catch {
+            metadataParsed = r.metadata_codigo;
+          }
+        }
+
+        // Parsear respuesta para tipos estructurados (código guarda array de celdas, diagrama guarda estado)
+        let respuestaParsed: any = r.respuesta;
+        const structuredTypes = [
+          TipoRespuesta.DIAGRAMA,
+          TipoRespuesta.PYTHON,
+          TipoRespuesta.JAVASCRIPT,
+          TipoRespuesta.JAVA,
+        ];
+        if (structuredTypes.includes(r.tipo_respuesta)) {
+          try {
+            respuestaParsed = JSON.parse(r.respuesta);
+          } catch {
+            respuestaParsed = r.respuesta;
+          }
+        }
+
+        return {
+          id: r.id,
+          pregunta_id: r.pregunta_id,
+          tipo_respuesta: r.tipo_respuesta,
+          respuesta: respuestaParsed,
+          metadata_codigo: metadataParsed,
+          puntajeObtenido: r.puntaje,
+          fecha_respuesta: r.fecha_respuesta,
+          retroalimentacion: r.retroalimentacion,
+        };
+      });
+
+      return {
+        intento: {
+          id: attempt.id,
+          examen_id: attempt.examen_id,
+          estado: attempt.estado,
+          nombre_estudiante: attempt.nombre_estudiante,
+          correo_estudiante: attempt.correo_estudiante,
+          identificacion_estudiante: attempt.identificacion_estudiante,
+          fecha_inicio: attempt.fecha_inicio,
+          fecha_fin: attempt.fecha_fin,
+          limiteTiempoCumplido: attempt.limiteTiempoCumplido,
+          consecuencia: attempt.consecuencia,
+          puntaje: attempt.puntaje,
+          puntajeMaximo: attempt.puntajeMaximo,
+          porcentaje: attempt.porcentaje,
+          notaFinal: attempt.notaFinal,
+          progreso: attempt.progreso,
+          esExamenPDF: attempt.esExamenPDF,
+          calificacionPendiente: attempt.calificacionPendiente,
+        },
+        examen: {
+          id: exam.id,
+          nombre: exam.nombre,
+          descripcion: exam.descripcion,
+          codigoExamen: exam.codigoExamen,
+          estado: exam.estado,
+          nombreProfesor: exam.nombreProfesor,
+          archivoPDF: exam.archivoPDF,
+        },
+        estadisticas: {
+          totalRespuestas: respuestasPDF.length,
+          tiempoTotal:
+            attempt.fecha_fin && attempt.fecha_inicio
+              ? Math.floor(
+                  (new Date(attempt.fecha_fin).getTime() -
+                    new Date(attempt.fecha_inicio).getTime()) /
+                    1000,
+                )
+              : null,
+        },
+        respuestasPDF,
+        eventos: eventos.map((e) => ({
+          id: e.id,
+          tipo_evento: e.tipo_evento,
+          fecha_envio: e.fecha_envio,
+          leido: e.leido,
+        })),
+      };
+    }
+
+    // Flujo normal para exámenes con preguntas
+    if (!exam.questions) {
+      throwHttpError(
+        "No se pudo obtener la información completa del examen",
+        500,
+      );
+    }
 
     // 4. Función auxiliar para parsear respuesta del estudiante según tipo
     const parseStudentAnswer = (type: string, respuesta: string) => {
