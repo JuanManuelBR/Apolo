@@ -343,20 +343,17 @@ export class AttemptQueryService {
       const id = getIdEstudiante(a);
       const estado = estadoTexto[a.estado] || a.estado;
 
-      let calificacion: string | number;
-      if (a.calificacionPendiente) {
-        calificacion = "Pendiente";
-      } else if (a.notaFinal !== null && a.notaFinal !== undefined) {
-        calificacion = Math.round(a.notaFinal * 100) / 100;
-      } else if (a.estado === AttemptState.ABANDONADO) {
-        calificacion = "Abandonado";
-      } else if (
-        a.estado === AttemptState.ACTIVE ||
-        a.estado === AttemptState.BLOCKED
-      ) {
-        calificacion = "En curso";
+      let calificacion: string | number | null;
+      if (a.estado === AttemptState.FINISHED) {
+        if (a.calificacionPendiente) {
+          calificacion = "Pendiente";
+        } else if (a.notaFinal !== null && a.notaFinal !== undefined) {
+          calificacion = Math.round(a.notaFinal * 100) / 100;
+        } else {
+          calificacion = 0;
+        }
       } else {
-        calificacion = 0;
+        calificacion = null;
       }
 
       const row = sheet.addRow({ id, estado, calificacion });
