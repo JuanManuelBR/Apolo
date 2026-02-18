@@ -3,6 +3,7 @@
 // CÓDIGO COMPLETO CON GESTIÓN DE ESTADO ACTIVO
 // ============================================
 
+
 import { AuthenticatedRequest } from "@src/middlewares/auth";
 import { UserService } from "@src/services/UserService";
 import { throwHttpError } from "@src/utils/errors";
