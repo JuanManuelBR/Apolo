@@ -25,4 +25,8 @@ export const AppDataSource = new DataSource({
   entities: [ExamAttempt, ExamAnswer, ExamEvent, ExamInProgress],
   migrations: ["src/migrations/*.ts"],
   migrationsTableName: "migrations",
+  ssl: {
+    minVersion: "TLSv1.2",
+    rejectUnauthorized: true, // Esto es seguro y funciona en TiDB Cloud
+  },
 });

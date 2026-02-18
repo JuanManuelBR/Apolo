@@ -22,4 +22,8 @@ export const AppDataSource = new DataSource({
   synchronize: true,
   logging: false,
   entities: [User],
+  ssl: {
+    minVersion: "TLSv1.2",
+    rejectUnauthorized: true, // Esto es seguro y funciona en TiDB Cloud
+  },
 });
