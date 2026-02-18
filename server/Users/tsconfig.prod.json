@@ -21,7 +21,6 @@
   },
   "include": [
     "src/**/*.ts",
-    "config.ts"
   ],
   "exclude": [
     "tests",
