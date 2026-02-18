@@ -1,8 +1,14 @@
 import axios from 'axios';
 
-// ✅ USAR RUTAS RELATIVAS PARA QUE PASEN POR EL PROXY
+// Detecta automático: dev = proxy, prod = Railway
+const isDev = import.meta.env.DEV;
+
+const USERS_BASE = isDev 
+  ? '/api/users'  // Proxy Vite local
+  : import.meta.env.VITE_USERS_BASE;
+
 export const usersApi = axios.create({
-  baseURL: '/api/users',
+  baseURL: USERS_BASE,
   headers: {
     "Content-Type": "application/json",
   },
@@ -11,7 +17,7 @@ export const usersApi = axios.create({
 });
 
 export const examsAttemptsApi = axios.create({
-  baseURL: '/api/exam',
+  baseURL: '/api/exam',  // Sin cambios aún
   headers: {
     "Content-Type": "application/json",
   },
