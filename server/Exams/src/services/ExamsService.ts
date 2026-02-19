@@ -185,7 +185,7 @@ export class ExamService {
 
     // Verificar que el examen no tenga intentos
     try {
-      const attemptsRes = await axios.get(
+      const attemptsRes = await axios.get<{ count: number }>(
         `${this.EXAM_ATTEMPTS_MS_URL}/api/exam/${examId}/attempt-count`,
       );
       if (attemptsRes.data.count > 0) {
@@ -426,7 +426,7 @@ export class ExamService {
     let nombreProfesor = "Profesor no disponible";
     try {
       const usersMsUrl = process.env.USERS_MS_URL;
-      const response = await axios.get(
+      const response = await axios.get<any>(
         `${usersMsUrl}/api/users/${examen.id_profesor}`,
       );
       const profesor = response.data;
