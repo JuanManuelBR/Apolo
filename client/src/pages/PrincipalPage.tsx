@@ -16,6 +16,10 @@ import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import fondoImagen from "../../assets/fondo.webp";
 import { useState, useEffect, useRef } from "react";
 import ModalConfirmacion from "../components/ModalConfirmacion";
+import { getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
+import { usersService } from "../services/Authservice";
+import { getAuthToken } from "../services/authToken";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import {
   Home,
@@ -126,6 +130,24 @@ export default function LMSDashboard() {
           localStorage.removeItem("usuario");
           window.location.href = "/login";
           return;
+        }
+
+        // Restaurar token en memoria si se perdió (ej: recarga de página)
+        if (!getAuthToken()) {
+          try {
+            const apps = getApps();
+            if (apps.length > 0) {
+              const auth = getAuth(apps[0]);
+              await (auth as any).authStateReady?.();
+              const firebaseUser = auth.currentUser;
+              if (firebaseUser) {
+                const idToken = await firebaseUser.getIdToken();
+                await usersService.loginWithGoogleToken(idToken);
+              }
+            }
+          } catch {
+            // Si falla silenciosamente, el interceptor de examsApi retornará 401
+          }
         }
 
         // Verificar con el backend si la sesión es válida
