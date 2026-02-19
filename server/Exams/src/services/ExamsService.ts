@@ -497,7 +497,7 @@ export class ExamService {
     let nombreProfesor = "Profesor no disponible";
     try {
       const usersMsUrl = process.env.USERS_MS_URL;
-      const response = await axios.get(
+      const response = await axios.get<any>(
         `${usersMsUrl}/api/users/${exam.id_profesor}`,
       );
       const profesor = response.data;
