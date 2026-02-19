@@ -1,78 +1,75 @@
-// src/services/image.service.ts
 import sharp from "sharp";
-import fs from "fs/promises";
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { cloudinary } from "../config/cloudinary";
+
+function extractPublicId(urlOrId: string): string {
+  if (!urlOrId.startsWith("http")) return urlOrId;
+  // Extraer publicId desde URL de Cloudinary (sin extensión)
+  const match = urlOrId.match(/\/upload\/(?:v\d+\/)?(.+?)(\.[^.]+)?$/);
+  return match ? match[1] : urlOrId;
+}
 
 export class ImageService {
-  private uploadDir = path.join(__dirname, "../../uploads/images");
-
-  constructor() {
-    this.ensureUploadDir();
-  }
-
-  private async ensureUploadDir() {
-    try {
-      await fs.access(this.uploadDir);
-    } catch {
-      await fs.mkdir(this.uploadDir, { recursive: true });
-    }
-  }
-
-  async saveImage(file: any): Promise<string> {
+  async saveImage(file: any): Promise<{ publicId: string; url: string }> {
     const isGif = file.mimetype === "image/gif";
 
-    const extension = isGif ? "gif" : "webp";
-    const fileName = `${uuidv4()}.${extension}`;
-    const filePath = path.join(this.uploadDir, fileName);
-
-    const image = sharp(file.buffer, { animated: true });
+    let processedBuffer: Buffer;
 
     if (isGif) {
-      // Mantener GIF animado, optimizado
-      await image
+      processedBuffer = await sharp(file.buffer, { animated: true })
         .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
-        .gif({
-          loop: 0, // infinito
-          effort: 7, // compresión (1–10)
-          dither: 0.5, // calidad visual
-        })
-        .toFile(filePath);
+        .gif({ loop: 0, effort: 7, dither: 0.5 })
+        .toBuffer();
     } else {
-      // Imágenes normales → WebP
-      await image
+      processedBuffer = await sharp(file.buffer)
         .resize(1200, 1200, { fit: "inside", withoutEnlargement: true })
         .webp({ quality: 80 })
-        .toFile(filePath);
+        .toBuffer();
     }
 
-    return fileName;
+    const publicId = `exams/images/${uuidv4()}`;
+
+    const result = await new Promise<any>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { public_id: publicId, resource_type: "image" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(processedBuffer);
+    });
+
+    console.log(`✅ Imagen subida a Cloudinary: ${result.public_id}`);
+    return { publicId: result.public_id, url: result.secure_url };
   }
 
-  async deleteImage(fileName: string): Promise<void> {
-    const filePath = path.join(this.uploadDir, fileName);
+  async deleteImage(urlOrPublicId: string): Promise<void> {
     try {
-      await fs.unlink(filePath);
+      const publicId = extractPublicId(urlOrPublicId);
+      await cloudinary.uploader.destroy(publicId);
+      console.log(`🗑️ Imagen eliminada de Cloudinary: ${publicId}`);
     } catch (error) {
-      console.error(`Error eliminando imagen: ${fileName}`, error);
+      console.error(`Error eliminando imagen: ${urlOrPublicId}`, error);
     }
   }
 
-  getImagePath(fileName: string): string {
-    return path.join(this.uploadDir, fileName);
+  getImageUrl(urlOrPublicId: string): string {
+    if (urlOrPublicId.startsWith("http")) return urlOrPublicId;
+    return cloudinary.url(urlOrPublicId, { secure: true });
   }
 
-  async duplicateImage(originalFileName: string): Promise<string | null> {
-    const originalPath = path.join(this.uploadDir, originalFileName);
+  async duplicateImage(urlOrPublicId: string): Promise<string | null> {
     try {
-      await fs.access(originalPath);
-      const ext = path.extname(originalFileName);
-      const newFileName = `${uuidv4()}${ext}`;
-      const newPath = path.join(this.uploadDir, newFileName);
-      await fs.copyFile(originalPath, newPath);
-      return newFileName;
+      const originalPublicId = extractPublicId(urlOrPublicId);
+      const newPublicId = `exams/images/${uuidv4()}`;
+      const result = await cloudinary.uploader.upload(
+        cloudinary.url(originalPublicId, { secure: true }),
+        { public_id: newPublicId, resource_type: "image" }
+      );
+      return result.secure_url;
     } catch (error) {
-      console.error(`Error duplicando imagen: ${originalFileName}`, error);
+      console.error(`Error duplicando imagen: ${urlOrPublicId}`, error);
       return null;
     }
   }

@@ -1,165 +1,100 @@
-// src/services/PDFService.ts
-import fs from "fs/promises";
-import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import { PDFDocument } from "pdf-lib";
+import { cloudinary } from "../config/cloudinary";
+
+function extractPublicId(urlOrId: string): string {
+  if (!urlOrId.startsWith("http")) return urlOrId;
+  const match = urlOrId.match(/\/upload\/(?:v\d+\/)?(.+?)(\.[^.]+)?$/);
+  return match ? match[1] : urlOrId;
+}
 
 export class PDFService {
-  private uploadDir = path.join(__dirname, "../../uploads/pdfs");
-  private tempDir = path.join(__dirname, "../../uploads/temp");
-  private maxSizeMB = 50; // ✅ Tamaño máximo aumentado a 50MB (era 10MB)
+  private maxSizeMB = 50;
 
-  constructor() {
-    this.ensureUploadDir();
-  }
-
-  private async ensureUploadDir() {
-    const dirs = [this.uploadDir, this.tempDir];
-    
-    for (const dir of dirs) {
-      try {
-        await fs.access(dir);
-      } catch {
-        await fs.mkdir(dir, { recursive: true });
-        console.log(`📁 Carpeta creada: ${dir}`);
-      }
-    }
-  }
-
-  async savePDF(file: any): Promise<string> {
-    // Validar que sea un PDF
+  async savePDF(file: any): Promise<{ publicId: string; url: string }> {
     if (file.mimetype !== "application/pdf") {
       throw new Error("El archivo debe ser un PDF");
     }
 
-    // Validar tamaño inicial
     const originalSizeMB = file.buffer.length / (1024 * 1024);
     if (originalSizeMB > this.maxSizeMB) {
-      throw new Error(`El PDF excede el tamaño máximo permitido de ${this.maxSizeMB}MB`);
+      throw new Error(`El PDF excede el tamaño máximo de ${this.maxSizeMB}MB`);
     }
 
-    const fileName = `${uuidv4()}.pdf`;
-    const filePath = path.join(this.uploadDir, fileName);
+    let pdfBuffer: Buffer;
 
     try {
-      // Cargar el PDF
       const pdfDoc = await PDFDocument.load(file.buffer);
+      const compressed = await pdfDoc.save({ useObjectStreams: false });
+      pdfBuffer = Buffer.from(compressed);
 
-      // Comprimir el PDF eliminando objetos innecesarios
-      const compressedPdfBytes = await pdfDoc.save({
-        useObjectStreams: false, // Mejor compresión
-      });
+      const compressedMB = pdfBuffer.length / (1024 * 1024);
+      const reduction = (((originalSizeMB - compressedMB) / originalSizeMB) * 100).toFixed(2);
+      console.log(`📦 PDF comprimido: ${originalSizeMB.toFixed(2)}MB → ${compressedMB.toFixed(2)}MB (${reduction}% reducción)`);
+    } catch {
+      console.warn(`⚠️ No se pudo comprimir el PDF, subiendo original`);
+      pdfBuffer = file.buffer;
+    }
 
-      // Guardar el PDF comprimido
-      await fs.writeFile(filePath, compressedPdfBytes);
+    const publicId = `exams/pdfs/${uuidv4()}`;
 
-      const compressedSizeMB = compressedPdfBytes.length / (1024 * 1024);
-      const reduction = ((originalSizeMB - compressedSizeMB) / originalSizeMB * 100).toFixed(2);
+    const result = await new Promise<any>((resolve, reject) => {
+      const uploadStream = cloudinary.uploader.upload_stream(
+        { public_id: publicId, resource_type: "raw" },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      uploadStream.end(pdfBuffer);
+    });
 
-      console.log(`✅ PDF guardado: ${fileName}`);
-      console.log(`   📊 Tamaño original: ${originalSizeMB.toFixed(2)}MB`);
-      console.log(`   📦 Tamaño comprimido: ${compressedSizeMB.toFixed(2)}MB`);
-      console.log(`   🔽 Reducción: ${reduction}%`);
+    console.log(`✅ PDF subido a Cloudinary: ${result.public_id}`);
+    return { publicId: result.public_id, url: result.secure_url };
+  }
 
-      return fileName;
+  async deletePDF(urlOrPublicId: string): Promise<void> {
+    try {
+      const publicId = extractPublicId(urlOrPublicId);
+      await cloudinary.uploader.destroy(publicId, { resource_type: "raw" });
+      console.log(`🗑️ PDF eliminado de Cloudinary: ${publicId}`);
     } catch (error) {
-      // Si falla la compresión, guardar el PDF original
-      console.warn(`⚠️ No se pudo comprimir el PDF, guardando original`);
-      await fs.writeFile(filePath, file.buffer);
-      console.log(`✅ PDF guardado sin comprimir: ${fileName} (${originalSizeMB.toFixed(2)}MB)`);
-      return fileName;
+      console.error(`Error eliminando PDF: ${urlOrPublicId}`, error);
     }
   }
 
-  async deletePDF(fileName: string): Promise<void> {
-    const filePath = path.join(this.uploadDir, fileName);
-    try {
-      await fs.unlink(filePath);
-      console.log(`🗑️ PDF eliminado: ${fileName}`);
-    } catch (error) {
-      console.error(`❌ Error eliminando PDF: ${fileName}`, error);
-    }
+  getPDFUrl(urlOrPublicId: string): string {
+    if (urlOrPublicId.startsWith("http")) return urlOrPublicId;
+    return cloudinary.url(urlOrPublicId, { secure: true, resource_type: "raw" });
   }
 
-  getPDFPath(fileName: string): string {
-    return path.join(this.uploadDir, fileName);
-  }
-
-  async duplicatePDF(originalFileName: string): Promise<string | null> {
-    const originalPath = path.join(this.uploadDir, originalFileName);
+  async duplicatePDF(urlOrPublicId: string): Promise<string | null> {
     try {
-      await fs.access(originalPath);
-      const newFileName = `${uuidv4()}.pdf`;
-      const newPath = path.join(this.uploadDir, newFileName);
-      await fs.copyFile(originalPath, newPath);
-      return newFileName;
+      const originalPublicId = extractPublicId(urlOrPublicId);
+      const newPublicId = `exams/pdfs/${uuidv4()}`;
+      const result = await cloudinary.uploader.upload(
+        cloudinary.url(originalPublicId, { secure: true, resource_type: "raw" }),
+        { public_id: newPublicId, resource_type: "raw" }
+      );
+      return result.secure_url;
     } catch (error) {
-      console.error(`Error duplicando PDF: ${originalFileName}`, error);
+      console.error(`Error duplicando PDF: ${urlOrPublicId}`, error);
       return null;
     }
   }
 
-  async getPDFSize(fileName: string): Promise<number> {
-    const filePath = path.join(this.uploadDir, fileName);
+  async getPDFInfo(urlOrPublicId: string): Promise<any> {
     try {
-      const stats = await fs.stat(filePath);
-      return stats.size / (1024 * 1024); // Retorna en MB
-    } catch (error) {
-      console.error(`Error obteniendo tamaño del PDF: ${fileName}`, error);
-      return 0;
-    }
-  }
-
-  async getPDFInfo(fileName: string): Promise<any> {
-    const filePath = path.join(this.uploadDir, fileName);
-    try {
-      const pdfBytes = await fs.readFile(filePath);
-      const pdfDoc = await PDFDocument.load(pdfBytes);
-      
+      const publicId = extractPublicId(urlOrPublicId);
+      const result = await cloudinary.api.resource(publicId, { resource_type: "raw" });
       return {
-        fileName,
-        pageCount: pdfDoc.getPageCount(),
-        sizeMB: pdfBytes.length / (1024 * 1024),
-        title: pdfDoc.getTitle() || 'Sin título',
-        author: pdfDoc.getAuthor() || 'Desconocido',
+        publicId,
+        sizeMB: result.bytes / (1024 * 1024),
+        url: result.secure_url,
       };
     } catch (error) {
-      console.error(`Error obteniendo info del PDF: ${fileName}`, error);
+      console.error(`Error obteniendo info del PDF: ${urlOrPublicId}`, error);
       return null;
-    }
-  }
-
-  async listPDFs(): Promise<string[]> {
-    try {
-      const files = await fs.readdir(this.uploadDir);
-      return files.filter(file => file.endsWith('.pdf'));
-    } catch (error) {
-      console.error('Error listando PDFs:', error);
-      return [];
-    }
-  }
-
-  // Método para limpiar PDFs antiguos (opcional)
-  async cleanOldPDFs(daysOld: number = 30): Promise<void> {
-    try {
-      const files = await fs.readdir(this.uploadDir);
-      const now = Date.now();
-      const maxAge = daysOld * 24 * 60 * 60 * 1000;
-
-      for (const file of files) {
-        if (file.endsWith('.pdf')) {
-          const filePath = path.join(this.uploadDir, file);
-          const stats = await fs.stat(filePath);
-          const age = now - stats.mtimeMs;
-
-          if (age > maxAge) {
-            await fs.unlink(filePath);
-            console.log(`🧹 PDF antiguo eliminado: ${file}`);
-          }
-        }
-      }
-    } catch (error) {
-      console.error('Error limpiando PDFs antiguos:', error);
     }
   }
 }

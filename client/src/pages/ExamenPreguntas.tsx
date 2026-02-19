@@ -34,6 +34,14 @@ interface ExamPanelProps {
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
 
+// Construye la URL del PDF pasando por el proxy del backend para evitar descargas forzadas
+function buildPdfViewUrl(archivoPDF: string): string {
+  if (archivoPDF.startsWith("http")) {
+    return `${EXAMS_API_URL}/api/pdfs/proxy?url=${encodeURIComponent(archivoPDF)}`;
+  }
+  return `${EXAMS_API_URL}/api/pdfs/${archivoPDF}`;
+}
+
 // --- CONSTANTES DE COLOR ---
 const QUESTION_COLORS = [
   "from-blue-500 to-indigo-600",
@@ -130,7 +138,7 @@ export default function ExamPanel({
               {/* PDF embebido */}
               <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
                 <iframe
-                  src={`${EXAMS_API_URL}/api/pdfs/${examData.archivoPDF}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                  src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
                   className="w-full border-0"
                   style={{ height: "70vh" }}
                   title="Examen PDF"
@@ -257,9 +265,9 @@ function QuestionCard({
         {question.nombreImagen && (
           <div className={`mb-6 rounded-xl overflow-hidden border flex justify-center p-4 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-white border-gray-200"}`}>
             <img
-              src={question.nombreImagen.startsWith('data:') 
-                ? question.nombreImagen 
-                : `http://localhost:3001/api/images/${question.nombreImagen}`}
+              src={question.nombreImagen.startsWith('data:') || question.nombreImagen.startsWith('http')
+                ? question.nombreImagen
+                : `${EXAMS_API_URL}/api/images/${question.nombreImagen}`}
               alt="Referencia visual"
               className="max-h-80 object-contain rounded-lg shadow-sm"
             />

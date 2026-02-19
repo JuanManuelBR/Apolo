@@ -54,6 +54,15 @@ export const AppDataSource = new DataSource({
   migrationsTableName: "migrations",
   ssl: {
     minVersion: "TLSv1.2",
-    rejectUnauthorized: true, // Esto es seguro y funciona en TiDB Cloud
+    rejectUnauthorized: true,
+  },
+  connectTimeout: 30000,
+  extra: {
+    enableKeepAlive: true,
+    keepAliveInitialDelay: 10000,
+    connectionLimit: 10,
+    connectTimeout: 30000,
+    waitForConnections: true,
+    queueLimit: 0,
   },
 });

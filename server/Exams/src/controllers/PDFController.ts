@@ -1,16 +1,34 @@
-// src/controllers/PDFController.ts
 import { Request, Response } from "express";
+import axios from "axios";
 import { pdfService } from "@src/services/PDFService";
 
 export class PDFController {
   static async get(req: Request, res: Response) {
     try {
       const { fileName } = req.params;
-      const filePath = pdfService.getPDFPath(fileName);
-
-      return res.sendFile(filePath);
+      const url = pdfService.getPDFUrl(fileName);
+      return res.redirect(url);
     } catch (error: any) {
       return res.status(404).json({ message: "PDF no encontrado" });
+    }
+  }
+
+  static async proxy(req: Request, res: Response) {
+    try {
+      const { url } = req.query;
+      if (!url || typeof url !== "string") {
+        return res.status(400).json({ message: "URL requerida" });
+      }
+      if (!url.startsWith("https://res.cloudinary.com/")) {
+        return res.status(403).json({ message: "URL no permitida" });
+      }
+      const response = await axios.get(url, { responseType: "stream" });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", 'inline; filename="exam.pdf"');
+      res.setHeader("Cache-Control", "private, max-age=3600");
+      response.data.pipe(res);
+    } catch (error: any) {
+      return res.status(500).json({ message: "Error al obtener el PDF" });
     }
   }
 
@@ -18,7 +36,6 @@ export class PDFController {
     try {
       const { fileName } = req.params;
       await pdfService.deletePDF(fileName);
-
       return res.status(200).json({ message: "PDF eliminado exitosamente" });
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
@@ -35,15 +52,6 @@ export class PDFController {
       }
 
       return res.status(200).json(info);
-    } catch (error: any) {
-      return res.status(500).json({ message: error.message });
-    }
-  }
-
-  static async list(req: Request, res: Response) {
-    try {
-      const pdfs = await pdfService.listPDFs();
-      return res.status(200).json({ pdfs });
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
     }

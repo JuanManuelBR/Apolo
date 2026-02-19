@@ -9,18 +9,14 @@ import { examenValidator } from "@src/validators/examen-validator";
 import { QuestionValidator } from "@src/validators/question-validator";
 import { throwHttpError } from "@src/utils/errors";
 import { schedulerService } from "@src/scheduler/examScheduler";
-import { omit } from "lodash";
-
-import { NextFunction } from "express";
 import axios from "axios";
 import { ExamenState } from "@src/types/Exam";
 import { UpdateExamDto } from "@src/dtos/update-exam.dto";
 import { BaseQuestionDto } from "@src/dtos/base-question.dto";
-import { EXAM_ATTEMPTS_MS_URL } from "../../config/config";
 
 export class ExamService {
   private examRepo = AppDataSource.getRepository(Exam);
-
+  EXAM_ATTEMPTS_MS_URL = process.env.EXAM_ATTEMPTS_MS_URL!;
   async addExam(rawData: any, cookies?: string) {
     const validator = new CommonValidator();
     const data = await validator.validateDto(add_exam_dto, rawData);
@@ -133,7 +129,7 @@ export class ExamService {
 
         // Actualizar flag tienePreguntasAbiertas
         const tienePreguntasAbiertas = preguntas_guardadas.some(
-          (q: any) => q.type === "open"
+          (q: any) => q.type === "open",
         );
         examen_guardado.tienePreguntasAbiertas = tienePreguntasAbiertas;
         await manager.save(Exam, examen_guardado);
@@ -190,7 +186,7 @@ export class ExamService {
     // Verificar que el examen no tenga intentos
     try {
       const attemptsRes = await axios.get(
-        `${EXAM_ATTEMPTS_MS_URL}/api/exam/${examId}/attempt-count`,
+        `${this.EXAM_ATTEMPTS_MS_URL}/api/exam/${examId}/attempt-count`,
       );
       if (attemptsRes.data.count > 0) {
         throwHttpError(
@@ -316,7 +312,7 @@ export class ExamService {
 
         // Actualizar flag tienePreguntasAbiertas basado en las preguntas guardadas
         const tienePreguntasAbiertas = preguntasGuardadas.some(
-          (q: any) => q.type === "open"
+          (q: any) => q.type === "open",
         );
         existingExam.tienePreguntasAbiertas = tienePreguntasAbiertas;
       }
@@ -803,7 +799,11 @@ export class ExamService {
     cookies?: string,
   ): Promise<Exam> {
     // Verificar que el profesor es dueño del examen
-    await examenValidator.verificarPropietarioExamen(examId, profesorId, cookies);
+    await examenValidator.verificarPropietarioExamen(
+      examId,
+      profesorId,
+      cookies,
+    );
 
     // Cargar examen completo con todas las relaciones
     const repo = AppDataSource.getRepository(Exam);
@@ -846,7 +846,10 @@ export class ExamService {
       }
 
       if (codigoExiste) {
-        throwHttpError("No se pudo generar un código único para el examen", 500);
+        throwHttpError(
+          "No se pudo generar un código único para el examen",
+          500,
+        );
       }
 
       // Duplicar PDF si existe
@@ -911,10 +914,11 @@ export class ExamService {
             switch (q.type) {
               case "test":
                 baseDto.shuffleOptions = q.shuffleOptions ?? false;
-                baseDto.options = q.options?.map((opt: any) => ({
-                  texto: opt.texto,
-                  esCorrecta: opt.esCorrecta,
-                })) || [];
+                baseDto.options =
+                  q.options?.map((opt: any) => ({
+                    texto: opt.texto,
+                    esCorrecta: opt.esCorrecta,
+                  })) || [];
                 break;
 
               case "open":
@@ -928,17 +932,19 @@ export class ExamService {
 
               case "fill_blanks":
                 baseDto.textoCorrecto = q.textoCorrecto;
-                baseDto.respuestas = q.respuestas?.map((r: any) => ({
-                  posicion: r.posicion,
-                  textoCorrecto: r.textoCorrecto,
-                })) || [];
+                baseDto.respuestas =
+                  q.respuestas?.map((r: any) => ({
+                    posicion: r.posicion,
+                    textoCorrecto: r.textoCorrecto,
+                  })) || [];
                 break;
 
               case "match":
-                baseDto.pares = q.pares?.map((p: any) => ({
-                  itemA: p.itemA?.text,
-                  itemB: p.itemB?.text,
-                })) || [];
+                baseDto.pares =
+                  q.pares?.map((p: any) => ({
+                    itemA: p.itemA?.text,
+                    itemB: p.itemB?.text,
+                  })) || [];
                 break;
             }
 
@@ -951,7 +957,10 @@ export class ExamService {
           examenGuardado,
         );
 
-        const preguntasGuardadas = await manager.save(Question, preguntasNuevas);
+        const preguntasGuardadas = await manager.save(
+          Question,
+          preguntasNuevas,
+        );
 
         examenGuardado.questions = preguntasGuardadas.map((q: any) => {
           delete q.exam;

@@ -4,7 +4,8 @@ import { PDFController } from "@src/controllers/PDFController";
 
 const router = Router();
 
-router.get("/", PDFController.list);
+
+router.get("/proxy", PDFController.proxy);
 router.get("/:fileName", PDFController.get);
 router.get("/:fileName/info", PDFController.getInfo);
 router.delete("/:fileName", PDFController.delete);

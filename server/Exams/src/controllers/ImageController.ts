@@ -1,4 +1,3 @@
-// src/controllers/image.controller.ts
 import { Request, Response } from 'express';
 import { imageService } from '@src/services/ImageService';
 
@@ -9,11 +8,13 @@ export class ImageController {
         return res.status(400).json({ message: 'No se proporcionó imagen' });
       }
 
-      const fileName = await imageService.saveImage(req.file);
+      const { publicId, url } = await imageService.saveImage(req.file);
 
       return res.status(200).json({
         message: 'Imagen subida exitosamente',
-        nombreImagen: fileName
+        nombreImagen: url,
+        publicId,
+        url
       });
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
@@ -23,9 +24,8 @@ export class ImageController {
   static async get(req: Request, res: Response) {
     try {
       const { fileName } = req.params;
-      const filePath = imageService.getImagePath(fileName);
-
-      return res.sendFile(filePath);
+      const url = imageService.getImageUrl(fileName);
+      return res.redirect(url);
     } catch (error: any) {
       return res.status(404).json({ message: 'Imagen no encontrada' });
     }
@@ -35,7 +35,6 @@ export class ImageController {
     try {
       const { fileName } = req.params;
       await imageService.deleteImage(fileName);
-
       return res.status(200).json({ message: 'Imagen eliminada exitosamente' });
     } catch (error: any) {
       return res.status(500).json({ message: error.message });
