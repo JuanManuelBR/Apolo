@@ -131,6 +131,7 @@ export class UserController {
       return res.status(200).json({
         message,
         usuario,
+        token,
       });
     } catch (error: any) {
       console.error("❌ Error en login:", error.message);
@@ -163,6 +164,7 @@ export class UserController {
       return res.status(200).json({
         message,
         usuario,
+        token,
       });
     } catch (error: any) {
       console.error("Error en login con Google:", error.message);
