@@ -34,7 +34,7 @@ interface Examen {
   id: number;
   nombre: string;
   codigoExamen: string;
-  estado: "open" | "closed";
+  estado: "open" | "closed" | "archivado";
   descripcion?: string;
   duracion?: number;
   mostrarCalificaciones?: boolean;
