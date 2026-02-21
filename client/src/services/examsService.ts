@@ -1,7 +1,6 @@
 // src/services/examsService.ts
 import { examsApi } from "./examsApi";
 import type { Pregunta } from "../components/CrearPreguntas";
-import type { validatePassword } from "firebase/auth";
 
 // ==================== TIPOS ====================
 
@@ -30,7 +29,7 @@ export interface ExamenCreado {
   codigoExamen: string;
   archivoPDF?: string | null;
   fecha_creacion: string;
-  estado: "open" | "closed";
+  estado: "open" | "closed" | "archivado";
   id_profesor: number;
   horaApertura: string;
   horaCierre: string;
