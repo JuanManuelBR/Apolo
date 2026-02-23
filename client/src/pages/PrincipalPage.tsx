@@ -96,9 +96,10 @@ export default function LMSDashboard() {
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Guardar preferencia de modo oscuro cuando cambie
+  // Guardar preferencia de modo oscuro y aplicar clase al <html>
   useEffect(() => {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   // ============================================

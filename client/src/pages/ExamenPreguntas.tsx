@@ -30,6 +30,7 @@ interface ExamPanelProps {
   darkMode: boolean;
   answers: Record<number, any>;
   onAnswerChange: (preguntaId: number, respuesta: any, delayMs?: number) => void;
+  readOnly?: boolean;
 }
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
@@ -74,6 +75,7 @@ export default function ExamPanel({
   darkMode,
   answers,
   onAnswerChange,
+  readOnly = false,
 }: ExamPanelProps) {
   return (
     <div className="h-full w-full">
@@ -189,6 +191,7 @@ export default function ExamPanel({
                     answer={answers[question.id]}
                     onAnswerChange={onAnswerChange}
                     darkMode={darkMode}
+                    readOnly={readOnly}
                   />
                 ))}
               </div>
@@ -207,12 +210,14 @@ function QuestionCard({
   answer,
   onAnswerChange,
   darkMode,
+  readOnly,
 }: {
   question: Question;
   index: number;
   answer: any;
   onAnswerChange: (id: number, val: any, delay?: number) => void;
   darkMode: boolean;
+  readOnly?: boolean;
 }) {
   // Seleccionamos un color basado en el índice de la pregunta
   const barColor = getStableColor(question.id, QUESTION_COLORS);
@@ -277,16 +282,16 @@ function QuestionCard({
         {/* Cuerpo de la pregunta según tipo */}
         <div className="mt-4">
           {question.type === "open" && (
-            <OpenQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} />
+            <OpenQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} readOnly={readOnly} />
           )}
           {question.type === "test" && (
-            <TestQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} />
+            <TestQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} readOnly={readOnly} />
           )}
           {question.type === "fill_blanks" && (
-            <FillBlanksQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} />
+            <FillBlanksQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} readOnly={readOnly} />
           )}
           {question.type === "match" && (
-            <MatchQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} />
+            <MatchQuestion question={question} answer={answer} onChange={onAnswerChange} darkMode={darkMode} readOnly={readOnly} />
           )}
         </div>
       </div>
@@ -297,13 +302,14 @@ function QuestionCard({
 // --- TIPOS DE PREGUNTAS ---
 
 // 1. Pregunta Abierta
-function OpenQuestion({ question, answer, onChange, darkMode }: any) {
+function OpenQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
   const maxLength = 1000;
   const currentLength = (answer || "").length;
 
   return (
     <div className="relative">
       <textarea
+        readOnly={readOnly}
         value={answer || ""}
         onChange={(e) => onChange(question.id, e.target.value, 3000)}
         maxLength={maxLength}
@@ -325,7 +331,7 @@ function OpenQuestion({ question, answer, onChange, darkMode }: any) {
 }
 
 // 2. Pregunta Test (Selección Múltiple)
-function TestQuestion({ question, answer, onChange, darkMode }: any) {
+function TestQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
   const selectedOptions = answer || [];
 
   // Aleatorizar opciones (Memoizado para evitar reordenamientos innecesarios)
@@ -346,7 +352,7 @@ function TestQuestion({ question, answer, onChange, darkMode }: any) {
           <label
             key={option.id}
             className={`
-              flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 group
+              flex items-center gap-4 p-4 rounded-xl border-2 ${readOnly ? "cursor-default" : "cursor-pointer"} transition-all duration-200 group
               ${
                 isSelected
                   ? (darkMode ? "border-blue-500 bg-blue-900/30" : "border-blue-500 bg-blue-50")
@@ -356,6 +362,7 @@ function TestQuestion({ question, answer, onChange, darkMode }: any) {
           >
             <div className="relative flex items-center justify-center">
               <input
+                disabled={readOnly}
                 type="checkbox"
                 checked={isSelected}
                 onChange={(e) => {
@@ -391,7 +398,7 @@ function TestQuestion({ question, answer, onChange, darkMode }: any) {
 }
 
 // 3. Completar Espacios
-function FillBlanksQuestion({ question, answer, onChange, darkMode }: any) {
+function FillBlanksQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
   const texto = question.textoCorrecto || "";
   const partes = texto.split("___");
   const respuestasArray = answer || [];
@@ -405,6 +412,7 @@ function FillBlanksQuestion({ question, answer, onChange, darkMode }: any) {
             <span className="relative inline-block mx-1">
               <input
                 type="text"
+                readOnly={readOnly}
                 value={respuestasArray[idx] || ""}
                 onChange={(e) => {
                   const newRespuestas = [...respuestasArray];
@@ -422,7 +430,7 @@ function FillBlanksQuestion({ question, answer, onChange, darkMode }: any) {
 }
 
 // 4. Emparejamiento (MATCH) - REDISEÑADO MEJORADO
-function MatchQuestion({ question, answer, onChange, darkMode }: any) {
+function MatchQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
   const respuestasPares = answer || [];
   const [selection, setSelection] = useState<{ side: 'A' | 'B'; id: number } | null>(null);
 
@@ -504,6 +512,7 @@ function MatchQuestion({ question, answer, onChange, darkMode }: any) {
   }, [updatePositions, respuestasPares.length]);
 
   const handleItemClick = (side: 'A' | 'B', id: number) => {
+    if (readOnly) return;
     if (selection) {
       // Si hago click en el mismo lado
       if (selection.side === side) {
@@ -608,7 +617,7 @@ function MatchQuestion({ question, answer, onChange, darkMode }: any) {
                 id={`match-a-${question.id}-${item.id}`}
                 onClick={() => handleItemClick('A', item.id)}
                 className={`
-                  relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300
+                  relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300
                   flex items-center justify-between group
                   ${isSelected 
                     ? (darkMode ? "border-indigo-500 bg-indigo-900/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]" : "border-indigo-500 bg-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]")
@@ -650,7 +659,7 @@ function MatchQuestion({ question, answer, onChange, darkMode }: any) {
                 id={`match-b-${question.id}-${item.id}`}
                 onClick={() => handleItemClick('B', item.id)}
                 className={`
-                  relative p-4 rounded-xl border-2 cursor-pointer transition-all duration-300
+                  relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300
                   flex items-center group
                   ${isSelected 
                     ? (darkMode ? "border-indigo-500 bg-indigo-900/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]" : "border-indigo-500 bg-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]")

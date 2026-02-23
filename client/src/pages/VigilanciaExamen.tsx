@@ -26,6 +26,7 @@ import AlertasModal from "../components/AlertasModal";
 import { examsService } from "../services/examsService";
 import { examsAttemptsService } from "../services/examsAttempts";
 import ModalConfirmacion from "../components/ModalConfirmacion";
+import RevisarCalificacion from "../components/RevisarCalificacion";
 
 // ============================================
 // INTERFACES
@@ -114,6 +115,7 @@ export default function VigilanciaExamenesLista({
   const [criterioOrden, setCriterioOrden] = useState<"defecto" | "az" | "za" | "duracion" | "nota">("defecto");
   const [modoPrivacidad, setModoPrivacidad] = useState(false);
   const [estudiantesRevelados, setEstudiantesRevelados] = useState<Set<number>>(new Set());
+  const [modoRevision, setModoRevision] = useState(false);
 
   const [modal, setModal] = useState<{ visible: boolean; tipo: "exito" | "error" | "advertencia" | "info" | "confirmar"; titulo: string; mensaje: string; onConfirmar: () => void; onCancelar?: () => void }>({ visible: false, tipo: "info", titulo: "", mensaje: "", onConfirmar: () => {} });
   const mostrarModal = (tipo: "exito" | "error" | "advertencia" | "info" | "confirmar", titulo: string, mensaje: string, onConfirmar: () => void, onCancelar?: () => void) => setModal({ visible: true, tipo, titulo, mensaje, onConfirmar, onCancelar });
@@ -484,21 +486,35 @@ export default function VigilanciaExamenesLista({
   };
 
   const seleccionarEstudiante = async (estudiante: ExamAttempt) => {
-    setEstudianteSeleccionado(estudiante);
+    setEstudianteSeleccionado({ ...estudiante, alertasNoLeidas: 0 });
     sessionStorage.setItem("vigilancia_estudianteId", estudiante.id.toString());
     await cargarAlertasEstudiante(estudiante.id);
+    // Marcar alertas como leídas en backend y actualizar lista
+    if (estudiante.alertasNoLeidas && estudiante.alertasNoLeidas > 0) {
+      try {
+        await examsAttemptsService.markEventsAsRead(estudiante.id);
+      } catch (e) { console.error("Error marcando alertas como leídas:", e); }
+      if (examenActual) {
+        setExamAttempts(prev => ({
+          ...prev,
+          [examenActual.id]: (prev[examenActual.id] || []).map(i =>
+            i.id === estudiante.id ? { ...i, alertasNoLeidas: 0 } : i
+          ),
+        }));
+      }
+    }
   };
 
   const handleCerrarIntento = (attemptId: number) => {
     mostrarModal(
-      "advertencia",
-      "Cerrar intento",
-      "¿Finalizar el examen de este estudiante? Se calificará automáticamente.",
+      "confirmar",
+      "Cerrar examen",
+      "¿Cerrar el examen de este estudiante? Se calificará automáticamente.",
       async () => {
         cerrarModal();
         try {
           await examsAttemptsService.forceFinishAttempt(attemptId);
-          mostrarModal("exito", "Intento cerrado", "El examen del estudiante ha sido finalizado.", cerrarModal);
+          mostrarModal("exito", "Examen cerrado", "El examen del estudiante ha sido cerrado.", cerrarModal);
         } catch (e: any) {
           mostrarModal("error", "Error", e?.response?.data?.message || "No se pudo cerrar el intento.", cerrarModal);
         }
@@ -1084,7 +1100,7 @@ export default function VigilanciaExamenesLista({
                                    </div>
 
                                    <div className="flex items-center gap-8 mr-4">
-                                      {mostrarOpcionesPostCalificacion && (
+                                      {mostrarOpcionesPostCalificacion && estudiante.calificacion !== undefined && estudiante.calificacion !== null && (
                                         <div className="flex flex-col items-end">
                                             <div className="flex items-center gap-1">
                                                 <span className={`text-lg font-bold ${getNotaColor(estudiante.calificacion, darkMode)}`}>
@@ -1130,14 +1146,14 @@ export default function VigilanciaExamenesLista({
               // ================= VISTA DETALLE ESTUDIANTE =================
               <div className={`flex flex-col h-full ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
                  <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-                    <button onClick={() => { setEstudianteSeleccionado(null); sessionStorage.removeItem("vigilancia_estudianteId"); }} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
+                    <button onClick={() => { setEstudianteSeleccionado(null); setModoRevision(false); sessionStorage.removeItem("vigilancia_estudianteId"); }} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
                        </div>
                        Volver a la lista
                     </button>
                     <div className="flex gap-2">
-                         {examenActual.estado === "open" ? (
+                         {examenActual.estado === "open" && !(estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null) ? (
                            <>
                              <button onClick={() => handleLimpiarAlertas(estudianteSeleccionado.id)} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-slate-800 text-slate-300" : "bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"}`}>
                                 <CheckCircle className="w-3.5 h-3.5" /> Limpiar Alertas
@@ -1150,21 +1166,53 @@ export default function VigilanciaExamenesLista({
                              </button>
                            </>
                          ) : (
-                            <button onClick={() => console.log("Revisar intento")} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-indigo-900/20 text-indigo-400" : "bg-indigo-600 border-indigo-600 hover:bg-indigo-700 text-white"}`}>
+                            <button onClick={() => setModoRevision(true)} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-indigo-900/20 text-indigo-400" : "bg-indigo-600 border-indigo-600 hover:bg-indigo-700 text-white"}`}>
                                <FileText className="w-3.5 h-3.5" /> {estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null ? "Revisar Calificación" : "Calificar"}
                             </button>
                          )}
                     </div>
                  </div>
-                 
+
                  <div className="flex-1 flex flex-col min-h-0">
                      <div className={`p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
-                     
-                     <div className="flex items-center gap-4 mb-4">
-                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-sm ${darkMode ? "bg-slate-800 text-teal-400 border border-slate-700" : "bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/20"}`}>
+
+                     <div className="flex items-center gap-4 mb-4 relative overflow-hidden">
+                        {/* Stamp de nota - sello grande rotado semi-transparente */}
+                        {estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null && (
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 -rotate-12 pointer-events-none select-none z-0">
+                            <div className={`relative flex flex-col items-center justify-center w-28 h-28 rounded-full border-4 border-double ${
+                              estudianteSeleccionado.calificacion >= 4.0
+                                ? (darkMode ? "border-emerald-400/40" : "border-emerald-500/30")
+                                : estudianteSeleccionado.calificacion >= 3.0
+                                  ? (darkMode ? "border-amber-400/40" : "border-amber-500/30")
+                                  : (darkMode ? "border-rose-400/40" : "border-rose-500/30")
+                            }`}>
+                              <span className={`text-4xl font-black leading-none ${
+                                estudianteSeleccionado.calificacion >= 4.0
+                                  ? (darkMode ? "text-emerald-400/40" : "text-emerald-600/25")
+                                  : estudianteSeleccionado.calificacion >= 3.0
+                                    ? (darkMode ? "text-amber-400/40" : "text-amber-600/25")
+                                    : (darkMode ? "text-rose-400/40" : "text-rose-600/25")
+                              }`}>
+                                {estudianteSeleccionado.calificacion}
+                              </span>
+                              <span className={`text-[9px] font-bold uppercase tracking-[0.15em] mt-1 ${
+                                estudianteSeleccionado.calificacion >= 4.0
+                                  ? (darkMode ? "text-emerald-400/35" : "text-emerald-600/20")
+                                  : estudianteSeleccionado.calificacion >= 3.0
+                                    ? (darkMode ? "text-amber-400/35" : "text-amber-600/20")
+                                    : (darkMode ? "text-rose-400/35" : "text-rose-600/20")
+                              }`}>
+                                Calificado
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center shadow-sm z-10 ${darkMode ? "bg-slate-800 text-teal-400 border border-slate-700" : "bg-gradient-to-br from-teal-500 to-teal-600 text-white shadow-lg shadow-teal-500/20"}`}>
                             <User className="w-7 h-7" />
                         </div>
-                        <div className="flex-1">
+                        <div className="flex-1 z-10">
                             <div className="flex items-center gap-3">
                                 <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
                                     {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).principal}
@@ -1187,6 +1235,11 @@ export default function VigilanciaExamenesLista({
                                 <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide border ${getEstadoBadgeColor(traducirEstado(estudianteSeleccionado.estado), darkMode)}`}>
                                     {traducirEstado(estudianteSeleccionado.estado)}
                                 </span>
+                                {estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null && (
+                                    <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide border ${getEstadoBadgeColor("Calificado", darkMode)}`}>
+                                      Calificado
+                                    </span>
+                                )}
                                 <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                     {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).secundario}
                                 </span>
@@ -1297,6 +1350,37 @@ export default function VigilanciaExamenesLista({
         darkMode={darkMode}
         onCancelar={modal.onCancelar || cerrarModal}
       />
+
+      {/* Modal de revisión de calificación */}
+      {modoRevision && estudianteSeleccionado && (
+        <div
+          className="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 overflow-hidden animate-in fade-in duration-200"
+          onClick={() => setModoRevision(false)}
+        >
+          <div
+            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl w-[85vw] h-[85vh] relative shadow-2xl flex flex-col overflow-hidden`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <RevisarCalificacion
+              intentoId={estudianteSeleccionado.id}
+              darkMode={darkMode}
+              onVolver={() => setModoRevision(false)}
+              onGradeUpdated={(intentoId, notaFinal) => {
+                setEstudianteSeleccionado(prev => prev ? { ...prev, calificacion: notaFinal, notaFinal } : prev);
+                if (examenActual) {
+                  setExamAttempts(prev => ({
+                    ...prev,
+                    [examenActual.id]: (prev[examenActual.id] || []).map(a =>
+                      a.id === intentoId ? { ...a, calificacion: notaFinal, notaFinal } : a
+                    ),
+                  }));
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
     </>
   );
 }

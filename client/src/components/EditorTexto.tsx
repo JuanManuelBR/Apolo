@@ -20,6 +20,7 @@ import {
   AlignJustify,
   Type,
   Palette,
+  Brush,
 } from 'lucide-react';
 
 // Extensión personalizada para FontSize
@@ -28,6 +29,10 @@ declare module '@tiptap/core' {
     fontSize: {
       setFontSize: (size: string) => ReturnType;
       unsetFontSize: () => ReturnType;
+    };
+    backgroundColor: {
+      setBackgroundColor: (color: string) => ReturnType;
+      unsetBackgroundColor: () => ReturnType;
     };
   }
 }
@@ -80,6 +85,32 @@ const FontSize = Extension.create({
   },
 });
 
+const BackgroundColor = Extension.create({
+  name: 'backgroundColor',
+  addOptions() { return { types: ['textStyle'] }; },
+  addGlobalAttributes() {
+    return [{
+      types: this.options.types,
+      attributes: {
+        backgroundColor: {
+          default: null,
+          parseHTML: element => element.style.backgroundColor.replace(/['"]+/g, ''),
+          renderHTML: attributes => {
+            if (!attributes.backgroundColor) return {};
+            return { style: `background-color: ${attributes.backgroundColor}` };
+          },
+        },
+      },
+    }];
+  },
+  addCommands() {
+    return {
+      setBackgroundColor: color => ({ chain }) => chain().setMark('textStyle', { backgroundColor: color }).run(),
+      unsetBackgroundColor: () => ({ chain }) => chain().setMark('textStyle', { backgroundColor: null }).removeEmptyTextStyle().run(),
+    };
+  },
+});
+
 interface EditorTextoProps {
   value: string;
   onChange: (html: string) => void;
@@ -112,6 +143,7 @@ export default function EditorTexto({
       TextStyle,
       FontSize,
       Color,
+      BackgroundColor,
       Placeholder.configure({
         placeholder: placeholder,
       }),
@@ -197,6 +229,14 @@ export default function EditorTexto({
       editor.chain().focus().unsetColor().run();
     } else {
       editor.chain().focus().setColor(color).run();
+    }
+  };
+
+  const setHighlight = (color: string) => {
+    if (color === '') {
+      editor.chain().focus().unsetBackgroundColor().run();
+    } else {
+      editor.chain().focus().setBackgroundColor(color).run();
     }
   };
 
@@ -301,6 +341,26 @@ export default function EditorTexto({
             <option value="#800080">🟣 Púrpura</option>
             <option value="#808080">⚪ Gris</option>
             <option value="#ffffff">⚪ Blanco</option>
+          </select>
+        </div>
+
+        {/* Resaltado (Highlight) */}
+        <div className="flex items-center gap-1 mr-1">
+          <Brush className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+          <select
+            onChange={(e) => setHighlight(e.target.value)}
+            className={`px-2 py-1 rounded text-sm border ${
+              darkMode 
+                ? 'bg-slate-700 border-slate-600 text-white' 
+                : 'bg-white border-gray-300 text-gray-900'
+            } focus:outline-none focus:ring-1 focus:ring-teal-500`}
+            title="Resaltar texto"
+          >
+            <option value="">Ninguno</option>
+            <option value="#ffff00">🟡 Amarillo</option>
+            <option value="#00ff00">🟢 Verde</option>
+            <option value="#00ffff">🔵 Cian</option>
+            <option value="#ff00ff">🟣 Rosa</option>
           </select>
         </div>
 

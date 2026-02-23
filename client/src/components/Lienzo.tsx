@@ -4,7 +4,7 @@ import {
   Undo, Redo, Type, X, Plus, Image as ImageIcon,
   Layout, Diamond, Grid3x3,
   PenTool, Eraser, Square, Circle, User, Braces, Hexagon, Cloud,
-  ChevronDown, ChevronRight, Highlighter, Minus, Triangle, Star
+  ChevronDown, ChevronRight, Brush, Minus, Triangle, Star,
 } from 'lucide-react';
 // --- DEFINICIÓN DE TIPOS ---
 
@@ -37,9 +37,9 @@ interface DiagramNode {
   color: string;
   fontSize: number;
   doubleBorder?: boolean;
-  underline?: boolean;
   bold?: boolean;
   textInParentheses?: boolean;
+  underline?: boolean;
 }
 
 interface Connection {
@@ -319,7 +319,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
 
     // Tablas y Clases (Cálculo dinámico de ancho y alto)
     if (['table', 'table_keys', 'uml_class'].includes(type)) {
-        ctx.font = `bold ${fontSize}px sans-serif`;
+        ctx.font = `bold ${fontSize}px sans-serif`; // Nota: El cálculo de dimensiones usa la fuente base, el renderizado usará italic si aplica
         const titleW = ctx.measureText(name).width + s(40);
         
         let maxRowW = 0;
@@ -964,15 +964,8 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
         }
 
         ctx.fillText(displayName, node.x + node.w/2, node.y + node.h/2);
-
-        if (node.underline) {
-            const metrics = ctx.measureText(displayName);
-            const tx = node.x + node.w/2;
-            const ty = node.y + node.h/2;
-            const yLine = ty + (node.fontSize/2) + Math.max(3, node.fontSize * 0.15);
-            ctx.beginPath(); ctx.moveTo(tx - metrics.width/2, yLine); ctx.lineTo(tx + metrics.width/2, yLine); ctx.stroke();
-        }
     }
+
     ctx.restore();
   };
 
@@ -1565,8 +1558,6 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                     endMarker: symbols.end
                 }]);
                 saveToHistory();
-            } else {
-                alert("Ya existe una conexión. Selecciónala para editar sus extremos.");
             }
         }
         setConnectingId(null);
@@ -1614,7 +1605,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
   };
 
   const addSheet = () => {
-      if (sheets.length >= 5) return;
+      if (sheets.length >= 3) return;
       
       const updatedSheets = getCurrentSheetsState();
       
@@ -1686,7 +1677,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
         <div className="h-14 border-b flex items-center px-4 justify-between bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 z-20">
             <div className="flex items-center gap-4">
                 <div className="font-bold text-xl flex items-center gap-2 text-slate-800 dark:text-gray-200">
-                    <Layout className="fill-current" /> Herramientas
+                    <Layout className="fill-current" /> Herramienta De Dibujo
                 </div>
                 <div className="h-6 w-px bg-gray-300 dark:bg-slate-700"/>
             </div>
@@ -1715,7 +1706,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
 
                 <Accordion title="Dibujo y Formas" defaultOpen>
                     <ToolBtn icon={PenTool} label="Lápiz" isSelected={tool === 'pencil'} onClick={() => setTool('pencil')} />
-                    <ToolBtn icon={Highlighter} label="Marker" isSelected={tool === 'marker'} onClick={() => setTool('marker')} />
+                    <ToolBtn icon={Brush} label="Marker" isSelected={tool === 'marker'} onClick={() => setTool('marker')} />
                     <ToolBtn icon={Eraser} label="Goma" isSelected={tool === 'eraser'} onClick={() => setTool('eraser')} />
                     <ToolBtn icon={Square} label="Caja" isSelected={tool === 'rect_shape'} onClick={() => setTool('rect_shape')} />
                     <ToolBtn icon={Circle} label="Círculo" isSelected={tool === 'circle_shape'} onClick={() => setTool('circle_shape')} />
@@ -1791,7 +1782,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                             {sheet.name}
                         </button>
                     ))}
-                    {sheets.length < 5 && (
+                    {sheets.length < 3 && (
                         <button 
                             onClick={addSheet}
                             className="p-1.5 ml-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
@@ -1804,7 +1795,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
             </div>
 
             {/* RIGHT SIDEBAR (INSPECTOR) */}
-            <div className="w-44 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
+            <div className="w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 font-bold text-sm uppercase tracking-wider flex justify-between items-center text-gray-700 dark:text-gray-300">
                     <span>Propiedades</span>
                 </div>
@@ -1882,7 +1873,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                                 />
                             </div>
 
-                            <div className="space-y-2">
+                            <div className="space-y-3">
                                 <label className="text-xs font-bold text-gray-500 dark:text-gray-400">Tamaño: {selectedNode.fontSize}px</label>
                                 <input 
                                     type="range" 
@@ -1926,19 +1917,8 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                             {/* ESTILOS ESPECÍFICOS (ER / GENERAL) */}
                             {!['table', 'table_keys', 'uml_class', 'uml_actor', 'uml_note'].includes(selectedNode.type) && (
                                 <div className="space-y-2 pt-2 border-t dark:border-slate-700">
-                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">Estilo</label>
+                                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400">Opciones de Forma</label>
                                     <div className="flex flex-col gap-2">
-                                        {/* Negrita: Disponible para todos */}
-                                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                            <input 
-                                                type="checkbox" 
-                                                checked={selectedNode.bold || false}
-                                                onChange={(e) => setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, bold: e.target.checked } : n))}
-                                                className="rounded text-blue-600 focus:ring-blue-500"
-                                            />
-                                            <span className="text-gray-700 dark:text-gray-300">Negrita</span>
-                                        </label>
-
                                         {/* Opciones exclusivas para Diagramas ER */}
                                         {['er_entity', 'er_relationship', 'er_attribute'].includes(selectedNode.type) && (
                                             <>
@@ -1950,15 +1930,6 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                                                         className="rounded text-blue-600 focus:ring-blue-500"
                                                     />
                                                     <span className="text-gray-700 dark:text-gray-300">Doble Borde (Débil)</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 text-sm cursor-pointer">
-                                                    <input 
-                                                        type="checkbox" 
-                                                        checked={selectedNode.underline || false}
-                                                        onChange={(e) => setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, underline: e.target.checked } : n))}
-                                                        className="rounded text-blue-600 focus:ring-blue-500"
-                                                    />
-                                                    <span className="text-gray-700 dark:text-gray-300">Subrayado (Clave)</span>
                                                 </label>
                                                 <label className="flex items-center gap-2 text-sm cursor-pointer">
                                                     <input 
@@ -2038,7 +2009,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                                                             setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, ...updates } : n));
                                                         }
                                                     }}
-                                                    className="w-24 text-xs p-1.5 rounded border dark:border-slate-600 bg-white dark:bg-slate-900 font-mono text-slate-900 dark:text-slate-100"
+                                                    className="flex-1 min-w-0 text-xs p-1.5 rounded border dark:border-slate-600 bg-white dark:bg-slate-900 font-mono text-slate-900 dark:text-slate-100"
                                                 />
                                                 <input 
                                                     value={field.type}
@@ -2110,7 +2081,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                                                                 if (autoDim) updates = { ...updates, ...autoDim };
                                                                 setNodes(nodes.map(n => n.id === selectedNode.id ? { ...n, ...updates } : n));
                                                             }}
-                                                            className="w-24 text-xs p-1.5 rounded border dark:border-slate-600 bg-white dark:bg-slate-900 font-mono text-slate-900 dark:text-slate-100"
+                                                            className="flex-1 min-w-0 text-xs p-1.5 rounded border dark:border-slate-600 bg-white dark:bg-slate-900 font-mono text-slate-900 dark:text-slate-100"
                                                         />
                                                         <input 
                                                             value={method.type}

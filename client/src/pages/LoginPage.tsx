@@ -50,9 +50,10 @@ export default function LoginPage() {
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Guardar preferencia de modo oscuro cuando cambie
+  // Guardar preferencia y aplicar clase al <html>
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
   // Verificar si ya hay una sesión activa
@@ -170,17 +171,13 @@ export default function LoginPage() {
       </button>
       
       {/* Contenedor principal */}
-      <div className={`rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 ${
-        darkMode ? 'bg-slate-900' : 'bg-white'
-      }`}>
+      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface">
         <div className="grid md:grid-cols-2">
           
           {/* ============================================ */}
           {/* SECCIÓN IZQUIERDA - FORMULARIO */}
           {/* ============================================ */}
-          <div className={`px-10 py-12 border-r transition-colors duration-300 ${
-            darkMode ? 'border-slate-700' : 'border-gray-200'
-          }`}>
+          <div className="px-10 py-12 border-r transition-colors duration-300 border-ui">
             {/* Logo */}
             <div className="mb-8 flex items-center justify-center px-6" style={{ height: '160px' }}>
               <img
@@ -201,10 +198,10 @@ export default function LoginPage() {
                   onKeyPress={handleKeyPress}
                   placeholder="Correo electrónico"
                   disabled={loading}
-                  className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-raised border-ui text-primary ${
                     darkMode
-                      ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-[#003876] focus:bg-white'
+                      ? 'placeholder-gray-400 focus:border-blue-500'
+                      : 'focus:border-[#003876] focus:bg-white'
                   }`}
                 />
               </div>
@@ -218,10 +215,10 @@ export default function LoginPage() {
                   onKeyPress={handleKeyPress}
                   placeholder="Contraseña"
                   disabled={loading}
-                  className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-raised border-ui text-primary ${
                     darkMode
-                      ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500'
-                      : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-[#003876] focus:bg-white'
+                      ? 'placeholder-gray-400 focus:border-blue-500'
+                      : 'focus:border-[#003876] focus:bg-white'
                   }`}
                 />
               </div>
@@ -287,9 +284,7 @@ export default function LoginPage() {
 
               {/* Enlace a registro */}
               <div className="text-center">
-                <span className={`text-base transition-colors duration-300 ${
-                  darkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <span className="text-base transition-colors duration-300 text-action">
                   ¿No tienes cuenta?{' '}
                 </span>
                 <Link 
@@ -309,9 +304,7 @@ export default function LoginPage() {
           {/* ============================================ */}
           <div className="px-10 py-12 flex flex-col justify-center items-center">
             <div className="text-center mb-8">
-              <span className={`text-lg font-medium transition-colors duration-300 ${
-                darkMode ? 'text-gray-300' : 'text-gray-600'
-              }`}>
+              <span className="text-lg font-medium transition-colors duration-300 text-secondary">
                 Ingresar con
               </span>
             </div>
@@ -321,10 +314,10 @@ export default function LoginPage() {
               type="button"
               onClick={handleGoogleLogin}
               disabled={loading}
-              className={`w-full max-w-sm px-8 py-5 border rounded-lg text-lg font-medium flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+              className={`w-full max-w-sm px-8 py-5 border rounded-lg text-lg font-medium flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 bg-raised border-ui ${
                 darkMode
-                  ? 'bg-slate-800 text-gray-200 border-slate-700 hover:bg-slate-700'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:shadow-xl'
+                  ? 'text-gray-200 hover:bg-slate-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:shadow-xl'
               }`}
             >
               {loading ? (

@@ -138,120 +138,38 @@ export default function VerExamen({ darkMode }: VerExamenProps) {
     };
   }, [examenEfectivo]);
 
-  const handleAnswerChange = (preguntaId: number, respuesta: any) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [preguntaId]: respuesta,
-    }));
+  const handleAnswerChange = (_preguntaId: number, _respuesta: any) => {
+    // En modo visualización no se permite modificar las respuestas
   };
 
   return (
     <div className="h-full flex flex-col max-w-5xl mx-auto w-full">
-      {/* Estilos de Scrollbar personalizados (Sincronizados con CrearExamen) */}
-      <style>{`
-        ${
-          darkMode
-            ? `
-          ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-          }
-          
-          ::-webkit-scrollbar-track {
-            background: #1e293b;
-            border-radius: 10px;
-          }
-          
-          ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 10px;
-            border: 2px solid #1e293b;
-          }
-          
-          ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-          }
-          
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: #475569 #1e293b;
-          }
-        `
-            : `
-          ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-          }
-          
-          ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-          }
-          
-          ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-            border: 2px solid #f1f5f9;
-          }
-          
-          ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-          }
-          
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
-          }
-        `
-        }
-      `}</style>
-
       {/* Cabecera simple de navegación */}
-      <div
-        className={`flex items-center gap-4 p-4 mb-4 rounded-xl border shadow-sm ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}
-      >
+      <div className="flex items-center gap-4 p-4 mb-4 rounded-xl border border-ui bg-surface shadow-sm">
         <button
           onClick={() => navigate("/lista-examenes")}
-          className={`p-2 rounded-lg transition-colors ${
-            darkMode
-              ? "hover:bg-slate-800 text-gray-400 hover:text-white"
-              : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
-          }`}
+          className="p-2 rounded-lg transition-colors text-action hover:bg-ui-hover hover:text-ui-hover"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1
-            className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-          >
+          <h1 className="text-lg font-bold text-primary">
             Vista Previa: {examData.nombre}
           </h1>
           {cargando && (
-            <p className={`text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-              Cargando preguntas completas...
-            </p>
+            <p className="text-xs text-muted">Cargando preguntas completas...</p>
           )}
         </div>
       </div>
 
       {/* Panel del Examen (Reutilizando el componente del estudiante o Visor PDF) */}
-      <div
-        className={`flex-1 overflow-hidden rounded-xl border shadow-sm ${darkMode ? "border-slate-700" : "border-gray-200"}`}
-      >
+      <div className="flex-1 overflow-hidden rounded-xl border border-ui shadow-sm">
         {isPdf ? (
-          <div
-            className={`w-full h-full flex flex-col ${darkMode ? "bg-slate-800" : "bg-gray-50"}`}
-          >
-            <div
-              className={`px-4 py-3 border-b flex justify-between items-center ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}
-            >
+          <div className="w-full h-full flex flex-col bg-raised">
+            <div className="px-4 py-3 border-b border-ui flex justify-between items-center bg-surface">
               <div className="flex items-center gap-2">
-                <FileText
-                  className={`w-4 h-4 ${darkMode ? "text-blue-400" : "text-blue-600"}`}
-                />
-                <span
-                  className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                >
+                <FileText className="w-4 h-4 text-accent" />
+                <span className="text-sm font-medium text-secondary">
                   Documento del examen (PDF)
                 </span>
               </div>
@@ -260,7 +178,7 @@ export default function VerExamen({ darkMode }: VerExamenProps) {
                   href={pdfUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`flex items-center gap-1.5 text-sm font-medium hover:underline ${darkMode ? "text-blue-400" : "text-blue-600"}`}
+                  className="flex items-center gap-1.5 text-sm font-medium hover:underline text-accent"
                 >
                   <span>Abrir en nueva pestaña</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -276,20 +194,23 @@ export default function VerExamen({ darkMode }: VerExamenProps) {
                 />
               ) : (
                 <div className="flex items-center justify-center h-full">
-                  <p className={darkMode ? "text-gray-400" : "text-gray-600"}>
-                    No se pudo cargar el archivo PDF.
-                  </p>
+                  <p className="text-muted">No se pudo cargar el archivo PDF.</p>
                 </div>
               )}
             </div>
           </div>
         ) : (
-          <ExamPanel
-            examData={examData}
-            darkMode={darkMode}
-            answers={answers}
-            onAnswerChange={handleAnswerChange}
-          />
+          <div className="h-full overflow-y-auto scrollbar-theme">
+            <div className="pointer-events-none select-none">
+              <ExamPanel
+                examData={examData}
+                darkMode={darkMode}
+                answers={answers}
+                onAnswerChange={handleAnswerChange}
+                readOnly={true}
+              />
+            </div>
+          </div>
         )}
       </div>
     </div>

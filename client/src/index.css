@@ -1,3 +1,91 @@
 @import "tailwindcss";
 
 @variant dark (.dark &);
+
+/* ============================================================
+   DESIGN TOKENS — Colores semánticos para modo claro y oscuro
+   Editá aquí para cambiar los colores en toda la app.
+   ============================================================ */
+
+:root {
+  /* Superficies */
+  --color-surface:        #ffffff;   /* bg principal de tarjetas/paneles */
+  --color-raised:         #f8fafc;   /* bg ligeramente elevado (gray-50) */
+
+  /* Bordes */
+  --color-border:         #e5e7eb;   /* border estándar (gray-200) */
+
+  /* Texto */
+  --color-text-primary:   #111827;   /* gray-900  — títulos y contenido */
+  --color-text-secondary: #475569;   /* slate-600 — descripción/subtítulo */
+  --color-text-muted:     #64748b;   /* slate-500 — texto auxiliar/deshabilitado */
+  --color-text-action:    #4b5563;   /* gray-600  — iconos y texto interactivo */
+
+  /* Hover */
+  --color-hover-bg:       #f3f4f6;   /* gray-100 */
+  --color-hover-text:     #111827;   /* gray-900 */
+
+  /* Acento (azul primario) */
+  --color-accent:         #2563eb;   /* blue-600 */
+
+  /* Scrollbar */
+  --scrollbar-thumb:      #cbd5e1;   /* slate-300 */
+  --scrollbar-track:      #f1f5f9;   /* slate-100 */
+}
+
+.dark {
+  /* Superficies */
+  --color-surface:        #0f172a;   /* slate-900 */
+  --color-raised:         #1e293b;   /* slate-800 */
+
+  /* Bordes */
+  --color-border:         #334155;   /* slate-700 */
+
+  /* Texto */
+  --color-text-primary:   #f3f4f6;   /* gray-100 */
+  --color-text-secondary: #cbd5e1;   /* slate-300 */
+  --color-text-muted:     #94a3b8;   /* slate-400 */
+  --color-text-action:    #9ca3af;   /* gray-400 */
+
+  /* Hover */
+  --color-hover-bg:       #1e293b;   /* slate-800 */
+  --color-hover-text:     #ffffff;
+
+  /* Acento */
+  --color-accent:         #60a5fa;   /* blue-400 */
+
+  /* Scrollbar */
+  --scrollbar-thumb:      #475569;   /* slate-600 */
+  --scrollbar-track:      #0f172a;   /* slate-900 */
+}
+
+/* ============================================================
+   UTILIDADES SEMÁNTICAS
+   Uso: bg-surface, text-primary, border-ui, scrollbar-theme…
+   ============================================================ */
+
+@layer utilities {
+  /* Superficies */
+  .bg-surface        { background-color: var(--color-surface); }
+  .bg-raised         { background-color: var(--color-raised); }
+
+  /* Bordes */
+  .border-ui         { border-color: var(--color-border); }
+
+  /* Texto */
+  .text-primary      { color: var(--color-text-primary); }
+  .text-secondary    { color: var(--color-text-secondary); }
+  .text-muted        { color: var(--color-text-muted); }
+  .text-action       { color: var(--color-text-action); }
+  .text-accent       { color: var(--color-accent); }
+
+  /* Hover helpers — usar con el prefijo hover: */
+  .bg-ui-hover       { background-color: var(--color-hover-bg); }
+  .text-ui-hover     { color: var(--color-hover-text); }
+
+  /* Scrollbar temático (thin + colores del tema) */
+  .scrollbar-theme {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+}

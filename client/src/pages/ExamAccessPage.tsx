@@ -37,9 +37,10 @@ export default function ExamAccessPage() {
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Guardar preferencia de modo oscuro cuando cambie
+  // Guardar preferencia y aplicar clase al <html>
   useEffect(() => {
     localStorage.setItem("darkMode", JSON.stringify(darkMode));
+    document.documentElement.classList.toggle("dark", darkMode);
   }, [darkMode]);
 
   const toggleTheme = () => {
