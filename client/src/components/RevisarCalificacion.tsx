@@ -511,10 +511,19 @@ export default function RevisarCalificacion({
                                       value={scoreInputs[pregunta.id] ?? "0"}
                                       onChange={(e) => {
                                         const raw = e.target.value;
-                                        setScoreInputs(prev => ({ ...prev, [pregunta.id]: raw }));
+                                        if (raw === "") {
+                                          setScoreInputs(prev => ({ ...prev, [pregunta.id]: raw }));
+                                          return;
+                                        }
                                         const val = parseFloat(raw);
-                                        if (!isNaN(val) && val >= 0 && val <= pregunta.puntajeMaximo) {
-                                          setScores(prev => ({ ...prev, [pregunta.id]: val }));
+                                        if (!isNaN(val)) {
+                                          if (val > pregunta.puntajeMaximo) {
+                                            setScoreInputs(prev => ({ ...prev, [pregunta.id]: String(pregunta.puntajeMaximo) }));
+                                            setScores(prev => ({ ...prev, [pregunta.id]: pregunta.puntajeMaximo }));
+                                          } else if (val >= 0) {
+                                            setScoreInputs(prev => ({ ...prev, [pregunta.id]: raw }));
+                                            setScores(prev => ({ ...prev, [pregunta.id]: val }));
+                                          }
                                         }
                                       }}
                                       className={`w-20 text-center text-3xl font-black bg-transparent focus:outline-none ${darkMode ? "text-white" : "text-slate-800"}`}
