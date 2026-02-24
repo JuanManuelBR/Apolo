@@ -69,9 +69,10 @@ export default function RegisterPage() {
     return saved ? JSON.parse(saved) : false;
   });
 
-  // Guardar preferencia de modo oscuro cuando cambie
+  // Guardar preferencia y aplicar clase al <html>
   useEffect(() => {
     localStorage.setItem('darkMode', JSON.stringify(darkMode));
+    document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
   // Verificar si ya hay una sesión activa
@@ -277,17 +278,13 @@ export default function RegisterPage() {
       </button>
       
       {/* Contenedor principal */}
-      <div className={`rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 ${
-        darkMode ? 'bg-slate-900' : 'bg-white'
-      }`}>
+      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface">
         <div className="grid md:grid-cols-2">
           
           {/* ============================================ */}
           {/* SECCIÓN IZQUIERDA - FORMULARIO */}
           {/* ============================================ */}
-          <div className={`px-10 py-12 border-r transition-colors duration-300 ${
-            darkMode ? 'border-slate-700' : 'border-gray-200'
-          }`}>
+          <div className="px-10 py-12 border-r transition-colors duration-300 border-ui">
             {/* Logo */}
             <div className="mb-6 flex items-center justify-center px-6 transition-all duration-300" style={{ height: '140px' }}>
               <img
@@ -317,10 +314,10 @@ export default function RegisterPage() {
                     placeholder="Nombre"
                     required
                     disabled={loading}
-                    className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-raised border-ui text-primary ${
                       darkMode
-                        ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-[#003876] focus:bg-white'
+                        ? 'placeholder-gray-400 focus:border-blue-500'
+                        : 'focus:border-[#003876] focus:bg-white'
                     }`}
                   />
                 </div>
@@ -334,10 +331,10 @@ export default function RegisterPage() {
                     placeholder="Apellido"
                     required
                     disabled={loading}
-                    className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`w-full px-4 py-3.5 border rounded-lg text-base outline-none transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed bg-raised border-ui text-primary ${
                       darkMode
-                        ? 'bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500'
-                        : 'bg-gray-50 border-gray-300 text-gray-900 focus:border-[#003876] focus:bg-white'
+                        ? 'placeholder-gray-400 focus:border-blue-500'
+                        : 'focus:border-[#003876] focus:bg-white'
                     }`}
                   />
                 </div>
@@ -420,13 +417,13 @@ export default function RegisterPage() {
                   >
                     {formData.password ? passwordStrength.label : 'Sin contraseña'}
                   </span>
-                  <span className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <span className="text-xs text-action">
                     Mínimo: Aceptable
                   </span>
                 </div>
                 
                 {/* Requisitos */}
-                <div className={`text-xs space-y-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="text-xs space-y-1 text-action">
                   <div className="flex items-center gap-1">
                     <span className={formData.password.length >= 8 ? 'text-green-600' : (darkMode ? 'text-gray-500' : 'text-gray-400')}>
                       {formData.password.length >= 8 ? '✓' : '○'}
@@ -480,7 +477,7 @@ export default function RegisterPage() {
 
               {/* Enlace a login */}
               <div className="text-center">
-                <span className={`text-base ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <span className="text-base text-action">
                   ¿Ya tienes cuenta?{' '}
                 </span>
                 <Link
@@ -500,10 +497,10 @@ export default function RegisterPage() {
           {/* ============================================ */}
           <div className="px-10 py-12 flex flex-col justify-center items-center">
             <div className="text-center mb-8">
-              <h3 className={`text-xl font-semibold mb-2 ${darkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+              <h3 className="text-xl font-semibold mb-2 text-primary">
                 Registro Rápido
               </h3>
-              <p className={`text-base ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className="text-base text-action">
                 Crea tu cuenta con Google
               </p>
             </div>
@@ -513,10 +510,10 @@ export default function RegisterPage() {
               type="button"
               onClick={handleGoogleRegister}
               disabled={loading}
-              className={`w-full max-w-sm px-8 py-5 border rounded-lg text-lg font-medium flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
+              className={`w-full max-w-sm px-8 py-5 border rounded-lg text-lg font-medium flex items-center justify-center gap-3 transition-all duration-300 hover:shadow-xl hover:scale-[1.03] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 bg-raised border-ui ${
                 darkMode
-                  ? 'bg-slate-800 text-gray-200 border-slate-700 hover:bg-slate-700'
-                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:shadow-xl'
+                  ? 'text-gray-200 hover:bg-slate-700'
+                  : 'text-gray-700 hover:bg-gray-50 hover:shadow-xl'
               }`}
             >
               <svg width="24" height="24" viewBox="0 0 18 18" className="transition-transform duration-300">
@@ -529,7 +526,7 @@ export default function RegisterPage() {
             </button>
 
             {/* Términos y condiciones */}
-            <div className={`mt-8 text-center text-sm max-w-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <div className="mt-8 text-center text-sm max-w-xs text-action">
               <p>
                 Al registrarte, aceptas nuestros términos de servicio y política de privacidad
               </p>

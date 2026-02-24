@@ -75,4 +75,14 @@ export const examsAttemptsService = {
     });
     return response.data;
   },
+
+  async getAttemptDetails(intentoId: number) {
+    const response = await examsAttemptsApi.get(`/attempt/${intentoId}/details`);
+    return response.data;
+  },
+
+  async updateManualGrade(respuestaId: number, data: { puntaje?: number; retroalimentacion?: string }) {
+    const response = await examsAttemptsApi.patch(`/answer/${respuestaId}/manual-grade`, data);
+    return response.data;
+  },
 };
