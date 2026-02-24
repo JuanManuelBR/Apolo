@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { ChevronRight, CheckCircle2 } from "lucide-react";
 
 // --- TIPOS E INTERFACES ---
 interface Question {
@@ -77,11 +78,30 @@ export default function ExamPanel({
   onAnswerChange,
   readOnly = false,
 }: ExamPanelProps) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [allDone, setAllDone] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const questions = examData?.questions || [];
+  const total = questions.length;
+  const currentQuestion = questions[currentIndex];
+
+  const handleNext = () => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (currentIndex < total - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setAllDone(true);
+    }
+  };
+
+  const progressPct = allDone ? 100 : total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
+
   return (
     <div className="h-full w-full">
       <style>{`
         /* Bloqueo visual de extensiones de IA (Monica, Grammarly, etc.) */
-        [id^="monica-"], [class^="monica-"], 
+        [id^="monica-"], [class^="monica-"],
         div[id*="monica"], div[class*="monica"],
         #monica-root, .monica-widget {
           display: none !important;
@@ -103,7 +123,7 @@ export default function ExamPanel({
             </div>
           </div>
         ) : examData.archivoPDF ? (
-          /* --- MODO PDF: Mismo layout que preguntas pero con PDF embebido --- */
+          /* --- MODO PDF: Layout con PDF embebido --- */
           <div className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto p-6 md:p-10">
               <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
@@ -136,8 +156,6 @@ export default function ExamPanel({
                   </div>
                 )}
               </header>
-
-              {/* PDF embebido */}
               <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
                 <iframe
                   src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
@@ -149,53 +167,83 @@ export default function ExamPanel({
             </div>
           </div>
         ) : (
-          /* --- MODO PREGUNTAS: Layout original con scroll --- */
-          <div className="flex-1 overflow-auto">
-            <div className="max-w-5xl mx-auto p-6 md:p-10">
-              <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-                <h1 className={`text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-3 tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
+          /* --- MODO PREGUNTAS: Vista secuencial (una pregunta a la vez, sin retroceso) --- */
+          <div className="flex-1 flex flex-col overflow-hidden">
+
+            {/* Barra de progreso superior */}
+            <div className={`px-6 pt-5 pb-4 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
                   {examData.nombre}
-                </h1>
-                <div className="flex flex-wrap items-center gap-6 text-sm md:text-base">
-                  <div className={`flex items-center gap-2 font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    {examData.nombreProfesor}
+                </h2>
+                <span className={`text-sm font-mono tabular-nums flex-shrink-0 ml-4 px-2.5 py-0.5 rounded-full font-semibold ${
+                  allDone
+                    ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                    : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
+                }`}>
+                  {allDone ? total : currentIndex + 1} / {total}
+                </span>
+              </div>
+              <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}>
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${allDone ? "bg-emerald-500" : "bg-blue-500"}`}
+                  style={{ width: `${progressPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Pregunta actual */}
+            <div ref={contentRef} className="flex-1 overflow-auto">
+              <div className="min-h-full flex flex-col items-center justify-center px-6 py-8">
+                {allDone ? (
+                  <div className="flex flex-col items-center gap-6 text-center py-16">
+                    <div className={`w-24 h-24 rounded-full flex items-center justify-center ${darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-50 text-emerald-500"}`}>
+                      <CheckCircle2 className="w-12 h-12" />
+                    </div>
+                    <div>
+                      <h3 className={`text-2xl font-bold mb-3 ${darkMode ? "text-white" : "text-gray-900"}`}>
+                        ¡Has visto todas las preguntas!
+                      </h3>
+                      <p className={`text-sm ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                        Usa el botón <strong>Entregar</strong> en el menú lateral cuando estés listo.
+                      </p>
+                    </div>
                   </div>
-                  <div className={`flex items-center gap-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {examData.limiteTiempo ? `${examData.limiteTiempo} minutos` : "Sin límite de tiempo"}
-                  </div>
-                </div>
-                {examData.descripcion && (
-                  <div className={`mt-6 p-5 rounded-xl border shadow-sm ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
-                    <h4 className={`text-sm font-bold uppercase tracking-wider mb-2 ${darkMode ? "text-teal-500" : "text-teal-600"}`}>
-                      Instrucciones
-                    </h4>
-                    <div
-                      className={`prose max-w-none font-serif leading-relaxed opacity-90 ${darkMode ? "prose-invert" : "prose-slate"}`}
-                      dangerouslySetInnerHTML={{ __html: examData.descripcion }}
+                ) : (
+                  <div className="w-full max-w-5xl">
+                    <QuestionCard
+                      key={currentQuestion.id}
+                      question={currentQuestion}
+                      index={currentIndex}
+                      answer={answers[currentQuestion.id]}
+                      onAnswerChange={onAnswerChange}
+                      darkMode={darkMode}
+                      readOnly={readOnly}
                     />
                   </div>
                 )}
-              </header>
-              <div className="space-y-12">
-                {examData.questions?.map((question, index) => (
-                  <QuestionCard
-                    key={question.id}
-                    question={question}
-                    index={index}
-                    answer={answers[question.id]}
-                    onAnswerChange={onAnswerChange}
-                    darkMode={darkMode}
-                    readOnly={readOnly}
-                  />
-                ))}
               </div>
             </div>
+
+            {/* Botón de navegación */}
+            {!allDone && (
+              <div className={`px-6 py-4 border-t flex-shrink-0 flex items-center justify-between ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+                <span className={`text-xs ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
+                  No podrás volver a esta pregunta
+                </span>
+                <button
+                  onClick={handleNext}
+                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 ${
+                    currentIndex < total - 1
+                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/20"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/20"
+                  }`}
+                >
+                  {currentIndex < total - 1 ? "Siguiente pregunta" : "Terminar revisión"}
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -238,18 +286,18 @@ function QuestionCard({
   return (
     <div className={`group relative rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-800 hover:border-blue-700/80" : "bg-white border-gray-200 hover:shadow-lg hover:border-blue-300"}`}>
       {/* Barra lateral de estado (decorativa) con color dinámico */}
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${barColor}`}></div>
+      <div className={`absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b ${barColor}`}></div>
 
-      <div className="p-6 md:p-8 pl-8 md:pl-10">
+      <div className="p-10 md:p-12 pl-12 md:pl-14 min-h-96">
         {/* Encabezado de la Pregunta */}
-        <div className="flex items-start gap-4 mb-6">
-          <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm shrink-0 transition-all duration-300 ${
-            isAnswered 
+        <div className="flex items-start gap-5 mb-8">
+          <span className={`flex items-center justify-center w-11 h-11 rounded-xl font-bold text-base shrink-0 transition-all duration-300 ${
+            isAnswered
               ? (darkMode ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50" : "bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200")
-              : (darkMode ? "bg-slate-700 text-slate-300" : "bg-white text-slate-600")
+              : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-slate-600")
           }`}>
             {isAnswered ? (
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             ) : (
@@ -257,10 +305,10 @@ function QuestionCard({
             )}
           </span>
           <div className="flex-1">
-            <h3 className={`text-xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
+            <h3 className={`text-2xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
               {question.enunciado}
             </h3>
-            <span className={`inline-block mt-2 text-xs font-semibold px-2 py-1 rounded ${darkMode ? "bg-slate-700/50 text-slate-400" : "bg-white text-slate-500"}`}>
+            <span className={`inline-block mt-3 text-xs font-semibold px-3 py-1 rounded-full ${darkMode ? "bg-slate-700/60 text-slate-400" : "bg-gray-100 text-slate-500"}`}>
               {question.puntaje} {question.puntaje === 1 ? "punto" : "puntos"}
             </span>
           </div>

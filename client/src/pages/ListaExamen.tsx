@@ -779,11 +779,11 @@ export default function ListaExamenes({
                       <div
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (!isInactive)
+                          if (!isInactive && examen.codigoExamen)
                             copiarSoloCodigo(examen.codigoExamen);
                         }}
                         className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-base font-mono font-bold transition-all duration-200 shadow-sm ${
-                          codigoCopiado === examen.codigoExamen
+                          examen.codigoExamen && codigoCopiado === examen.codigoExamen
                             ? "bg-emerald-500 border-emerald-500 text-white"
                             : isInactive
                               ? darkMode
@@ -793,9 +793,9 @@ export default function ListaExamenes({
                                 ? "bg-[#2D3E52] border-slate-600 text-teal-400 hover:border-teal-500 cursor-pointer active:scale-95"
                                 : "bg-white border-gray-300 text-gray-900 hover:border-teal-500 cursor-pointer active:scale-95"
                         }`}
-                        title={isInactive ? "" : "Clic para copiar código"}
+                        title={isInactive ? "" : examen.codigoExamen ? "Clic para copiar código" : "Generar código"}
                       >
-                        {codigoCopiado === examen.codigoExamen ? (
+                        {examen.codigoExamen && codigoCopiado === examen.codigoExamen ? (
                           <span className="flex items-center gap-1.5">
                             <Check className="w-4 h-4 text-white" /> Copiado
                           </span>
