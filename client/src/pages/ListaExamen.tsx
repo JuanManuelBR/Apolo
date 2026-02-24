@@ -20,6 +20,8 @@ import {
   RefreshCw,
   Loader2,
   Pencil,
+  Bot,
+  ClipboardList,
 } from "lucide-react";
 import {
   examsService,
@@ -52,6 +54,7 @@ export default function ListaExamenes({
 
   const [codigoCopiado, setCodigoCopiado] = useState<string | null>(null);
   const [urlCopiada, setUrlCopiada] = useState<string | null>(null);
+  const [regenerandoCodigo, setRegenerandoCodigo] = useState<number | null>(null);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
   const [codigoGrande, setCodigoGrande] = useState<{
     codigo: string;
@@ -151,9 +154,55 @@ export default function ListaExamenes({
     });
   };
 
-  const regenerarCodigo = (codigoActual: string) => {
-    console.warn("⚠️ Regenerar código no implementado en el backend");
-    mostrarModal("info", "Próximamente", "Esta funcionalidad estará disponible próximamente", cerrarModal);
+  const COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
+
+  const getCooldownRestante = (examen: ExamenConEstado): number => {
+    if (!examen.codigoRegeneradoEn) return 0;
+    const transcurrido = Date.now() - new Date(examen.codigoRegeneradoEn).getTime();
+    return Math.max(0, COOLDOWN_MS - transcurrido);
+  };
+
+  const regenerarCodigo = (examen: ExamenConEstado) => {
+    const cooldownRestante = getCooldownRestante(examen);
+    if (cooldownRestante > 0) {
+      const minutos = Math.ceil(cooldownRestante / 60000);
+      mostrarModal(
+        "advertencia",
+        "Límite de tiempo",
+        `Debes esperar ${minutos} minuto${minutos !== 1 ? "s" : ""} antes de regenerar el código nuevamente.`,
+        cerrarModal,
+      );
+      return;
+    }
+
+    const confirmar = async () => {
+      cerrarModal();
+      setRegenerandoCodigo(examen.id);
+      try {
+        const { codigoExamen, codigoRegeneradoEn } = await examsService.regenerarCodigoExamen(examen.id);
+        setExamenes((prev) =>
+          prev.map((ex) =>
+            ex.id === examen.id ? { ...ex, codigoExamen, codigoRegeneradoEn } : ex,
+          ),
+        );
+      } catch (error: any) {
+        const msg =
+          error?.response?.status === 429
+            ? error.response.data?.message || "Debes esperar antes de regenerar el código."
+            : error.message || "No se pudo regenerar el código. Intenta de nuevo.";
+        mostrarModal("error", "Error", msg, cerrarModal);
+      } finally {
+        setRegenerandoCodigo(null);
+      }
+    };
+
+    mostrarModal(
+      "advertencia",
+      "Regenerar código",
+      "Se generará un nuevo código de acceso. El código anterior quedará inválido. ¿Deseas continuar?",
+      confirmar,
+      cerrarModal,
+    );
   };
 
   const copiarEnlaceExamen = (codigo: string) => {
@@ -317,14 +366,14 @@ export default function ListaExamenes({
     }
   };
 
-  const obtenerEmojiTipo = (tipo: string) => {
+  const obtenerIconoTipo = (tipo: string) => {
     switch (tipo) {
       case "pdf":
-        return "📄";
+        return <FileText className="w-3.5 h-3.5" />;
       case "automatico":
-        return "🤖";
+        return <Bot className="w-3.5 h-3.5" />;
       default:
-        return "🤖";
+        return <Bot className="w-3.5 h-3.5" />;
     }
   };
 
@@ -710,7 +759,7 @@ export default function ListaExamenes({
                             darkMode ? "text-gray-400" : "text-gray-600"
                           }`}
                         >
-                          {obtenerEmojiTipo(tipoExamen)}{" "}
+                          {obtenerIconoTipo(tipoExamen)}{" "}
                           {tipoExamen.charAt(0).toUpperCase() +
                             tipoExamen.slice(1)}
                         </span>
@@ -720,7 +769,7 @@ export default function ListaExamenes({
                               darkMode ? "text-gray-400" : "text-gray-600"
                             }`}
                           >
-                            📝 {examen.questions.length} preguntas
+                            <ClipboardList className="w-3.5 h-3.5" /> {examen.questions.length} preguntas
                           </span>
                         )}
                       </div>
@@ -753,22 +802,41 @@ export default function ListaExamenes({
                         ) : (
                           <>
                             <span>{examen.codigoExamen}</span>
-                            {!isInactive && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  regenerarCodigo(examen.codigoExamen);
-                                }}
-                                className={`p-1 -mr-1 rounded-md transition-all duration-150 ${
-                                  darkMode
-                                    ? "hover:bg-white/10 text-teal-500/70 hover:text-teal-300"
-                                    : "hover:bg-black/5 text-gray-400 hover:text-gray-700"
-                                }`}
-                                title="Regenerar código"
-                              >
-                                <RefreshCw className="w-3.5 h-3.5" />
-                              </button>
-                            )}
+                            {!isInactive && (() => {
+                              const isRegenerando = regenerandoCodigo === examen.id;
+                              const cooldownMs = getCooldownRestante(examen);
+                              const enCooldown = cooldownMs > 0;
+                              const minRestantes = Math.ceil(cooldownMs / 60000);
+                              return (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    regenerarCodigo(examen);
+                                  }}
+                                  disabled={isRegenerando || enCooldown}
+                                  className={`p-1 -mr-1 rounded-md transition-all duration-150 ${
+                                    isRegenerando || enCooldown
+                                      ? "opacity-40 cursor-not-allowed"
+                                      : darkMode
+                                        ? "hover:bg-white/10 text-teal-500/70 hover:text-teal-300"
+                                        : "hover:bg-black/5 text-gray-400 hover:text-gray-700"
+                                  }`}
+                                  title={
+                                    isRegenerando
+                                      ? "Regenerando..."
+                                      : enCooldown
+                                        ? `Disponible en ${minRestantes} min`
+                                        : "Regenerar código"
+                                  }
+                                >
+                                  {isRegenerando ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                  )}
+                                </button>
+                              );
+                            })()}
                           </>
                         )}
                       </div>

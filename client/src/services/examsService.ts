@@ -37,6 +37,7 @@ export interface ExamenCreado {
   necesitaNombreCompleto?: boolean;
   necesitaCorreoElectrónico?: boolean;
   necesitaCodigoEstudiantil?: boolean;
+  codigoRegeneradoEn?: string | null;
 }
 
 // ==================== MAPEO DE DATOS ====================
@@ -636,6 +637,20 @@ export const examsService = {
 
   archiveExam: async (examId: number): Promise<void> => {
     await examsApi.patch(`/${examId}/archive`, {}, { withCredentials: true });
+  },
+
+  regenerarCodigoExamen: async (
+    examId: number,
+  ): Promise<{ codigoExamen: string; codigoRegeneradoEn: string }> => {
+    const response = await examsApi.patch(
+      `/${examId}/regenerate-code`,
+      {},
+      { withCredentials: true },
+    );
+    return {
+      codigoExamen: response.data.codigoExamen,
+      codigoRegeneradoEn: response.data.codigoRegeneradoEn,
+    };
   },
 
   unarchiveExam: async (examId: number): Promise<void> => {

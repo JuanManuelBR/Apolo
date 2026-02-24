@@ -637,10 +637,10 @@ export default function CrearExamen({
   const bgBotonHover = darkMode ? "hover:bg-teal-700" : "hover:bg-slate-800";
 
   return (
-    <div className="max-w-5xl mx-auto space-y-4">
+    <div className="max-w-5xl mx-auto space-y-4 scrollbar-theme">
       {/* Header de navegación */}
       {isEditMode && (
-      <div className={`flex items-center gap-4 p-4 rounded-xl border shadow-sm ${darkMode ? "border-slate-700 bg-slate-900" : "border-gray-200 bg-white"}`}>
+      <div className="flex items-center gap-4 p-4 rounded-xl border shadow-sm border-ui bg-surface">
         <button
           onClick={() => {
             mostrarModal("confirmar", "Salir sin guardar", "¿Está seguro que desea salir? Se perderán los cambios no guardados.", () => {
@@ -648,102 +648,22 @@ export default function CrearExamen({
               navigate("/lista-examenes");
             }, cerrarModal);
           }}
-          className={`p-2 rounded-lg transition-colors ${
-            darkMode 
-              ? "hover:bg-slate-800 text-gray-400 hover:text-white" 
-              : "hover:bg-gray-100 text-gray-600 hover:text-gray-900"
-          }`}
+          className="p-2 rounded-lg transition-colors hover:bg-ui-hover text-action"
         >
           <ArrowLeft className="w-6 h-6" />
         </button>
         <div>
-          <h1 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+          <h1 className="text-lg font-bold text-primary">
             Editar Examen
           </h1>
         </div>
       </div>
       )}
 
-      <style>{`
-        ${
-          darkMode
-            ? `
-          ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-          }
-          
-          ::-webkit-scrollbar-track {
-            background: #1e293b;
-            border-radius: 10px;
-          }
-          
-          ::-webkit-scrollbar-thumb {
-            background: #475569;
-            border-radius: 10px;
-            border: 2px solid #1e293b;
-          }
-          
-          ::-webkit-scrollbar-thumb:hover {
-            background: #64748b;
-          }
-          
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: #475569 #1e293b;
-          }
-
-          input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
-            background: transparent;
-          }
-          
-          input[type="datetime-local"]::-webkit-datetime-edit {
-            background: transparent;
-          }
-          
-          input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>');
-            cursor: pointer;
-            width: 20px;
-            height: 20px;
-          }
-        `
-            : `
-          ::-webkit-scrollbar {
-            width: 12px;
-            height: 12px;
-          }
-          
-          ::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-          }
-          
-          ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 10px;
-            border: 2px solid #f1f5f9;
-          }
-          
-          ::-webkit-scrollbar-thumb:hover {
-            background: #94a3b8;
-          }
-          
-          * {
-            scrollbar-width: thin;
-            scrollbar-color: #cbd5e1 #f1f5f9;
-          }
-          
-          input[type="datetime-local"]::-webkit-calendar-picker-indicator {
-            cursor: pointer;
-          }
-        `
-        }
-      `}</style>
 
       {/* Sección 1 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => setSeccion1Abierta(!seccion1Abierta)}
@@ -756,7 +676,7 @@ export default function CrearExamen({
               1
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Información básica
             </div>
@@ -780,11 +700,11 @@ export default function CrearExamen({
           </div>
           {seccion1Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
@@ -793,12 +713,12 @@ export default function CrearExamen({
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label
-                  className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  className="block text-sm font-medium text-secondary"
                 >
                   Nombre del examen <span className="text-red-500">*</span>
                 </label>
                 <span
-                  className={`text-xs ${nombreExamen.length > 100 ? "text-red-500" : darkMode ? "text-gray-500" : "text-gray-400"}`}
+                  className={`text-xs ${nombreExamen.length > 100 ? "text-red-500" : "text-muted"}`}
                 >
                   {nombreExamen.length}/100
                 </span>
@@ -814,12 +734,12 @@ export default function CrearExamen({
                 }}
                 placeholder="Examen Parcial #1"
                 maxLength={100}
-                className={`w-full px-4 py-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
+                className="w-full px-4 py-3 rounded-lg border bg-raised border-ui text-primary"
               />
             </div>
             <div>
               <label
-                className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                className="block text-sm font-medium mb-2 text-secondary"
               >
                 Descripción
               </label>
@@ -837,7 +757,7 @@ export default function CrearExamen({
 
       {/* Sección 2 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => setSeccion2Abierta(!seccion2Abierta)}
@@ -850,7 +770,7 @@ export default function CrearExamen({
               2
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Preguntas del examen
             </div>
@@ -880,11 +800,11 @@ export default function CrearExamen({
           </div>
           {seccion2Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
@@ -917,13 +837,13 @@ export default function CrearExamen({
                   </div>
                   <div className="flex-1">
                     <div
-                      className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                      className="font-semibold text-primary"
                     >
                       {titulo}
                       {tipoPregunta === tipo && <span className="text-red-500 ml-1">*</span>}
                     </div>
                     <p
-                      className={`text-base mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                      className="text-base mt-1 text-action"
                     >
                       {desc}
                     </p>
@@ -948,7 +868,7 @@ export default function CrearExamen({
                     )}
                     {/* Mostrar PDF existente si estamos editando y no se ha subido uno nuevo */}
                     {tipoPregunta === "pdf" && tipo === "pdf" && isEditMode && pdfExistente && !archivoPDF && (
-                      <div className={`mt-2 text-sm ${darkMode ? "text-blue-400" : "text-blue-600"}`}>
+                      <div className="mt-2 text-sm text-accent">
                         📄 Archivo actual: {pdfExistente.split('/').pop()}
                       </div>
                     )}
@@ -967,7 +887,7 @@ export default function CrearExamen({
                         </button>
                         {preguntasAutomaticas.length > 0 && (
                           <p
-                            className={`text-xs mt-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                            className="text-xs mt-2 text-muted"
                           >
                             ✓ {preguntasAutomaticas.length}{" "}
                             {preguntasAutomaticas.length === 1
@@ -987,7 +907,7 @@ export default function CrearExamen({
 
       {/* Sección 3 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => setSeccion3Abierta(!seccion3Abierta)}
@@ -1000,7 +920,7 @@ export default function CrearExamen({
               3
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Datos del estudiante
             </div>
@@ -1024,18 +944,18 @@ export default function CrearExamen({
           </div>
           {seccion3Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
         {seccion3Abierta && (
           <div className="px-6 pb-6 space-y-3">
             <p
-              className={`text-base ${darkMode ? "text-gray-400" : "text-gray-600"} mb-4`}
+              className="text-base text-action mb-4"
             >
               Seleccione qué información deberá proporcionar el estudiante antes
               de iniciar el examen. <span className="text-red-500">*</span>
@@ -1047,7 +967,7 @@ export default function CrearExamen({
                 className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${campo.activo ? `${borderActivo} ${bgActivoLight}` : "border-gray-200 hover:border-gray-300"}`}
               >
                 <span
-                  className={`font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                  className="font-medium text-primary"
                 >
                   {campo.nombre}
                 </span>
@@ -1064,7 +984,7 @@ export default function CrearExamen({
 
       {/* Sección 4 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => {
@@ -1080,7 +1000,7 @@ export default function CrearExamen({
               4
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Tiempo
             </div>
@@ -1106,11 +1026,11 @@ export default function CrearExamen({
           </div>
           {seccion4Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
@@ -1119,12 +1039,12 @@ export default function CrearExamen({
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <label
-                  className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  className="text-sm font-medium text-secondary"
                 >
                   Abrir el examen
                 </label>
                 <div className="flex items-center gap-2">
-                  <Calendar className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                  <Calendar className="w-4 h-4 text-muted" />
                   <button
                     onClick={() =>
                       setFechaInicioHabilitada(!fechaInicioHabilitada)
@@ -1136,7 +1056,7 @@ export default function CrearExamen({
                     )}
                   </button>
                   <span
-                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                    className="text-sm text-action"
                   >
                     Habilitar
                   </span>
@@ -1148,11 +1068,7 @@ export default function CrearExamen({
                   value={fechaInicio}
                   onChange={(e) => handleFechaInicioChange(e.target.value)}
                   min={obtenerFechaMinima()}
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    darkMode
-                      ? "bg-slate-800 border-slate-700 text-white [color-scheme:dark]"
-                      : "bg-white border-gray-300"
-                  }`}
+                  className="w-full px-4 py-2.5 rounded-lg border bg-raised border-ui text-primary dark:[color-scheme:dark]"
                 />
               )}
             </div>
@@ -1160,12 +1076,12 @@ export default function CrearExamen({
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <label
-                  className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  className="text-sm font-medium text-secondary"
                 >
                   Cerrar el examen
                 </label>
                 <div className="flex items-center gap-2">
-                  <Calendar className={`w-4 h-4 ${darkMode ? "text-gray-400" : "text-gray-500"}`} />
+                  <Calendar className="w-4 h-4 text-muted" />
                   <button
                     onClick={() =>
                       setFechaCierreHabilitada(!fechaCierreHabilitada)
@@ -1177,7 +1093,7 @@ export default function CrearExamen({
                     )}
                   </button>
                   <span
-                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                    className="text-sm text-action"
                   >
                     Habilitar
                   </span>
@@ -1190,11 +1106,7 @@ export default function CrearExamen({
                   onChange={(e) => handleFechaCierreChange(e.target.value)}
                   onBlur={validarFechaCierre}
                   min={fechaInicioHabilitada ? fechaInicio : obtenerFechaMinima()}
-                  className={`w-full px-4 py-2.5 rounded-lg border ${
-                    darkMode
-                      ? "bg-slate-800 border-slate-700 text-white [color-scheme:dark]"
-                      : "bg-white border-gray-300"
-                  }`}
+                  className="w-full px-4 py-2.5 rounded-lg border bg-raised border-ui text-primary dark:[color-scheme:dark]"
                 />
               )}
             </div>
@@ -1202,12 +1114,12 @@ export default function CrearExamen({
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <label
-                  className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  className="text-sm font-medium text-secondary"
                 >
                   Límite de tiempo
                 </label>
                 <div className="relative group">
-                  <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                  <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                   <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '200px' }}>
                     Establece un tiempo máximo para completar el examen
                     <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -1220,7 +1132,7 @@ export default function CrearExamen({
                   {limiteHabilitado && <Check className="w-3 h-3 text-white" />}
                 </button>
                 <span
-                  className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                  className="text-sm text-action"
                 >
                   Habilitar
                 </span>
@@ -1236,10 +1148,10 @@ export default function CrearExamen({
                         setLimiteTiempo(30);
                       }
                     }}
-                    className={`w-28 px-4 py-2.5 rounded-lg border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
+                    className="w-28 px-4 py-2.5 rounded-lg border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-raised border-ui text-primary"
                   />
                   <span
-                    className={`text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                    className="text-sm font-medium text-secondary"
                   >
                     minutos
                   </span>
@@ -1251,13 +1163,13 @@ export default function CrearExamen({
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <label
-                    className={`block text-sm font-medium ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                    className="block text-sm font-medium text-secondary"
                   >
                     Cuando se agote el tiempo
                   </label>
                   <span className="text-red-500">*</span>
                   <div className="relative group">
-                    <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                    <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '220px', maxWidth: '280px' }}>
                       Define qué sucede cuando el tiempo límite se agota
                       <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -1269,7 +1181,7 @@ export default function CrearExamen({
                   onChange={(e) =>
                     setOpcionTiempoAgotado(e.target.value as OpcionTiempoAgotado)
                   }
-                  className={`w-full px-4 py-3 rounded-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-white" : "bg-white border-gray-300"}`}
+                  className="w-full px-4 py-3 rounded-lg border bg-raised border-ui text-primary"
                 >
                   {opcionesTiempoAgotado.map((op) => (
                     <option key={op.value} value={op.value}>
@@ -1285,7 +1197,7 @@ export default function CrearExamen({
 
       {/* Sección 5 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => {
@@ -1301,7 +1213,7 @@ export default function CrearExamen({
               5
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Herramientas
             </div>
@@ -1325,11 +1237,11 @@ export default function CrearExamen({
           </div>
           {seccion5Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
@@ -1344,7 +1256,7 @@ export default function CrearExamen({
 
       {/* Sección 6 */}
       <div
-        className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-lg shadow-sm overflow-hidden`}
+        className="bg-surface rounded-lg shadow-sm overflow-hidden"
       >
         <button
           onClick={() => setSeccion6Abierta(!seccion6Abierta)}
@@ -1357,7 +1269,7 @@ export default function CrearExamen({
               6
             </div>
             <div
-              className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="text-xl font-semibold text-primary"
             >
               Seguridad
             </div>
@@ -1383,11 +1295,11 @@ export default function CrearExamen({
           </div>
           {seccion6Abierta ? (
             <ChevronUp
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           ) : (
             <ChevronDown
-              className={`w-5 h-5 ${darkMode ? "text-white" : "text-gray-900"}`}
+              className="w-5 h-5 text-primary"
             />
           )}
         </button>
@@ -1469,19 +1381,19 @@ export default function CrearExamen({
       {mostrarModalPreguntasAutomaticas && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div
-            className={`${darkMode ? "bg-slate-900 border-slate-700" : "bg-white border-gray-200"} rounded-lg border shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col`}
+            className="bg-surface border-ui rounded-lg border shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col"
           >
             <div
-              className={`flex items-center justify-between p-6 border-b ${darkMode ? "border-slate-700" : "border-gray-200"}`}
+              className="flex items-center justify-between p-6 border-b border-ui"
             >
               <h3
-                className={`text-xl font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                className="text-xl font-semibold text-primary"
               >
                 Crear preguntas del examen
               </h3>
               <button
                 onClick={cancelarPreguntasAutomaticas}
-                className={`p-2 rounded-lg transition-colors ${darkMode ? "text-gray-400 hover:text-white hover:bg-slate-800" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"}`}
+                className="p-2 rounded-lg transition-colors text-action hover:text-primary hover:bg-ui-hover"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1496,17 +1408,17 @@ export default function CrearExamen({
               />
             </div>
             <div
-              className={`flex items-center justify-between gap-3 p-6 border-t ${darkMode ? "border-slate-700" : "border-gray-200"}`}
+              className="flex items-center justify-between gap-3 p-6 border-t border-ui"
             >
               {preguntasAutomaticasTemp.length > 0 && (
                 <div className="flex items-center gap-6">
                   <span
-                    className={`font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                    className="font-medium text-primary"
                   >
                     Total de preguntas: {preguntasAutomaticasTemp.length}
                   </span>
                   <span
-                    className={`font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                    className="font-medium text-primary"
                   >
                     Puntos totales:{" "}
                     {preguntasAutomaticasTemp.reduce(
@@ -1519,7 +1431,7 @@ export default function CrearExamen({
               <div className="flex gap-3">
                 <button
                   onClick={cancelarPreguntasAutomaticas}
-                  className={`px-6 py-3 rounded-lg font-medium transition-colors ${darkMode ? "bg-slate-800 text-white hover:bg-slate-700" : "bg-gray-100 text-gray-900 hover:bg-gray-200"}`}
+                  className="px-6 py-3 rounded-lg font-medium transition-colors bg-raised text-primary hover:bg-ui-hover"
                 >
                   Cancelar y cerrar
                 </button>

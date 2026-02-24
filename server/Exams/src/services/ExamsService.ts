@@ -700,12 +700,25 @@ export class ExamService {
     examId: number,
     profesorId: number,
     cookies?: string,
-  ): Promise<{ codigoExamen: string }> {
+  ): Promise<{ codigoExamen: string; codigoRegeneradoEn: Date }> {
+    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
+
     const exam = await examenValidator.verificarPropietarioExamen(
       examId,
       profesorId,
       cookies,
     );
+
+    if (exam.codigoRegeneradoEn) {
+      const transcurrido = Date.now() - new Date(exam.codigoRegeneradoEn).getTime();
+      if (transcurrido < COOLDOWN_MS) {
+        const minutosRestantes = Math.ceil((COOLDOWN_MS - transcurrido) / 60000);
+        throwHttpError(
+          `Debes esperar ${minutosRestantes} minuto${minutosRestantes !== 1 ? "s" : ""} antes de regenerar el código nuevamente`,
+          429,
+        );
+      }
+    }
 
     let nuevoCodigoExamen: string = "";
     let codigoExiste = true;
@@ -725,10 +738,12 @@ export class ExamService {
       throwHttpError("No se pudo generar un código único para el examen", 500);
     }
 
+    const ahora = new Date();
     exam.codigoExamen = nuevoCodigoExamen;
+    exam.codigoRegeneradoEn = ahora;
     await this.examRepo.save(exam);
 
-    return { codigoExamen: nuevoCodigoExamen };
+    return { codigoExamen: nuevoCodigoExamen, codigoRegeneradoEn: ahora };
   }
 
   async deleteExamById(

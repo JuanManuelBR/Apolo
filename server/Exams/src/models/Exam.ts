@@ -87,6 +87,9 @@ export class Exam {
   @Column({ type: "boolean", default: false })
   cambioEstadoAutomatico!: boolean;
 
+  @Column({ type: "datetime", nullable: true, default: null })
+  codigoRegeneradoEn?: Date | null;
+
   @Column({ type: "boolean", default: false })
   tienePreguntasAbiertas!: boolean;
 
