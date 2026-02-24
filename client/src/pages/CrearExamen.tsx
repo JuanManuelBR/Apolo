@@ -192,6 +192,7 @@ export default function CrearExamen({
   const [contraseñaHabilitada, setContraseñaHabilitada] = useState(false);
   const [contraseñaValida, setContraseñaValida] = useState(true);
   const [consecuenciaAbandono, setConsecuenciaAbandono] = useState("");
+  const [navegacionSecuencial, setNavegacionSecuencial] = useState(false);
 
   const [seccion1Abierta, setSeccion1Abierta] = useState(true);
   const [seccion2Abierta, setSeccion2Abierta] = useState(false);
@@ -303,6 +304,11 @@ export default function CrearExamen({
         if (ex.necesitaContrasena && ex.contrasena) {
           setContraseñaHabilitada(true);
           setContraseñaExamen(ex.contrasena);
+        }
+
+        // Navegación secuencial
+        if (ex.navegacionSecuencial) {
+          setNavegacionSecuencial(true);
         }
 
         // Marcar secciones como visitadas para habilitar el guardado
@@ -462,6 +468,7 @@ export default function CrearExamen({
     setContraseñaHabilitada(false);
     setContraseñaValida(true);
     setConsecuenciaAbandono("");
+    setNavegacionSecuencial(false);
     setHerramientasActivas({
       dibujo: false,
       calculadora: false,
@@ -572,6 +579,7 @@ export default function CrearExamen({
         seguridad: {
           contraseña: contraseñaHabilitada ? contraseñaExamen : "",
           consecuenciaAbandono,
+          navegacionSecuencial: tipoPregunta === "automatico" ? navegacionSecuencial : false,
         },
         herramientasActivas: Object.entries(herramientasActivas)
           .filter(([_, activo]) => activo)
@@ -1313,6 +1321,9 @@ export default function CrearExamen({
             contraseñaInicial={contraseñaExamen}
             consecuenciaInicial={consecuenciaAbandono}
             contraseñaHabilitadaInicial={contraseñaHabilitada}
+            tipoPregunta={tipoPregunta}
+            navegacionSecuencial={navegacionSecuencial}
+            onNavegacionSecuencialChange={setNavegacionSecuencial}
           />
         )}
       </div>

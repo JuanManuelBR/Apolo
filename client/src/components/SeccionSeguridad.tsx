@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Eye, EyeOff, Check, HelpCircle } from 'lucide-react';
+import { Shield, Eye, EyeOff, Check, HelpCircle, ListOrdered } from 'lucide-react';
 
 interface SeccionSeguridadProps {
   darkMode: boolean;
@@ -10,6 +10,9 @@ interface SeccionSeguridadProps {
   onContraseñaHabilitadaChange?: (habilitada: boolean) => void;
   contraseñaHabilitadaInicial?: boolean;
   onContraseñaValidaChange?: (valida: boolean) => void;
+  tipoPregunta?: string | null;
+  navegacionSecuencial?: boolean;
+  onNavegacionSecuencialChange?: (habilitada: boolean) => void;
 }
 
 export default function SeccionSeguridad({
@@ -20,7 +23,10 @@ export default function SeccionSeguridad({
   consecuenciaInicial,
   onContraseñaHabilitadaChange,
   contraseñaHabilitadaInicial = false,
-  onContraseñaValidaChange
+  onContraseñaValidaChange,
+  tipoPregunta,
+  navegacionSecuencial = false,
+  onNavegacionSecuencialChange
 }: SeccionSeguridadProps) {
   const [contraseña, setContraseña] = useState(contraseñaInicial);
   const [mostrarContraseña, setMostrarContraseña] = useState(false);
@@ -168,6 +174,36 @@ export default function SeccionSeguridad({
           </>
         )}
       </div>
+
+      {/* Preguntas secuenciales (Solo para examen manual) */}
+      {tipoPregunta === 'automatico' && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3">
+            <ListOrdered className={`w-5 h-5 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+            <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+              Preguntas secuenciales
+            </label>
+            <div className="relative group">
+              <HelpCircle className={`w-5 h-5 ${darkMode ? 'text-gray-500' : 'text-gray-400'} cursor-help`} />
+              <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '240px', maxWidth: '320px' }}>
+                Muestra las preguntas una por una. El estudiante no podrá volver a las preguntas anteriores una vez que haya avanzado.
+                <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+              </div>
+            </div>
+            <button 
+              onClick={() => onNavegacionSecuencialChange && onNavegacionSecuencialChange(!navegacionSecuencial)}
+              className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
+                navegacionSecuencial ? bgCheckbox : 'border-gray-300'
+              }`}
+            >
+              {navegacionSecuencial && <Check className="w-3 h-3 text-white" />}
+            </button>
+            <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Habilitar
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Consecuencia de abandono */}
       <div className="space-y-3">
