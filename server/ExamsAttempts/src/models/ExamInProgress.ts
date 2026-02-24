@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   OneToOne,
   JoinColumn,
+  Index,
 } from "typeorm";
 import type { ExamAttempt } from "./ExamAttempt";
 
@@ -38,6 +39,7 @@ export class ExamInProgress {
   @Column({ type: "datetime", nullable: true })
   fecha_expiracion?: Date | null;
 
+  @Index()
   @Column()
   intento_id!: number;
 

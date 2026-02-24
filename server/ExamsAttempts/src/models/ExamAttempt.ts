@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   OneToMany,
+  Index,
 } from "typeorm";
 import { ExamInProgress } from "./ExamInProgress";
 import { ExamAnswer } from "./ExamAnswer";
@@ -22,6 +23,7 @@ export class ExamAttempt {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index()
   @Column()
   examen_id!: number;
 
@@ -75,7 +77,6 @@ export class ExamAttempt {
 
   @OneToMany(() => ExamAnswer, (answer) => answer.intento, {
     cascade: true,
-    eager: true,
   })
   respuestas?: ExamAnswer[];
 }

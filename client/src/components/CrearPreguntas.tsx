@@ -427,21 +427,17 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
     const theme = getTheme(index);
 
     return (
-      <div 
-        className={`rounded-lg border-l-4 ${theme.border} p-6 mb-4 ${
-          darkMode ? 'bg-slate-800' : 'bg-white'
-        } shadow-sm`}
+      <div
+        className={`rounded-lg border-l-4 ${theme.border} p-6 mb-4 bg-raised shadow-sm`}
       >
         {/* Header con botón de colapsar */}
         <div className="flex items-center justify-between mb-4">
-          <div className={`text-lg font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+          <div className="text-lg font-medium text-primary">
             Pregunta {index + 1}
           </div>
           <button
             onClick={() => toggleEditarPregunta(pregunta.id)}
-            className={`p-2 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-slate-700 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
-            }`}
+            className="p-2 rounded-lg transition-colors hover:bg-ui-hover text-action"
             title="Cerrar edición"
           >
             <ChevronUp className="w-5 h-5" />
@@ -450,19 +446,13 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {/* Selector de tipo de pregunta */}
         <div className="mb-4">
-          <label className={`block text-sm font-medium mb-2 ${
-            darkMode ? 'text-gray-400' : 'text-gray-600'
-          }`}>
+          <label className="block text-sm font-medium mb-2 text-action">
             Seleccione el tipo de pregunta
           </label>
           <div className="relative">
             <button
               onClick={() => setMostrarSelectorTipo(mostrarSelectorTipo === pregunta.id ? null : pregunta.id)}
-              className={`flex items-center gap-2 px-4 py-3 rounded-lg border w-full justify-between ${
-                darkMode 
-                  ? 'bg-slate-700 border-slate-600 text-white' 
-                  : 'bg-gray-50 border-gray-300'
-              }`}
+              className="flex items-center gap-2 px-4 py-3 rounded-lg border w-full justify-between bg-raised border-ui text-primary"
             >
               <div className="flex items-center gap-2">
                 <span>{tiposPregunta.find(t => t.tipo === pregunta.tipo)?.icono}</span>
@@ -472,17 +462,15 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
             </button>
 
             {mostrarSelectorTipo === pregunta.id && (
-              <div className={`absolute left-0 right-0 mt-2 rounded-lg border shadow-lg z-10 ${
-                darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'
-              }`}>
+              <div className="absolute left-0 right-0 mt-2 rounded-lg border shadow-lg z-10 bg-raised border-ui">
                 {tiposPregunta.map((tipo) => (
                   <button
                     key={tipo.tipo}
                     onClick={() => cambiarTipoPregunta(pregunta.id, tipo.tipo)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-colors ${
-                      pregunta.tipo === tipo.tipo 
-                        ? darkMode ? 'bg-slate-700 text-white' : 'bg-blue-50 text-gray-900'
-                        : darkMode ? 'hover:bg-slate-700 text-gray-200' : 'hover:bg-gray-50 text-gray-900'
+                      pregunta.tipo === tipo.tipo
+                        ? 'bg-raised text-primary'
+                        : 'hover:bg-ui-hover text-primary'
                     }`}
                   >
                     <span className="text-xl">{tipo.icono}</span>
@@ -496,9 +484,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {/* Editor de pregunta e imagen */}
         <div className="mb-4">
-          <label className={`block text-sm font-medium mb-2 ${
-            darkMode ? 'text-gray-400' : 'text-gray-600'
-          }`}>
+          <label className="block text-sm font-medium mb-2 text-action">
             Pregunta
           </label>
           <div className="flex items-start gap-4">
@@ -544,9 +530,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         {/* Contenido según tipo de pregunta */}
         {pregunta.tipo === 'seleccion-multiple' && (
           <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <label className="block text-sm font-medium mb-2 text-action">
               Opciones
             </label>
             <div className="space-y-2">
@@ -569,11 +553,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     type="text"
                     value={opcion.texto}
                     onChange={(e) => actualizarOpcion(pregunta.id, opcion.id, e.target.value)}
-                    className={`flex-1 px-3 py-2 rounded border ${
-                      darkMode 
-                        ? 'bg-slate-700 border-slate-600 text-white' 
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className="flex-1 px-3 py-2 rounded border bg-raised border-ui text-primary"
                   />
                   {pregunta.opciones && pregunta.opciones.length > 1 && (
                     <button
@@ -588,8 +568,8 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               {pregunta.opciones && pregunta.opciones.length < 10 ? (
                 <button
                   onClick={() => agregarOpcion(pregunta.id)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                    darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+                  className={`flex items-center gap-2 px-3 py-2 text-sm text-accent ${
+                    darkMode ? 'hover:text-blue-300' : 'hover:text-blue-700'
                   }`}
                 >
                   <div className={`w-5 h-5 rounded border-2 ${
@@ -598,7 +578,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                   <span>Agregar una opción</span>
                 </button>
               ) : (
-                <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                <p className="text-sm italic text-muted">
                   Máximo 10 opciones alcanzado
                 </p>
               )}
@@ -608,9 +588,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {pregunta.tipo === 'rellenar-espacios' && (
           <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <label className="block text-sm font-medium mb-2 text-action">
               Texto completo
             </label>
             <div className="relative">
@@ -671,11 +649,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                 }}
                 placeholder="Escribe el texto aquí y luego haz doble clic en las palabras que quieres convertir en espacios en blanco..."
                 rows={5}
-                className={`w-full px-4 py-3 rounded-lg border resize-none relative ${
-                  darkMode 
-                    ? 'bg-transparent border-slate-600 text-white placeholder-gray-400' 
-                    : 'bg-transparent border-gray-300 text-gray-900 placeholder-gray-500'
-                }`}
+                className="w-full px-4 py-3 rounded-lg border resize-none relative bg-transparent border-ui text-primary placeholder-gray-400"
                 style={{ 
                   lineHeight: '1.5',
                   zIndex: 2,
@@ -687,7 +661,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
             </div>
             
             <div className={`mt-3 space-y-2`}>
-              <p className={`text-sm flex items-center gap-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              <p className="text-sm flex items-center gap-2 text-action">
                 <span className="font-medium">💡 Instrucciones:</span>
                 <span>Haz doble clic en cualquier palabra para seleccionarla como espacio en blanco. Máximo 10 palabras.</span>
               </p>
@@ -696,16 +670,14 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                 <div className={`flex items-center gap-2 flex-wrap p-3 rounded-lg ${
                   darkMode ? 'bg-slate-600/50' : 'bg-blue-50'
                 }`}>
-                  <span className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <span className="text-sm font-medium text-secondary">
                     Espacios seleccionados ({pregunta.palabrasSeleccionadas.length}/10):
                   </span>
                   {pregunta.palabrasSeleccionadas.map((ps, idx) => (
                     <span 
                       key={idx}
-                      className={`flex items-center gap-1.5 px-2 py-1 rounded text-sm font-medium ${
-                        darkMode 
-                          ? 'bg-blue-500/40 text-white border border-blue-400' 
-                          : 'bg-blue-200 text-gray-900 border border-blue-400'
+                      className={`flex items-center gap-1.5 px-2 py-1 rounded text-sm font-medium text-primary border border-blue-400 ${
+                        darkMode ? 'bg-blue-500/40' : 'bg-blue-200'
                       }`}
                     >
                       <span>{ps.palabra}</span>
@@ -737,9 +709,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {pregunta.tipo === 'conectar' && (
           <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <label className="block text-sm font-medium mb-2 text-action">
               Pares de conexión
             </label>
             <div className="space-y-3">
@@ -750,23 +720,15 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     value={par.izquierda}
                     onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'izquierda', e.target.value)}
                     placeholder="Elemento izquierdo"
-                    className={`flex-1 px-3 py-2 rounded border ${
-                      darkMode 
-                        ? 'bg-slate-700 border-slate-600 text-white' 
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className="flex-1 px-3 py-2 rounded border bg-raised border-ui text-primary"
                   />
-                  <span className={`text-2xl ${darkMode ? 'text-white' : 'text-gray-900'}`}>⟷</span>
+                  <span className="text-2xl text-primary">⟷</span>
                   <input
                     type="text"
                     value={par.derecha}
                     onChange={(e) => actualizarParConexion(pregunta.id, par.id, 'derecha', e.target.value)}
                     placeholder="Elemento derecho"
-                    className={`flex-1 px-3 py-2 rounded border ${
-                      darkMode 
-                        ? 'bg-slate-700 border-slate-600 text-white' 
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className="flex-1 px-3 py-2 rounded border bg-raised border-ui text-primary"
                   />
                   {pregunta.paresConexion && pregunta.paresConexion.length > 1 && (
                     <button
@@ -781,15 +743,15 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               {pregunta.paresConexion && pregunta.paresConexion.length < 10 ? (
                 <button
                   onClick={() => agregarParConexion(pregunta.id)}
-                  className={`flex items-center gap-2 px-3 py-2 text-sm ${
-                    darkMode ? 'text-blue-400 hover:text-blue-300' : 'text-blue-600 hover:text-blue-700'
+                  className={`flex items-center gap-2 px-3 py-2 text-sm text-accent ${
+                    darkMode ? 'hover:text-blue-300' : 'hover:text-blue-700'
                   }`}
                 >
                   <Plus className="w-4 h-4" />
                   <span>Agregar par</span>
                 </button>
               ) : (
-                <p className={`text-sm italic ${darkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                <p className="text-sm italic text-muted">
                   Máximo 10 pares alcanzado
                 </p>
               )}
@@ -799,9 +761,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
         {pregunta.tipo === 'abierta' && (
           <div className="mb-4">
-            <label className={`block text-sm font-medium mb-2 ${
-              darkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <label className="block text-sm font-medium mb-2 text-action">
               Método de evaluación
             </label>
             <div className="space-y-4">
@@ -812,12 +772,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     onClick={() => cambiarMetodoEvaluacion(pregunta.id, 'manual')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
                       pregunta.metodoEvaluacion === 'manual'
-                        ? darkMode 
-                          ? 'border-blue-500 bg-blue-500/10 text-white' 
+                        ? darkMode
+                          ? 'border-blue-500 bg-blue-500/10 text-white'
                           : 'border-blue-600 bg-blue-50 text-gray-900'
-                        : darkMode
-                          ? 'border-slate-600 text-gray-300 hover:border-slate-500'
-                          : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                        : 'border-ui text-secondary hover:border-gray-400'
                     }`}
                   >
                     <div className="text-sm font-medium">Manual</div>
@@ -834,12 +792,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     onClick={() => cambiarMetodoEvaluacion(pregunta.id, 'palabras-clave')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
                       pregunta.metodoEvaluacion === 'palabras-clave'
-                        ? darkMode 
-                          ? 'border-green-500 bg-green-500/10 text-white' 
+                        ? darkMode
+                          ? 'border-green-500 bg-green-500/10 text-white'
                           : 'border-green-600 bg-green-50 text-gray-900'
-                        : darkMode
-                          ? 'border-slate-600 text-gray-300 hover:border-slate-500'
-                          : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                        : 'border-ui text-secondary hover:border-gray-400'
                     }`}
                   >
                     <div className="text-sm font-medium">Palabras clave</div>
@@ -856,12 +812,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     onClick={() => cambiarMetodoEvaluacion(pregunta.id, 'texto-exacto')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
                       pregunta.metodoEvaluacion === 'texto-exacto'
-                        ? darkMode 
-                          ? 'border-purple-500 bg-purple-500/10 text-white' 
+                        ? darkMode
+                          ? 'border-purple-500 bg-purple-500/10 text-white'
                           : 'border-purple-600 bg-purple-50 text-gray-900'
-                        : darkMode
-                          ? 'border-slate-600 text-gray-300 hover:border-slate-500'
-                          : 'border-gray-300 text-gray-700 hover:border-gray-400'
+                        : 'border-ui text-secondary hover:border-gray-400'
                     }`}
                   >
                     <div className="text-sm font-medium">Respuesta exacta</div>
@@ -878,10 +832,8 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
               {/* Configuración según el método seleccionado */}
               {pregunta.metodoEvaluacion === 'palabras-clave' && (
-                <div className={`p-4 rounded-lg border ${
-                  darkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'
-                }`}>
-                  <p className={`text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div className="p-4 rounded-lg border bg-raised border-ui">
+                  <p className="text-sm font-medium mb-3 text-secondary">
                     Define las palabras clave que deben aparecer (máximo 15):
                   </p>
                   
@@ -898,20 +850,12 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       }}
                       placeholder="Escribe una palabra clave..."
                       disabled={(pregunta.palabrasClave?.length || 0) >= 15}
-                      className={`flex-1 px-3 py-2 rounded border ${
-                        darkMode 
-                          ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400 disabled:opacity-50' 
-                          : 'bg-white border-gray-300 placeholder-gray-500 disabled:opacity-50'
-                      }`}
+                      className="flex-1 px-3 py-2 rounded border bg-raised border-ui text-primary placeholder-gray-400 disabled:opacity-50"
                     />
                     <button
                       onClick={() => agregarPalabraClave(pregunta.id)}
                       disabled={(pregunta.palabrasClave?.length || 0) >= 15}
-                      className={`px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        darkMode 
-                          ? 'bg-green-600 hover:bg-green-700 text-white' 
-                          : 'bg-green-600 hover:bg-green-700 text-white'
-                      }`}
+                      className="px-4 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-green-600 hover:bg-green-700 text-white"
                     >
                       Agregar
                     </button>
@@ -939,7 +883,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       ))}
                     </div>
                   ) : (
-                    <p className={`text-sm italic ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    <p className="text-sm italic text-muted">
                       No hay palabras clave definidas. Agrega al menos una.
                     </p>
                   )}
@@ -950,7 +894,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     </p>
                   )}
 
-                  <p className={`text-sm mt-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className="text-sm mt-3 text-muted">
                     💡 El sistema buscará estas palabras en la respuesta del estudiante. 
                     Se otorgarán puntos proporcionales según cuántas palabras clave se encuentren.
                   </p>
@@ -958,10 +902,8 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               )}
 
               {pregunta.metodoEvaluacion === 'texto-exacto' && (
-                <div className={`p-4 rounded-lg border ${
-                  darkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'
-                }`}>
-                  <p className={`text-sm font-medium mb-3 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div className="p-4 rounded-lg border bg-raised border-ui">
+                  <p className="text-sm font-medium mb-3 text-secondary">
                     Define la respuesta exacta esperada:
                   </p>
                   
@@ -975,11 +917,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     placeholder="Escribe la respuesta exacta que esperas del estudiante..."
                     maxLength={1000}
                     rows={4}
-                    className={`w-full px-4 py-3 rounded-lg border resize-none ${
-                      darkMode 
-                        ? 'bg-slate-700 border-slate-600 text-white placeholder-gray-400' 
-                        : 'bg-white border-gray-300 placeholder-gray-500'
-                    }`}
+                    className="w-full px-4 py-3 rounded-lg border resize-none bg-raised border-ui text-primary placeholder-gray-400"
                   />
 
                   {pregunta.textoExacto && pregunta.textoExacto.trim() !== '' ? (
@@ -998,7 +936,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     </div>
                   )}
 
-                  <p className={`text-sm mt-3 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <p className="text-sm mt-3 text-muted">
                     💡 La respuesta del estudiante debe coincidir exactamente con este texto 
                     (se ignorarán espacios extra y mayúsculas/minúsculas).
                   </p>
@@ -1006,10 +944,8 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               )}
 
               {pregunta.metodoEvaluacion === 'manual' && (
-                <div className={`p-4 rounded-lg border ${
-                  darkMode ? 'bg-slate-800 border-slate-600' : 'bg-white border-gray-200'
-                }`}>
-                  <p className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                <div className="p-4 rounded-lg border bg-raised border-ui">
+                  <p className="text-sm text-secondary">
                     Esta pregunta será calificada manualmente por el profesor. 
                     No se requiere configuración de respuesta correcta.
                   </p>
@@ -1023,13 +959,11 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         <div className="mb-4">
           <button
             onClick={() => setMostrarClaveRespuesta(mostrarClaveRespuesta === pregunta.id ? null : pregunta.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
-              darkMode ? 'text-blue-400 hover:bg-slate-700' : 'text-blue-600 hover:bg-blue-50'
-            }`}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-accent hover:bg-ui-hover"
           >
             <Check className="w-4 h-4" />
             <span className="font-medium">Configuración de puntos</span>
-            <span className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+            <span className="text-sm text-muted">
               ({pregunta.puntos} {pregunta.puntos === 1 ? 'punto' : 'puntos'})
             </span>
             {pregunta.tipo === 'rellenar-espacios' && (!pregunta.palabrasSeleccionadas || pregunta.palabrasSeleccionadas.length === 0) && (
@@ -1042,13 +976,11 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
           </button>
 
           {mostrarClaveRespuesta === pregunta.id && (
-            <div className={`mt-3 p-4 rounded-lg border ${
-              darkMode ? 'bg-slate-700 border-slate-600' : 'bg-gray-50 border-gray-200'
-            }`}>
+            <div className="mt-3 p-4 rounded-lg border bg-raised border-ui">
               {pregunta.tipo === 'seleccion-multiple' && (
                 <div className="space-y-4">
                   <div>
-                    <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    <label className="block text-sm font-medium mb-2 text-secondary">
                       Puntos de la pregunta:
                     </label>
                     <input
@@ -1073,7 +1005,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       onBlur={() => {
                         const valor = puntosTemp[pregunta.id] || String(pregunta.puntos);
                         const numero = parseFloat(valor.replace(',', '.'));
-                        
+
                         if (valor === '' || isNaN(numero) || numero <= 0) {
                           actualizarPregunta(pregunta.id, { puntos: 1 });
                           setPuntosTemp({...puntosTemp, [pregunta.id]: '1'});
@@ -1084,22 +1016,18 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                           setPuntosTemp(temp);
                         }
                       }}
-                      className={`w-32 px-3 py-2 rounded border ${
-                        darkMode 
-                          ? 'bg-slate-600 border-slate-500 text-white' 
-                          : 'bg-white border-gray-300'
-                      }`}
+                      className="w-32 px-3 py-2 rounded border bg-raised border-ui text-primary"
                     />
                   </div>
 
                   {(pregunta.opciones?.filter(o => o.esCorrecta).length || 0) >= 2 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <label className="text-sm font-medium text-secondary">
                         Calificación parcial:
                       </label>
                       <div className="relative group">
-                        <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                        <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                         <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg whitespace-normal" style={{ minWidth: '280px' }}>
                           Se otorgarán puntos proporcionales por respuestas parcialmente correctas
                           <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -1129,9 +1057,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       }`}>
                         {pregunta.calificacionParcial && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className={`text-sm font-medium ${
-                        darkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <span className="text-sm font-medium text-primary">
                         {pregunta.calificacionParcial ? 'Activada' : 'Desactivada'}
                       </span>
                     </button>
@@ -1144,7 +1070,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               {pregunta.tipo !== 'seleccion-multiple' && (
               <div className="space-y-4">
                 <div>
-                  <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  <label className="block text-sm font-medium mb-2 text-secondary">
                     Puntos de la pregunta:
                   </label>
                   <input
@@ -1180,25 +1106,21 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                         setPuntosTemp(temp);
                       }
                     }}
-                    className={`w-32 px-3 py-2 rounded border ${
-                      darkMode 
-                        ? 'bg-slate-600 border-slate-500 text-white' 
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className="w-32 px-3 py-2 rounded border bg-raised border-ui text-primary"
                   />
                 </div>
 
                 {/* Opción de calificación parcial */}
-                {permiteCalificacionParcial && 
+                {permiteCalificacionParcial &&
                  ((pregunta.tipo === 'rellenar-espacios' && (pregunta.palabrasSeleccionadas?.length || 0) >= 2) ||
                   (pregunta.tipo === 'conectar' && (pregunta.paresConexion?.length || 0) >= 2)) && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <label className="text-sm font-medium text-secondary">
                         Calificación parcial:
                       </label>
                       <div className="relative group">
-                        <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                        <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                         <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '280px' }}>
                           Se otorgarán puntos proporcionales por respuestas parcialmente correctas
                           <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
@@ -1228,9 +1150,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       }`}>
                         {pregunta.calificacionParcial && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className={`text-sm font-medium ${
-                        darkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <span className="text-sm font-medium text-primary">
                         {pregunta.calificacionParcial ? 'Activada' : 'Desactivada'}
                       </span>
                     </button>
@@ -1241,11 +1161,11 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                 {pregunta.tipo === 'abierta' && pregunta.metodoEvaluacion === 'palabras-clave' && (pregunta.palabrasClave?.length || 0) >= 2 && (
                   <div>
                     <div className="flex items-center gap-2 mb-2">
-                      <label className={`text-sm font-medium ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <label className="text-sm font-medium text-secondary">
                         Calificación parcial:
                       </label>
                       <div className="relative group">
-                        <HelpCircle className={`w-5 h-5 ${darkMode ? "text-gray-500" : "text-gray-400"} cursor-help`} />
+                        <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                         <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '280px' }}>
                           {pregunta.metodoEvaluacion === 'palabras-clave' 
                             ? 'Se otorgarán puntos proporcionales según cuántas palabras clave se encuentren en la respuesta del estudiante'
@@ -1277,9 +1197,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                       }`}>
                         {pregunta.calificacionParcial && <Check className="w-3 h-3 text-white" />}
                       </div>
-                      <span className={`text-sm font-medium ${
-                        darkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <span className="text-sm font-medium text-primary">
                         {pregunta.calificacionParcial ? 'Activada' : 'Desactivada'}
                       </span>
                     </button>
@@ -1295,18 +1213,14 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         <div className="flex items-center justify-end gap-3 pt-4">
           <button
             onClick={() => duplicarPregunta(pregunta.id)}
-            className={`p-2 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-slate-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
-            }`}
+            className="p-2 rounded-lg transition-colors hover:bg-ui-hover text-secondary"
             title="Duplicar"
           >
             <Copy className="w-5 h-5" />
           </button>
           <button
             onClick={() => eliminarPregunta(pregunta.id)}
-            className={`p-2 rounded-lg transition-colors ${
-              darkMode ? 'hover:bg-slate-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
-            }`}
+            className="p-2 rounded-lg transition-colors hover:bg-ui-hover text-secondary"
             title="Eliminar"
           >
             <Trash2 className="w-5 h-5" />
@@ -1347,18 +1261,14 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
     return (
       <div
         onClick={() => toggleEditarPregunta(pregunta.id)}
-        className={`group relative rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden cursor-pointer mb-6 ${
-          darkMode 
-            ? "bg-slate-800/60 border-slate-800 hover:border-blue-700/80" 
-            : "bg-white border-gray-200 hover:shadow-lg hover:border-blue-300"
+        className={`group relative rounded-2xl shadow-sm border transition-all duration-300 overflow-hidden cursor-pointer mb-6 border-ui ${
+          darkMode
+            ? "bg-slate-800/60 hover:border-blue-700/80"
+            : "bg-white hover:shadow-lg hover:border-blue-300"
         }`}
       >
         {/* Indicador de Vista Previa / Edición */}
-        <div className={`absolute top-0 right-0 px-4 py-2 rounded-bl-2xl text-sm font-medium flex items-center gap-2 transition-colors z-10 ${
-            darkMode 
-              ? "bg-slate-700 text-slate-300 group-hover:bg-blue-600 group-hover:text-white" 
-              : "bg-gray-100 text-gray-500 group-hover:bg-blue-500 group-hover:text-white"
-        }`}>
+        <div className="absolute top-0 right-0 px-4 py-2 rounded-bl-2xl text-sm font-medium flex items-center gap-2 transition-colors z-10 bg-raised text-muted group-hover:bg-blue-500 group-hover:text-white">
             <span>Vista previa</span>
             <Pencil className="w-4 h-4" />
         </div>
@@ -1370,20 +1280,20 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
           {/* Encabezado de la Pregunta */}
           <div className="flex items-start gap-4 mb-6">
             <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm shrink-0 transition-all duration-300 ${
-              configurada 
+              configurada
                 ? (darkMode ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50" : "bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200")
-                : (darkMode ? "bg-slate-700 text-slate-300" : "bg-white text-slate-600")
+                : "bg-raised text-secondary"
             }`}>
               {index + 1}
             </span>
             <div className="flex-1">
-              <div 
-                className={`text-xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"} prose prose-sm max-w-none ${darkMode ? "prose-invert" : ""}`}
+              <div
+                className={`text-xl font-medium font-serif leading-snug text-primary prose prose-sm max-w-none ${darkMode ? "prose-invert" : ""}`}
                 dangerouslySetInnerHTML={{ __html: pregunta.titulo || '<span class="opacity-50">Pregunta sin título</span>' }}
               />
               
               <div className="flex flex-wrap gap-2 mt-3">
-                <span className={`inline-block text-sm font-semibold px-3 py-1.5 rounded ${darkMode ? "bg-slate-700/50 text-slate-400" : "bg-white text-slate-500 border border-gray-100"}`}>
+                <span className={`inline-block text-sm font-semibold px-3 py-1.5 rounded text-muted ${darkMode ? "bg-slate-700/50" : "bg-white border border-gray-100"}`}>
                   {pregunta.puntos} {pregunta.puntos === 1 ? "punto" : "puntos"}
                 </span>
                 {!configurada && (
@@ -1402,7 +1312,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
           {/* Imagen Opcional */}
           {pregunta.imagen && (
-            <div className={`mb-6 rounded-xl overflow-hidden border flex justify-center p-4 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-white border-gray-200"}`}>
+            <div className={`mb-6 rounded-xl overflow-hidden border flex justify-center p-4 border-ui ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
               <img
                 src={pregunta.imagen}
                 alt="Referencia visual"
@@ -1418,16 +1328,11 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                 {pregunta.opciones?.map((option) => (
                   <div
                     key={option.id}
-                    className={`
-                      flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200
-                      ${darkMode ? "border-slate-700 bg-slate-800/40" : "border-gray-200 bg-white"}
-                    `}
+                    className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all duration-200 border-ui ${darkMode ? "bg-slate-800/40" : "bg-white"}`}
                   >
-                    <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${
-                      darkMode ? "border-slate-500" : "border-gray-300"
-                    }`}>
+                    <div className="w-5 h-5 rounded border-2 flex items-center justify-center border-ui">
                     </div>
-                    <span className={`flex-1 font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                    <span className="flex-1 font-medium text-secondary">
                       {option.texto}
                     </span>
                   </div>
@@ -1436,16 +1341,16 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
             )}
 
             {pregunta.tipo === 'rellenar-espacios' && (
-              <div className={`p-6 rounded-xl border leading-loose text-lg ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
+              <div className={`p-6 rounded-xl border leading-loose text-lg border-ui ${darkMode ? "bg-slate-800/50" : "bg-white"}`}>
                 {generarTextoConEspacios(pregunta).split("___").map((parte, idx, arr) => (
                   <span key={idx}>
-                    <span className={darkMode ? "text-slate-300" : "text-slate-700"}>{parte}</span>
+                    <span className="text-secondary">{parte}</span>
                     {idx < arr.length - 1 && (
                       <span className="relative inline-block mx-1">
                         <input
                           type="text"
                           disabled
-                          className={`w-32 px-2 py-1 text-center border-b-2 outline-none rounded-t font-medium ${darkMode ? "bg-slate-800 border-slate-600 text-slate-400" : "bg-gray-50 border-gray-300 text-gray-500"}`}
+                          className="w-32 px-2 py-1 text-center border-b-2 outline-none rounded-t font-medium bg-raised border-ui text-muted"
                         />
                       </span>
                     )}
@@ -1463,9 +1368,9 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     {pregunta.paresConexion?.map((par, idx) => (
                       <div
                         key={`a-${par.id}`}
-                        className={`p-4 rounded-xl border-2 flex items-center justify-between ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-white"}`}
+                        className={`p-4 rounded-xl border-2 flex items-center justify-between border-ui ${darkMode ? "bg-slate-800/80" : "bg-white"}`}
                       >
-                        <span className={`font-medium ${darkMode ? "text-slate-300" : "text-slate-700"}`}>{par.izquierda}</span>
+                        <span className="font-medium text-secondary">{par.izquierda}</span>
                         <div className={`w-3 h-3 rounded-full border-2 ${darkMode ? "bg-slate-700 border-slate-500" : "bg-white border-gray-300"}`}></div>
                       </div>
                     ))}
@@ -1476,10 +1381,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     {pregunta.paresConexion?.map((par, idx) => (
                       <div
                         key={`b-${par.id}`}
-                        className={`p-4 rounded-xl border-2 flex items-center ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-white"}`}
+                        className={`p-4 rounded-xl border-2 flex items-center border-ui ${darkMode ? "bg-slate-800/80" : "bg-white"}`}
                       >
                         <div className={`w-3 h-3 rounded-full border-2 mr-auto ${darkMode ? "bg-slate-700 border-slate-500" : "bg-white border-gray-300"}`}></div>
-                        <span className={`font-medium text-right flex-1 ${darkMode ? "text-slate-300" : "text-slate-700"}`}>{par.derecha}</span>
+                        <span className="font-medium text-right flex-1 text-secondary">{par.derecha}</span>
                       </div>
                     ))}
                   </div>
@@ -1491,7 +1396,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               <div className="flex flex-col gap-3">
                 <textarea
                   disabled
-                  className={`w-full min-h-[140px] p-4 rounded-xl border-2 outline-none resize-y placeholder-slate-400 ${darkMode ? "bg-slate-800/70 border-slate-700 text-slate-200" : "bg-gray-50 border-gray-200 text-slate-700"}`}
+                  className={`w-full min-h-[140px] p-4 rounded-xl border-2 outline-none resize-y placeholder-slate-400 border-ui text-primary ${darkMode ? "bg-slate-800/70" : "bg-gray-50"}`}
                   placeholder="El estudiante escribirá su respuesta aquí..."
                 />
                 {pregunta.metodoEvaluacion !== 'manual' && (
@@ -1523,10 +1428,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
       <button
         onClick={crearNuevaPregunta}
-        className={`w-full py-4 rounded-lg border-2 border-dashed transition-colors ${
-          darkMode 
-            ? 'border-slate-600 hover:border-slate-500 text-gray-400 hover:text-gray-300' 
-            : 'border-gray-300 hover:border-gray-400 text-gray-600 hover:text-gray-700'
+        className={`w-full py-4 rounded-lg border-2 border-dashed transition-colors border-ui text-action ${
+          darkMode
+            ? 'hover:border-slate-500 hover:text-gray-300'
+            : 'hover:border-gray-400 hover:text-gray-700'
         }`}
       >
         <div className="flex items-center justify-center gap-2">

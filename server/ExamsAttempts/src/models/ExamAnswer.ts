@@ -4,6 +4,7 @@ import {
   PrimaryGeneratedColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from "typeorm";
 import type { ExamAttempt } from "./ExamAttempt";
 
@@ -21,6 +22,7 @@ export class ExamAnswer {
   @PrimaryGeneratedColumn()
   id!: number;
 
+  @Index()
   @Column()
   pregunta_id!: number;
 
@@ -30,6 +32,7 @@ export class ExamAnswer {
   @Column({ type: "datetime" })
   fecha_respuesta!: Date;
 
+  @Index()
   @Column()
   intento_id!: number;
 

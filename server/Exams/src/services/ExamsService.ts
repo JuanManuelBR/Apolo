@@ -9,7 +9,7 @@ import { examenValidator } from "../validators/examen-validator";
 import { QuestionValidator } from "../validators/question-validator";
 import { throwHttpError } from "../utils/errors";
 import { schedulerService } from "../scheduler/examScheduler";
-import axios from "axios";
+import { internalHttpClient } from "../utils/httpClient";
 import { ExamenState } from "../types/Exam";
 import { UpdateExamDto } from "../dtos/update-exam.dto";
 import { BaseQuestionDto } from "../dtos/base-question.dto";
@@ -107,6 +107,7 @@ export class ExamService {
         codigoExamen: codigoExamen!,
         archivoPDF: data.archivoPDF || null,
         cambioEstadoAutomatico,
+        dividirPreguntas: data.dividirPreguntas ?? false,
       });
 
       const examen_guardado = await manager.save(Exam, nuevo_examen);
@@ -185,7 +186,7 @@ export class ExamService {
 
     // Verificar que el examen no tenga intentos
     try {
-      const attemptsRes = await axios.get<{ count: number }>(
+      const attemptsRes = await internalHttpClient.get<{ count: number }>(
         `${this.EXAM_ATTEMPTS_MS_URL}/api/exam/${examId}/attempt-count`,
       );
       if (attemptsRes.data.count > 0) {
@@ -357,6 +358,8 @@ export class ExamService {
           : null;
       if (data.consecuencia !== undefined)
         existingExam.consecuencia = data.consecuencia;
+      if (data.dividirPreguntas !== undefined)
+        existingExam.dividirPreguntas = data.dividirPreguntas;
 
       // Actualizar cambio de estado automático
       const cambioEstadoAutomatico = !!(
@@ -426,7 +429,7 @@ export class ExamService {
     let nombreProfesor = "Profesor no disponible";
     try {
       const usersMsUrl = process.env.USERS_MS_URL;
-      const response = await axios.get<any>(
+      const response = await internalHttpClient.get<any>(
         `${usersMsUrl}/api/users/${examen.id_profesor}`,
       );
       const profesor = response.data;
@@ -497,7 +500,7 @@ export class ExamService {
     let nombreProfesor = "Profesor no disponible";
     try {
       const usersMsUrl = process.env.USERS_MS_URL;
-      const response = await axios.get<any>(
+      const response = await internalHttpClient.get<any>(
         `${usersMsUrl}/api/users/${exam.id_profesor}`,
       );
       const profesor = response.data;
@@ -700,12 +703,25 @@ export class ExamService {
     examId: number,
     profesorId: number,
     cookies?: string,
-  ): Promise<{ codigoExamen: string }> {
+  ): Promise<{ codigoExamen: string; codigoRegeneradoEn: Date }> {
+    const COOLDOWN_MS = 60 * 60 * 1000; // 1 hora
+
     const exam = await examenValidator.verificarPropietarioExamen(
       examId,
       profesorId,
       cookies,
     );
+
+    if (exam.codigoRegeneradoEn) {
+      const transcurrido = Date.now() - new Date(exam.codigoRegeneradoEn).getTime();
+      if (transcurrido < COOLDOWN_MS) {
+        const minutosRestantes = Math.ceil((COOLDOWN_MS - transcurrido) / 60000);
+        throwHttpError(
+          `Debes esperar ${minutosRestantes} minuto${minutosRestantes !== 1 ? "s" : ""} antes de regenerar el código nuevamente`,
+          429,
+        );
+      }
+    }
 
     let nuevoCodigoExamen: string = "";
     let codigoExiste = true;
@@ -725,10 +741,12 @@ export class ExamService {
       throwHttpError("No se pudo generar un código único para el examen", 500);
     }
 
+    const ahora = new Date();
     exam.codigoExamen = nuevoCodigoExamen;
+    exam.codigoRegeneradoEn = ahora;
     await this.examRepo.save(exam);
 
-    return { codigoExamen: nuevoCodigoExamen };
+    return { codigoExamen: nuevoCodigoExamen, codigoRegeneradoEn: ahora };
   }
 
   async deleteExamById(

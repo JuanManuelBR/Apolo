@@ -1,13 +1,13 @@
 import { AppDataSource } from "../data-source/AppDataSource";
 import { ExamInProgress } from "../models/ExamInProgress";
 import { throwHttpError } from "../utils/errors";
-import axios from "axios";
+import { internalHttpClient } from "../utils/httpClient";
 
 const EXAM_MS_URL = process.env.EXAM_MS_URL;
 export class ExamAttemptValidator {
   static async validateExamExists(codigo_examen: string) {
     try {
-      const response = await axios.get(
+      const response = await internalHttpClient.get(
         `${EXAM_MS_URL}/api/exams/forAttempt/${codigo_examen}`,
       );
       return response.data;
@@ -21,7 +21,7 @@ export class ExamAttemptValidator {
 
   static async validateExamExistsById(codigo_examen: number) {
     try {
-      const response = await axios.get(
+      const response = await internalHttpClient.get(
         `${EXAM_MS_URL}/api/exams/by-id/${codigo_examen}`,
       );
       return response.data;

@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, PrimaryGeneratedColumn, Index } from "typeorm";
 
 export enum AttemptEvent {
   INTENTO_INICIADO = "intento_iniciado",
@@ -23,6 +23,7 @@ export class ExamEvent {
   @Column({ type: "datetime" })
   fecha_envio!: Date;
 
+  @Index()
   @Column()
   intento_id!: number;
 
