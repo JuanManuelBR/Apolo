@@ -136,6 +136,10 @@ export class add_exam_dto {
   @IsOptional()
   cambioEstadoAutomatico?: boolean;
 
+  @IsBoolean({ message: "dividirPreguntas debe ser true o false" })
+  @IsOptional()
+  dividirPreguntas?: boolean;
+
   @IsNotEmpty()
   @IsArray({ message: "Las preguntas deben ser un array" })
   @ValidateNested({ each: true })

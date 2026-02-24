@@ -3,9 +3,10 @@ import { ExamAttempt, AttemptState } from "../models/ExamAttempt";
 import { ExamEvent } from "../models/ExamEvent";
 import { ExamInProgress } from "../models/ExamInProgress";
 import { ExamAttemptValidator } from "../validators/ExamAttemptValidator";
+import { In } from "typeorm";
 import { throwHttpError } from "../utils/errors";
 import { QuestionResponseBuilder } from "./QuestionResponseBuilder";
-import axios from "axios";
+import { internalHttpClient } from "../utils/httpClient";
 import ExcelJS from "exceljs";
 
 export class AttemptQueryService {
@@ -40,7 +41,7 @@ export class AttemptQueryService {
       `🔍 Obteniendo examen completo desde: ${EXAM_MS_URL}/api/exams/forAttempt/${examBasic.codigoExamen}`,
     );
 
-    const examResponse = await axios.get(
+    const examResponse = await internalHttpClient.get(
       `${EXAM_MS_URL}/api/exams/forAttempt/${examBasic.codigoExamen}`,
     );
     const exam = examResponse.data;
@@ -186,7 +187,7 @@ export class AttemptQueryService {
 
     // 6. Examen con preguntas: obtener examen con respuestas correctas
     const EXAM_MS_URL = process.env.EXAM_MS_URL;
-    const examResponse = await axios.get(
+    const examResponse = await internalHttpClient.get(
       `${EXAM_MS_URL}/api/exams/by-id/${attempt.examen_id}`,
     );
     const exam = examResponse.data;
@@ -229,53 +230,62 @@ export class AttemptQueryService {
     const progressRepo = AppDataSource.getRepository(ExamInProgress);
     const eventRepo = AppDataSource.getRepository(ExamEvent);
 
+    // 1 query: todos los intentos del examen
     const attempts = await attemptRepo.find({
-      where: {
-        examen_id: examId,
-      },
+      where: { examen_id: examId },
       order: { fecha_inicio: "DESC" },
     });
 
-    const attemptsWithDetails = await Promise.all(
-      attempts.map(async (attempt) => {
-        const progress = await progressRepo.findOne({
-          where: { intento_id: attempt.id },
-        });
+    if (attempts.length === 0) return [];
 
-        const allEvents = await eventRepo.find({
-          where: { intento_id: attempt.id },
-          order: { fecha_envio: "DESC" },
-        });
+    const attemptIds = attempts.map((a) => a.id);
 
-        const unreadEvents = allEvents.filter((e) => !e.leido);
-
-        const endTime = attempt.fecha_fin ? new Date(attempt.fecha_fin) : new Date();
-        const elapsed =
-          endTime.getTime() - new Date(attempt.fecha_inicio).getTime();
-        const elapsedMinutes = Math.floor(elapsed / 60000);
-
-        return {
-          id: attempt.id,
-          nombre_estudiante: attempt.nombre_estudiante || "Sin nombre",
-          correo_estudiante: attempt.correo_estudiante,
-          identificacion_estudiante: attempt.identificacion_estudiante,
-          estado: attempt.estado,
-          fecha_inicio: attempt.fecha_inicio,
-          tiempoTranscurrido: `${elapsedMinutes} min`,
-          progreso: attempt.progreso || 0,
-          alertas: allEvents.length,
-          alertasNoLeidas: unreadEvents.length,
-          codigo_acceso: progress?.codigo_acceso,
-          fecha_expiracion: progress?.fecha_expiracion,
-          fecha_fin: attempt.fecha_fin,
-          esExamenPDF: attempt.esExamenPDF,
-          calificacionPendiente: attempt.calificacionPendiente,
-          notaFinal: attempt.notaFinal,
-        };
+    // 2 queries en paralelo en vez de 2N queries individuales
+    const [allProgress, allEvents] = await Promise.all([
+      progressRepo.find({ where: { intento_id: In(attemptIds) } }),
+      eventRepo.find({
+        where: { intento_id: In(attemptIds) },
+        order: { fecha_envio: "DESC" },
       }),
-    );
+    ]);
 
-    return attemptsWithDetails;
+    // Indexar en memoria para lookup O(1)
+    const progressMap = new Map(allProgress.map((p) => [p.intento_id, p]));
+    const eventsMap = new Map<number, ExamEvent[]>();
+    for (const event of allEvents) {
+      if (!eventsMap.has(event.intento_id)) eventsMap.set(event.intento_id, []);
+      eventsMap.get(event.intento_id)!.push(event);
+    }
+
+    return attempts.map((attempt) => {
+      const progress = progressMap.get(attempt.id);
+      const events = eventsMap.get(attempt.id) ?? [];
+      const unreadCount = events.filter((e) => !e.leido).length;
+
+      const endTime = attempt.fecha_fin ? new Date(attempt.fecha_fin) : new Date();
+      const elapsedMinutes = Math.floor(
+        (endTime.getTime() - new Date(attempt.fecha_inicio).getTime()) / 60000,
+      );
+
+      return {
+        id: attempt.id,
+        nombre_estudiante: attempt.nombre_estudiante || "Sin nombre",
+        correo_estudiante: attempt.correo_estudiante,
+        identificacion_estudiante: attempt.identificacion_estudiante,
+        estado: attempt.estado,
+        fecha_inicio: attempt.fecha_inicio,
+        tiempoTranscurrido: `${elapsedMinutes} min`,
+        progreso: attempt.progreso || 0,
+        alertas: events.length,
+        alertasNoLeidas: unreadCount,
+        codigo_acceso: progress?.codigo_acceso,
+        fecha_expiracion: progress?.fecha_expiracion,
+        fecha_fin: attempt.fecha_fin,
+        esExamenPDF: attempt.esExamenPDF,
+        calificacionPendiente: attempt.calificacionPendiente,
+        notaFinal: attempt.notaFinal,
+      };
+    });
   }
 
   static async getAttemptCountByExam(examId: number): Promise<number> {

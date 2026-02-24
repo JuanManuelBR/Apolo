@@ -9,6 +9,21 @@ import { throwHttpError } from "../utils/errors";
 import { CreateExamAnswerDto } from "../dtos/Create-ExamAnswer.dto";
 import { GradingService } from "./GradingService";
 
+// Cache de cantidad de preguntas por examen para evitar llamadas al MS en cada respuesta guardada
+const examQuestionCountCache = new Map<number, { count: number; expiresAt: number }>();
+const EXAM_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutos
+
+async function getExamQuestionCount(examId: number): Promise<number> {
+  const cached = examQuestionCountCache.get(examId);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.count;
+  }
+  const exam = await ExamAttemptValidator.validateExamExistsById(examId);
+  const count = exam.questions?.length ?? 0;
+  examQuestionCountCache.set(examId, { count, expiresAt: Date.now() + EXAM_CACHE_TTL_MS });
+  return count;
+}
+
 export class AnswerService {
   static async saveAnswer(data: CreateExamAnswerDto, io: Server) {
     const repo = AppDataSource.getRepository(ExamAnswer);
@@ -91,17 +106,7 @@ export class AnswerService {
       return answer;
     }
 
-    const exam = await ExamAttemptValidator.validateExamExistsById(
-      attempt.examen_id,
-    );
-
-    console.log(`📚 Examen encontrado:`, {
-      id: exam.id,
-      nombre: exam.nombre,
-      totalPreguntas: exam.questions?.length || 0,
-    });
-
-    const totalQuestions = exam.questions?.length || 0;
+    const totalQuestions = await getExamQuestionCount(attempt.examen_id);
 
     if (totalQuestions === 0) {
       console.log(`⚠️ El examen no tiene preguntas`);

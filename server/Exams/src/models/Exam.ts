@@ -5,6 +5,7 @@ import {
   Column,
   CreateDateColumn,
   OneToMany,
+  Index,
 } from "typeorm";
 
 import { Consecuencia, ExamenState, TiempoAgotado } from "../types/Exam";
@@ -21,7 +22,8 @@ export class Exam {
   @Column({ type: "text" })
   descripcion?: string;
 
-  @Column({ type: "text" })
+  @Index()
+  @Column({ type: "varchar", length: 50 })
   codigoExamen?: string;
 
   @Column({ type: "varchar", length: 255, nullable: true })
@@ -33,6 +35,7 @@ export class Exam {
   @Column({ type: "enum", enum: ExamenState })
   estado!: ExamenState;
 
+  @Index()
   @Column()
   id_profesor!: number;
 
@@ -92,6 +95,9 @@ export class Exam {
 
   @Column({ type: "boolean", default: false })
   tienePreguntasAbiertas!: boolean;
+
+  @Column({ type: "boolean", default: false })
+  dividirPreguntas!: boolean;
 
   @OneToMany(() => Question, (question) => question.exam, {
     onDelete: "CASCADE",

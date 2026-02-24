@@ -108,6 +108,10 @@ export class UpdateExamDto {
   @IsOptional()
   consecuencia?: Consecuencia;
 
+  @IsBoolean({ message: "dividirPreguntas debe ser true o false" })
+  @IsOptional()
+  dividirPreguntas?: boolean;
+
   @IsString({
     message: "El nombre del archivo PDF debe ser una cadena de texto",
   })

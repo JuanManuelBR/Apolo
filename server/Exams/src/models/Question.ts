@@ -4,6 +4,7 @@ import {
   Column,
   PrimaryGeneratedColumn,
   ManyToOne,
+  Index,
 } from "typeorm";
 import { Exam } from "./Exam";
 
@@ -25,6 +26,7 @@ export abstract class Question {
   @Column({ type: "boolean" })
   calificacionParcial!: boolean;
 
+  @Index()
   @ManyToOne("Exam", "questions", { onDelete: "CASCADE" })
   exam!: Exam;
 

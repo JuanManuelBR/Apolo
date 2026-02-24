@@ -1,4 +1,4 @@
-import axios from "axios";
+import { internalHttpClient } from "../utils/httpClient";
 
 export class ExamOwnershipValidator {
   static async validateExamOwnership(
@@ -7,7 +7,7 @@ export class ExamOwnershipValidator {
   ): Promise<{ valid: boolean; exam?: any }> {
     try {
       // Usar el endpoint correcto por ID
-      const response = await axios.get(
+      const response = await internalHttpClient.get(
         `http://localhost:3001/api/exams/by-id/${examId}`
       );
 
