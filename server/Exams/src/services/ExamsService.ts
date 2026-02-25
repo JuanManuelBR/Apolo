@@ -47,12 +47,27 @@ export class ExamService {
     await examenValidator.verificarProfesor(id_profesor, cookies);
     await examenValidator.verificarExamenDuplicado(data.nombre, id_profesor);
 
-    const cambioEstadoAutomatico = !!(data.horaApertura && data.horaCierre);
+    const cambioEstadoAutomatico = !!(data.horaApertura || data.horaCierre);
 
     if (data.horaApertura && data.horaCierre) {
       if (data.horaApertura >= data.horaCierre) {
         throwHttpError(
           "La hora de apertura debe ser anterior a la hora de cierre",
+          400,
+        );
+      }
+    }
+
+    if (data.limiteTiempo && data.horaCierre) {
+      const refTime = data.horaApertura
+        ? new Date(data.horaApertura).getTime()
+        : Date.now();
+      const windowMinutos = Math.floor(
+        (new Date(data.horaCierre).getTime() - refTime) / 60000,
+      );
+      if (data.limiteTiempo > windowMinutos) {
+        throwHttpError(
+          `El tiempo límite no puede superar la duración del examen (${windowMinutos} min)`,
           400,
         );
       }
@@ -100,7 +115,7 @@ export class ExamService {
         horaApertura: data.horaApertura || null,
         horaCierre: data.horaCierre || null,
         limiteTiempo: data.limiteTiempo,
-        limiteTiempoCumplido: data.limiteTiempo
+        limiteTiempoCumplido: (data.limiteTiempo || data.horaCierre)
           ? data.limiteTiempoCumplido
           : null,
         consecuencia: data.consecuencia,
@@ -354,7 +369,7 @@ export class ExamService {
       if (data.limiteTiempo !== undefined)
         existingExam.limiteTiempo = data.limiteTiempo;
       if (data.limiteTiempoCumplido !== undefined)
-        existingExam.limiteTiempoCumplido = data.limiteTiempo
+        existingExam.limiteTiempoCumplido = (data.limiteTiempo || data.horaCierre)
           ? data.limiteTiempoCumplido
           : null;
       if (data.consecuencia !== undefined)
@@ -364,9 +379,25 @@ export class ExamService {
       if (data.permitirVolverPreguntas !== undefined)
         existingExam.permitirVolverPreguntas = data.permitirVolverPreguntas;
 
+      // Validar que limiteTiempo no supere la ventana disponible
+      if (existingExam.limiteTiempo && existingExam.horaCierre) {
+        const refTime = existingExam.horaApertura
+          ? new Date(existingExam.horaApertura).getTime()
+          : Date.now();
+        const windowMinutos = Math.floor(
+          (new Date(existingExam.horaCierre).getTime() - refTime) / 60000,
+        );
+        if (existingExam.limiteTiempo > windowMinutos) {
+          throwHttpError(
+            `El tiempo límite no puede superar la duración del examen (${windowMinutos} min)`,
+            400,
+          );
+        }
+      }
+
       // Actualizar cambio de estado automático
       const cambioEstadoAutomatico = !!(
-        existingExam.horaApertura && existingExam.horaCierre
+        existingExam.horaApertura || existingExam.horaCierre
       );
       existingExam.cambioEstadoAutomatico = cambioEstadoAutomatico;
 
@@ -383,11 +414,9 @@ export class ExamService {
       }
 
       // 5. ACTUALIZAR SCHEDULER
+      schedulerService.cancelarCambioEstado(examId);
       if (cambioEstadoAutomatico) {
         schedulerService.programarCambioEstado(examActualizado);
-      } else if (existingExam.cambioEstadoAutomatico) {
-        // Si antes tenía cambio automático y ahora no
-        schedulerService.cancelarCambioEstado(examId);
       }
 
       return examActualizado;
@@ -666,13 +695,32 @@ export class ExamService {
     }
 
     exam.estado = newStatus;
-    exam.cambioEstadoAutomatico = false;
+    schedulerService.cancelarCambioEstado(examId);
 
-    if (exam.cambioEstadoAutomatico) {
-      schedulerService.cancelarCambioEstado(examId);
+    if (newStatus === ExamenState.OPEN) {
+      // Al abrir manualmente: eliminar fecha de apertura (ya no aplica),
+      // mantener horaCierre y su scheduler de cierre automático.
+      exam.horaApertura = null;
+      exam.cambioEstadoAutomatico = !!exam.horaCierre;
+    } else {
+      exam.cambioEstadoAutomatico = false;
     }
 
-    return await this.examRepo.save(exam);
+    const saved = await this.examRepo.save(exam);
+
+    if (newStatus === ExamenState.OPEN && saved.cambioEstadoAutomatico) {
+      schedulerService.programarCambioEstado(saved);
+    }
+
+    if (newStatus === ExamenState.CLOSED && this.EXAM_ATTEMPTS_MS_URL) {
+      internalHttpClient
+        .post(`${this.EXAM_ATTEMPTS_MS_URL}/api/exam/${examId}/close-finish`)
+        .catch((err) =>
+          console.error(`Error al finalizar intentos activos al cerrar examen ${examId}:`, err.message),
+        );
+    }
+
+    return saved;
   }
 
   async archiveExam(
@@ -999,5 +1047,22 @@ export class ExamService {
 
       return examenGuardado;
     });
+  }
+
+  async removeTimeLimit(examId: number): Promise<Exam> {
+    const exam = await this.examRepo.findOne({ where: { id: examId } });
+    if (!exam) {
+      throwHttpError("Examen no encontrado", 404);
+    }
+
+    schedulerService.cancelarCambioEstado(examId);
+
+    exam.horaCierre = null;
+    exam.horaApertura = null;
+    exam.limiteTiempo = null;
+    exam.limiteTiempoCumplido = null;
+    exam.cambioEstadoAutomatico = false;
+
+    return await this.examRepo.save(exam);
   }
 }

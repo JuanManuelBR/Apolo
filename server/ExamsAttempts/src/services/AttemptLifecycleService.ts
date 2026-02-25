@@ -260,12 +260,10 @@ export class AttemptLifecycleService {
 
     attempt.fecha_fin = new Date();
     attempt.estado = AttemptState.FINISHED;
-
-    examInProgress.estado = AttemptState.FINISHED;
-    examInProgress.fecha_fin = new Date();
+    attempt.codigoRevision = examInProgress.codigo_acceso;
 
     await attemptRepo.save(attempt);
-    await progressRepo.save(examInProgress);
+    await progressRepo.delete({ intento_id });
 
     io.to(`attempt_${intento_id}`).emit("attempt_finished", {
       puntaje: attempt.puntaje,
@@ -314,17 +312,17 @@ export class AttemptLifecycleService {
 
     attempt.fecha_fin = new Date();
     attempt.estado = AttemptState.FINISHED;
-    examInProgress.estado = AttemptState.FINISHED;
-    examInProgress.fecha_fin = new Date();
+    attempt.codigoRevision = examInProgress.codigo_acceso;
 
     await attemptRepo.save(attempt);
-    await progressRepo.save(examInProgress);
+    await progressRepo.delete({ intento_id: attempt.id });
 
     io.to(`attempt_${attempt.id}`).emit("time_expired", {
       message: "El tiempo del examen ha expirado",
       puntaje: attempt.puntaje,
       esExamenPDF: attempt.esExamenPDF,
       calificacionPendiente: attempt.calificacionPendiente,
+      limiteTiempoCumplido: attempt.limiteTiempoCumplido,
     });
   }
 

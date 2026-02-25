@@ -75,6 +75,10 @@ export class ExamAttempt {
   @Column({ type: "varchar", nullable: true, length: 2000, default: null })
   retroalimentacion?: string | null;
 
+  @Index()
+  @Column({ type: "varchar", length: 10, nullable: true, unique: true, default: null })
+  codigoRevision?: string | null;
+
   @OneToMany(() => ExamAnswer, (answer) => answer.intento, {
     cascade: true,
   })

@@ -160,6 +160,16 @@ export default function CrearExamen({
     { id: "codigoEstudiante", nombre: "Código estudiante", activo: false },
   ]);
 
+  const toLocalDateTimeInput = (isoString: string): string => {
+    const date = new Date(isoString);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
   const obtenerFechaActual = () => {
     const now = new Date();
     const year = now.getFullYear();
@@ -187,6 +197,25 @@ export default function CrearExamen({
   const [limiteTiempo, setLimiteTiempo] = useState<number | string>(30);
   const [opcionTiempoAgotado, setOpcionTiempoAgotado] =
     useState<OpcionTiempoAgotado>("");
+
+  // Máximo de minutos permitido según las fechas configuradas:
+  // - Ambas fechas: horaCierre - horaApertura
+  // - Solo horaCierre: horaCierre - ahora
+  const maxMinutos = (() => {
+    if (!fechaCierreHabilitada || !fechaCierre) return null;
+    const cierre = new Date(fechaCierre).getTime();
+    const ref = fechaInicioHabilitada && fechaInicio
+      ? new Date(fechaInicio).getTime()
+      : Date.now();
+    return Math.max(0, Math.floor((cierre - ref) / 60000));
+  })();
+
+  // Auto-clamp limiteTiempo cuando cambian las fechas
+  useEffect(() => {
+    if (maxMinutos !== null && limiteHabilitado && Number(limiteTiempo) > maxMinutos) {
+      setLimiteTiempo(Math.max(1, maxMinutos));
+    }
+  }, [maxMinutos, limiteHabilitado]);
 
   const [contraseñaExamen, setContraseñaExamen] = useState("");
   const [contraseñaHabilitada, setContraseñaHabilitada] = useState(false);
@@ -255,17 +284,21 @@ export default function CrearExamen({
         // Fechas
         if (ex.horaApertura) {
           setFechaInicioHabilitada(true);
-          setFechaInicio(new Date(ex.horaApertura).toISOString().slice(0, 16));
+          setFechaInicio(toLocalDateTimeInput(ex.horaApertura));
         }
         if (ex.horaCierre) {
           setFechaCierreHabilitada(true);
-          setFechaCierre(new Date(ex.horaCierre).toISOString().slice(0, 16));
+          setFechaCierre(toLocalDateTimeInput(ex.horaCierre));
         }
 
         // Límite de tiempo
         if (ex.limiteTiempo) {
           setLimiteHabilitado(true);
           setLimiteTiempo(ex.limiteTiempo);
+        }
+
+        // Opción cuando se agota el tiempo / cierra el examen
+        if (ex.limiteTiempoCumplido) {
           setOpcionTiempoAgotado(
             ex.limiteTiempoCumplido === "descartar" ? "debe-enviarse" : "envio-automatico"
           );
@@ -548,12 +581,17 @@ export default function CrearExamen({
     }
 
 
+    // Validar que limiteTiempo no supere la ventana apertura-cierre
+    if (limiteHabilitado && maxMinutos !== null && Number(limiteTiempo) > maxMinutos) {
+      mostrarModal("advertencia", "Tiempo límite inválido", `El tiempo límite no puede superar la duración del examen (${maxMinutos} min)`, cerrarModal);
+      return;
+    }
+
     // ✅ NUEVA VALIDACIÓN: Verificar límite de tiempo y opción de tiempo agotado
-    if (limiteHabilitado) {
-      if (!opcionTiempoAgotado) {
-        mostrarModal("advertencia", "Campo requerido", "Por favor, seleccione qué hacer cuando se agote el tiempo", cerrarModal);
-        return;
-      }
+    const necesitaOpcionTiempo = limiteHabilitado || (fechaCierreHabilitada);
+    if (necesitaOpcionTiempo && !opcionTiempoAgotado) {
+      mostrarModal("advertencia", "Campo requerido", "Por favor, seleccione qué hacer cuando se agote el tiempo o el examen se cierre", cerrarModal);
+      return;
     }
     setGuardando(true);
 
@@ -579,7 +617,7 @@ export default function CrearExamen({
         limiteTiempo: limiteHabilitado
           ? { valor: (limiteTiempo && Number(limiteTiempo) > 0) ? Number(limiteTiempo) : 30, unidad: "minutos" as const }
           : null,
-        opcionTiempoAgotado: limiteHabilitado ? opcionTiempoAgotado : "envio-automatico",
+        opcionTiempoAgotado,
         seguridad: {
           contraseña: contraseñaHabilitada ? contraseñaExamen : "",
           consecuenciaAbandono,
@@ -1017,7 +1055,7 @@ export default function CrearExamen({
             >
               Tiempo
             </div>
-            {!seccion4Visitada || (limiteHabilitado && !opcionTiempoAgotado) ? (
+            {!seccion4Visitada || ((limiteHabilitado || (fechaCierreHabilitada)) && !opcionTiempoAgotado) ? (
               <div className="relative">
                 <AlertCircle
                   className="w-5 h-5 text-red-500 cursor-pointer"
@@ -1096,9 +1134,11 @@ export default function CrearExamen({
                 <div className="flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-muted" />
                   <button
-                    onClick={() =>
-                      setFechaCierreHabilitada(!fechaCierreHabilitada)
-                    }
+                    onClick={() => {
+                      const next = !fechaCierreHabilitada;
+                      setFechaCierreHabilitada(next);
+                      if (!next && !limiteHabilitado) setOpcionTiempoAgotado("");
+                    }}
                     className={`w-5 h-5 rounded border-2 flex items-center justify-center ${fechaCierreHabilitada ? bgCheckbox : darkMode ? "border-gray-600" : "border-gray-300"}`}
                   >
                     {fechaCierreHabilitada && (
@@ -1151,40 +1191,60 @@ export default function CrearExamen({
                 </span>
               </div>
               {limiteHabilitado && (
-                <div className="flex gap-3 items-center">
-                  <input
-                    type="number"
-                    value={limiteTiempo}
-                    onChange={(e) => setLimiteTiempo(e.target.value === "" ? "" : Number(e.target.value))}
-                    onBlur={() => {
-                      if (!limiteTiempo || Number(limiteTiempo) <= 0) {
-                        setLimiteTiempo(30);
-                      }
-                    }}
-                    className="w-28 px-4 py-2.5 rounded-lg border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-raised border-ui text-primary"
-                  />
-                  <span
-                    className="text-sm font-medium text-secondary"
-                  >
-                    minutos
-                  </span>
+                <div className="space-y-1">
+                  <div className="flex gap-3 items-center">
+                    <input
+                      type="number"
+                      value={limiteTiempo}
+                      min={1}
+                      max={maxMinutos ?? undefined}
+                      onChange={(e) => {
+                        if (e.target.value === "") { setLimiteTiempo(""); return; }
+                        const val = Number(e.target.value);
+                        if (maxMinutos !== null && val > maxMinutos) {
+                          setLimiteTiempo(maxMinutos);
+                        } else {
+                          setLimiteTiempo(val);
+                        }
+                      }}
+                      onBlur={() => {
+                        const val = Number(limiteTiempo);
+                        if (!val || val <= 0) {
+                          setLimiteTiempo(maxMinutos !== null && maxMinutos >= 1 ? Math.min(30, maxMinutos) : 30);
+                        } else if (maxMinutos !== null && val > maxMinutos) {
+                          setLimiteTiempo(maxMinutos);
+                        }
+                      }}
+                      className="w-28 px-4 py-2.5 rounded-lg border [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none bg-raised border-ui text-primary"
+                    />
+                    <span className="text-sm font-medium text-secondary">
+                      minutos
+                    </span>
+                  </div>
+                  {maxMinutos !== null && (
+                    <p className="text-xs text-amber-500">
+                      Máximo {maxMinutos} min (duración del examen)
+                    </p>
+                  )}
                 </div>
               )}
             </div>
 
-            {limiteHabilitado && (
+            {(limiteHabilitado || (fechaCierreHabilitada)) && (
               <div className="space-y-3">
                 <div className="flex items-center gap-2">
                   <label
                     className="block text-sm font-medium text-secondary"
                   >
-                    Cuando se agote el tiempo
+                    {limiteHabilitado ? "Cuando se agote el tiempo" : "Cuando el examen se cierre"}
                   </label>
                   <span className="text-red-500">*</span>
                   <div className="relative group">
                     <HelpCircle className="w-5 h-5 text-muted cursor-help" />
                     <div className="absolute left-0 bottom-full mb-2 hidden group-hover:block z-10 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg shadow-lg" style={{ minWidth: '220px', maxWidth: '280px' }}>
-                      Define qué sucede cuando el tiempo límite se agota
+                      {limiteHabilitado
+                        ? "Define qué sucede cuando el tiempo límite se agota"
+                        : "Define qué sucede cuando el examen se cierre automáticamente"}
                       <div className="absolute left-3 -bottom-1 w-2 h-2 bg-gray-900 transform rotate-45"></div>
                     </div>
                   </div>

@@ -125,29 +125,19 @@ export class AttemptQueryService {
   }
 
   static async getAttemptFeedback(codigo_acceso: string) {
-    const progressRepo = AppDataSource.getRepository(ExamInProgress);
     const attemptRepo = AppDataSource.getRepository(ExamAttempt);
 
-    // 1. Buscar ExamInProgress por codigo_acceso
-    const examInProgress = await progressRepo.findOne({
-      where: { codigo_acceso },
-    });
-
-    if (!examInProgress) {
-      throwHttpError("Código de acceso inválido", 404);
-    }
-
-    // 2. Obtener el intento con sus respuestas
+    // Buscar directamente el intento por codigoRevision
     const attempt = await attemptRepo.findOne({
-      where: { id: examInProgress.intento_id },
+      where: { codigoRevision: codigo_acceso },
       relations: ["respuestas"],
     });
 
     if (!attempt) {
-      throwHttpError("Intento no encontrado", 404);
+      throwHttpError("Código de acceso inválido", 404);
     }
 
-    // 3. Solo para intentos finalizados
+    // Solo para intentos finalizados
     if (attempt.estado !== AttemptState.FINISHED) {
       throwHttpError(
         "La retroalimentación solo está disponible para exámenes finalizados",

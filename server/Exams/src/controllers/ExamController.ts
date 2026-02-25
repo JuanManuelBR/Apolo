@@ -262,4 +262,15 @@ export class ExamsController {
       next(error);
     }
   }
+
+  static async removeTimeLimit(req: Request, res: Response, next: NextFunction) {
+    try {
+      const examId = Number(req.params.id);
+      if (isNaN(examId)) throwHttpError("ID de examen inválido", 400);
+      const result = await exam_service.removeTimeLimit(examId);
+      return res.status(200).json({ message: "Tiempo límite eliminado correctamente", examen: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

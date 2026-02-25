@@ -57,6 +57,7 @@ interface ExamData {
   nombre: string;
   nombreProfesor: string;
   limiteTiempo: number;
+  limiteTiempoCumplido?: string | null;
   consecuencia: string;
   incluirHerramientaDibujo: boolean;
   incluirCalculadoraCientifica: boolean;
@@ -111,13 +112,13 @@ function SavingIndicator({
 }
 
 // --- COMPONENTE NOTIFICACIÓN TIMER ---
-function TimerNotification({ alert, onClose, darkMode }: { alert: {message: string, type: 'warning' | 'critical'} | null, onClose: () => void, darkMode: boolean }) {
+function TimerNotification({ alert, onClose, darkMode }: { alert: {message: string, type: 'warning' | 'critical' | 'success'} | null, onClose: () => void, darkMode: boolean }) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
     if (alert) {
       const showTimer = setTimeout(() => setIsVisible(true), 10);
-      const hideTimer = setTimeout(() => setIsVisible(false), 6000); // 6 segundos de duración
+      const hideTimer = setTimeout(() => setIsVisible(false), alert.type === 'success' ? 8000 : 6000);
       return () => {
         clearTimeout(showTimer);
         clearTimeout(hideTimer);
@@ -133,28 +134,33 @@ function TimerNotification({ alert, onClose, darkMode }: { alert: {message: stri
   }, [isVisible, alert, onClose]);
 
   if (!alert) return null;
-  
+
   const isCritical = alert.type === 'critical';
-  
+  const isSuccess = alert.type === 'success';
+
   return (
     <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 max-w-md w-max px-6 py-3 rounded-xl shadow-2xl border backdrop-blur-md flex items-center gap-4 transition-all duration-500 ease-in-out ${
-        isVisible 
-        ? "opacity-100 scale-100" 
+        isVisible
+        ? "opacity-100 scale-100"
         : "opacity-0 scale-95 pointer-events-none"
     } ${
-        isCritical 
+        isSuccess
+        ? (darkMode ? "bg-green-900/90 border-green-500 text-green-100" : "bg-green-50 border-green-200 text-green-800")
+        : isCritical
         ? (darkMode ? "bg-red-900/90 border-red-500 text-red-100" : "bg-red-50 border-red-200 text-red-800")
         : (darkMode ? "bg-amber-900/90 border-amber-500 text-amber-100" : "bg-amber-50 border-amber-200 text-amber-800")
     }`}>
        <div className={`p-2 rounded-full flex-shrink-0 ${
-           isCritical 
+           isSuccess
+           ? (darkMode ? "bg-green-800 text-green-200" : "bg-green-100 text-green-600")
+           : isCritical
            ? (darkMode ? "bg-red-800 text-red-200" : "bg-red-100 text-red-600")
            : (darkMode ? "bg-amber-800 text-amber-200" : "bg-amber-100 text-amber-600")
        }`}>
-           {isCritical ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
+           {isSuccess ? <CheckCircle2 className="w-5 h-5" /> : isCritical ? <AlertTriangle className="w-5 h-5" /> : <Clock className="w-5 h-5" />}
        </div>
        <div>
-         <h4 className="font-bold text-sm">{isCritical ? "¡Atención!" : "Recordatorio"}</h4>
+         <h4 className="font-bold text-sm">{isSuccess ? "Aviso del profesor" : isCritical ? "¡Atención!" : "Recordatorio"}</h4>
          <p className="text-xs opacity-90 font-medium">{alert.message}</p>
        </div>
     </div>
@@ -179,6 +185,7 @@ export default function SecureExamPlatform() {
   const [examFinished, setExamFinished] = useState(false);
   const [wasForced, setWasForced] = useState<"" | "individual" | "todos">("");
   const [wasAbandoned, setWasAbandoned] = useState(false);
+  const [wasTimeExpired, setWasTimeExpired] = useState<"" | "enviar" | "descartar">("");
   
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem("darkMode");
@@ -200,8 +207,9 @@ export default function SecureExamPlatform() {
 
   const [remainingTime, setRemainingTime] = useState("02:30:00");
   const [timerStatus, setTimerStatus] = useState<'normal' | 'warning' | 'critical'>('normal');
-  const [timerAlert, setTimerAlert] = useState<{message: string, type: 'warning' | 'critical'} | null>(null);
+  const [timerAlert, setTimerAlert] = useState<{message: string, type: 'warning' | 'critical' | 'success'} | null>(null);
   const alertsShownRef = useRef<{warning: boolean, critical: boolean}>({ warning: false, critical: false });
+  const [timeLimitRemoved, setTimeLimitRemoved] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
@@ -531,17 +539,26 @@ export default function SecureExamPlatform() {
 
   // Timer del examen
   useEffect(() => {
-    if (!examStarted || !studentData || !examData) return;
-    if (!examData.limiteTiempo || examData.limiteTiempo === 0) {
+    if (!examStarted || !studentData || !examData || timeLimitRemoved) return;
+
+    // Calcular tiempo final: usar fecha_expiracion del backend (cubre tanto limiteTiempo como horaCierre)
+    // o calcular desde limiteTiempo si está disponible
+    const startMs = new Date(studentData.startTime).getTime();
+    let endTime: number;
+    let duration: number;
+
+    if (studentData.fecha_expiracion) {
+      endTime = new Date(studentData.fecha_expiracion).getTime();
+      duration = endTime - startMs;
+    } else if (examData.limiteTiempo && examData.limiteTiempo > 0) {
+      duration = examData.limiteTiempo * 60 * 1000;
+      endTime = startMs + duration;
+    } else {
       setRemainingTime("Sin límite");
       return;
     }
-    if (examBlocked) return;
 
-    // Calcular tiempo final una sola vez para evitar fluctuaciones
-    const startTime = new Date(studentData.startTime).getTime();
-    const duration = examData.limiteTiempo * 60 * 1000;
-    const endTime = startTime + duration;
+    if (examBlocked) return;
 
     const updateTimer = () => {
       const now = Date.now();
@@ -563,16 +580,23 @@ export default function SecureExamPlatform() {
       const percentage = (remaining / duration) * 100;
       let newStatus: 'normal' | 'warning' | 'critical' = 'normal';
 
+      const policyMsg =
+          examData?.limiteTiempoCumplido === 'descartar'
+              ? ' Su examen se descartará si se acaba el tiempo, le recomendamos finalizar pronto.'
+              : examData?.limiteTiempoCumplido === 'enviar'
+              ? ' Su examen se enviará automáticamente al finalizar el tiempo.'
+              : '';
+
       if (percentage <= 10) {
           newStatus = 'critical';
           if (!alertsShownRef.current.critical) {
-              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.`, type: 'critical' });
+              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.${policyMsg}`, type: 'critical' });
               alertsShownRef.current.critical = true;
           }
       } else if (percentage <= 40) {
           newStatus = 'warning';
           if (!alertsShownRef.current.warning) {
-              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.`, type: 'warning' });
+              setTimerAlert({ message: `Queda ${timeString} para terminar el examen.${policyMsg}`, type: 'warning' });
               alertsShownRef.current.warning = true;
           }
       }
@@ -973,7 +997,8 @@ export default function SecureExamPlatform() {
         blockExam(data.message, "CRITICAL");
         newSocket.disconnect();
       });
-      newSocket.on("time_expired", () => {
+      newSocket.on("time_expired", (data: { limiteTiempoCumplido?: string }) => {
+        setWasTimeExpired(data?.limiteTiempoCumplido === 'descartar' ? 'descartar' : 'enviar');
         setExamFinished(true);
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
@@ -999,6 +1024,14 @@ export default function SecureExamPlatform() {
         if (document.fullscreenElement) {
           document.exitFullscreen().catch(() => {});
         }
+      });
+
+      newSocket.on("time_limit_removed", () => {
+        console.log("✅ Profesor eliminó el tiempo límite");
+        setTimeLimitRemoved(true);
+        setTimerStatus('normal');
+        setTimerAlert({ message: "El profesor ha quitado el tiempo límite del examen", type: 'success' });
+        alertsShownRef.current = { warning: false, critical: false };
       });
 
       newSocket.on("forced_finish", (data) => {
@@ -1307,38 +1340,58 @@ export default function SecureExamPlatform() {
   }
 
   if (examFinished) {
+    const isRedScreen = wasAbandoned || wasTimeExpired === 'descartar';
+    const isAmberScreen = wasForced || wasTimeExpired === 'enviar';
+
     return (
       <div className={`min-h-screen flex flex-col items-center justify-center p-4 ${
-        wasAbandoned
+        isRedScreen
           ? darkMode ? "bg-red-950 text-white" : "bg-red-50 text-gray-900"
+          : isAmberScreen
+          ? darkMode ? "bg-amber-950 text-white" : "bg-amber-50 text-gray-900"
           : darkMode ? "bg-slate-900 text-white" : "bg-gray-50 text-gray-900"
       }`}>
         <div className="text-center space-y-6 max-w-lg">
             <div className={`mx-auto w-20 h-20 rounded-full flex items-center justify-center ${
-              wasAbandoned
+              isRedScreen
                 ? darkMode ? "bg-red-900/50 text-red-400" : "bg-red-100 text-red-600"
-                : wasForced
+                : isAmberScreen
                   ? darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-100 text-amber-600"
                   : darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-100 text-emerald-600"
             }`}>
-                {wasAbandoned ? <AlertTriangle className="w-10 h-10" /> : <CheckCircle2 className="w-10 h-10" />}
+                {isRedScreen
+                  ? <AlertTriangle className="w-10 h-10" />
+                  : wasTimeExpired
+                  ? <Clock className="w-10 h-10" />
+                  : <CheckCircle2 className="w-10 h-10" />
+                }
             </div>
-            <h1 className={`text-3xl font-bold ${wasAbandoned ? (darkMode ? "text-red-400" : "text-red-700") : ""}`}>
+            <h1 className={`text-3xl font-bold ${
+              isRedScreen ? (darkMode ? "text-red-400" : "text-red-700")
+              : isAmberScreen ? (darkMode ? "text-amber-400" : "text-amber-700")
+              : ""
+            }`}>
               {wasAbandoned
                 ? "Examen Abandonado"
-                : wasForced
-                  ? "¡Examen Finalizado por el Profesor!"
-                  : "¡Examen Entregado!"
+                : wasTimeExpired
+                  ? "Tiempo Agotado"
+                  : wasForced
+                    ? "¡Examen Finalizado por el Profesor!"
+                    : "¡Examen Entregado!"
               }
             </h1>
             <p className={`text-lg ${darkMode ? "text-slate-400" : "text-gray-600"}`}>
                 {wasAbandoned
                   ? "Has abandonado el examen. Solo podrás reanudarlo si tu profesor lo autoriza."
-                  : wasForced === "todos"
-                    ? "El profesor ha finalizado el examen para todos los estudiantes. Tus respuestas han sido guardadas correctamente."
-                    : wasForced === "individual"
-                      ? "El profesor ha finalizado tu examen. Tus respuestas han sido guardadas correctamente."
-                      : "Tus respuestas han sido guardadas correctamente."
+                  : wasTimeExpired === 'descartar'
+                    ? "Su examen ha finalizado por tiempo, sus respuestas han sido descartadas."
+                    : wasTimeExpired === 'enviar'
+                      ? "Se ha acabado el tiempo para responder el examen, sus respuestas se han enviado."
+                      : wasForced === "todos"
+                        ? "El profesor ha finalizado el examen para todos los estudiantes. Tus respuestas han sido guardadas correctamente."
+                        : wasForced === "individual"
+                          ? "El profesor ha finalizado tu examen. Tus respuestas han sido guardadas correctamente."
+                          : "Tus respuestas han sido guardadas correctamente."
                 }
                 <br />
                 Ya puedes cerrar esta ventana.
@@ -1657,19 +1710,23 @@ export default function SecureExamPlatform() {
                               <Battery className={`w-6 h-6 ${batteryLevel !== null && batteryLevel <= 20 ? "text-red-500 animate-pulse" : ""}`}/>
                           )}
                       </div>
-                      <div className={`w-px h-6 ${darkMode ? "bg-slate-700" : "bg-gray-300"}`}></div>
-                      <div className={`flex items-center gap-3 ${
-                          timerStatus === 'critical' ? "text-red-500 animate-pulse" : 
-                          timerStatus === 'warning' ? "text-amber-500" : 
-                          (darkMode ? "text-blue-400" : "text-blue-700")
-                      }`}>
-                          <Clock className="w-5 h-5" />
-                          <span className={`tabular-nums text-lg font-bold ${
-                              timerStatus === 'critical' ? "text-red-500" : 
-                              timerStatus === 'warning' ? "text-amber-500" : 
-                              (darkMode ? "text-white" : "text-slate-800")
-                          }`}>{remainingTime}</span>
-                      </div>
+                      {!timeLimitRemoved && (
+                        <>
+                          <div className={`w-px h-6 ${darkMode ? "bg-slate-700" : "bg-gray-300"}`}></div>
+                          <div className={`flex items-center gap-3 ${
+                              timerStatus === 'critical' ? "text-red-500 animate-pulse" :
+                              timerStatus === 'warning' ? "text-amber-500" :
+                              (darkMode ? "text-blue-400" : "text-blue-700")
+                          }`}>
+                              <Clock className="w-5 h-5" />
+                              <span className={`tabular-nums text-lg font-bold ${
+                                  timerStatus === 'critical' ? "text-red-500" :
+                                  timerStatus === 'warning' ? "text-amber-500" :
+                                  (darkMode ? "text-white" : "text-slate-800")
+                              }`}>{remainingTime}</span>
+                          </div>
+                        </>
+                      )}
                   </div>
                   
                   {/* Logo */}

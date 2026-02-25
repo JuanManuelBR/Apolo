@@ -109,13 +109,20 @@ export class ExamAttemptValidator {
   }
 
   static validateTimeLimit(exam: any, fecha_inicio: Date): number | null {
+    let expirationMs: number | null = null;
+
     if (exam.limiteTiempo > 0) {
       const tiempoLimiteMs = exam.limiteTiempo * 60 * 1000;
-      const fecha_expiracion = new Date(
-        fecha_inicio.getTime() + tiempoLimiteMs,
-      );
-      return fecha_expiracion.getTime();
+      expirationMs = fecha_inicio.getTime() + tiempoLimiteMs;
     }
-    return null;
+
+    if (exam.horaCierre) {
+      const horaCierreMs = new Date(exam.horaCierre).getTime();
+      if (expirationMs === null || horaCierreMs < expirationMs) {
+        expirationMs = horaCierreMs;
+      }
+    }
+
+    return expirationMs;
   }
 }

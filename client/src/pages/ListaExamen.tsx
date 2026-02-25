@@ -779,21 +779,21 @@ export default function ListaExamenes({
                       <div
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (!isInactive && examen.codigoExamen)
+                          if (examen.codigoExamen)
                             copiarSoloCodigo(examen.codigoExamen);
                         }}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-base font-mono font-bold transition-all duration-200 shadow-sm ${
+                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-base font-mono font-bold transition-all duration-200 shadow-sm cursor-pointer ${
                           examen.codigoExamen && codigoCopiado === examen.codigoExamen
                             ? "bg-emerald-500 border-emerald-500 text-white"
                             : isInactive
                               ? darkMode
-                                ? "bg-slate-800/50 border-slate-700/50 text-slate-500"
-                                : "bg-gray-200/50 border-gray-300/50 text-gray-400"
+                                ? "bg-slate-800/50 border-slate-700/50 text-slate-500 hover:border-slate-500 active:scale-95"
+                                : "bg-gray-200/50 border-gray-300/50 text-gray-400 hover:border-gray-400 active:scale-95"
                               : darkMode
-                                ? "bg-[#2D3E52] border-slate-600 text-teal-400 hover:border-teal-500 cursor-pointer active:scale-95"
-                                : "bg-white border-gray-300 text-gray-900 hover:border-teal-500 cursor-pointer active:scale-95"
+                                ? "bg-[#2D3E52] border-slate-600 text-teal-400 hover:border-teal-500 active:scale-95"
+                                : "bg-white border-gray-300 text-gray-900 hover:border-teal-500 active:scale-95"
                         }`}
-                        title={isInactive ? "" : examen.codigoExamen ? "Clic para copiar código" : "Generar código"}
+                        title={examen.codigoExamen ? "Clic para copiar código" : "Generar código"}
                       >
                         {examen.codigoExamen && codigoCopiado === examen.codigoExamen ? (
                           <span className="flex items-center gap-1.5">
@@ -845,50 +845,40 @@ export default function ListaExamenes({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!isInactive)
-                              copiarEnlaceExamen(examen.codigoExamen);
+                            copiarEnlaceExamen(examen.codigoExamen);
                           }}
                           className={`p-1.5 rounded-lg transition-all duration-150 ${
                             urlCopiada === examen.codigoExamen
                               ? "bg-emerald-500 text-white"
-                              : isInactive
-                                ? ""
-                                : darkMode
-                                  ? "hover:bg-white/10 active:scale-90 text-gray-300"
-                                  : "hover:bg-black/5 active:scale-90 text-gray-600"
+                              : darkMode
+                                ? "hover:bg-white/10 active:scale-90 text-gray-400"
+                                : "hover:bg-black/5 active:scale-90 text-gray-500"
                           }`}
-                          title={isInactive ? "" : "Copiar link del examen"}
+                          title="Copiar link del examen"
                         >
                           {urlCopiada === examen.codigoExamen ? (
                             <Check className="w-4 h-4" />
                           ) : (
-                            <Link
-                              className={`w-4 h-4 ${isInactive ? (darkMode ? "text-slate-600" : "text-gray-400") : ""}`}
-                            />
+                            <Link className="w-4 h-4" />
                           )}
                         </button>
 
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (!isInactive)
-                              setCodigoGrande({
-                                codigo: examen.codigoExamen,
-                                nombre: examen.nombre,
-                              });
+                            setCodigoGrande({
+                              codigo: examen.codigoExamen,
+                              nombre: examen.nombre,
+                            });
                           }}
                           className={`p-1.5 rounded-lg transition-all duration-150 ${
-                            isInactive
-                              ? ""
-                              : darkMode
-                                ? "hover:bg-white/10 active:scale-90 text-gray-300"
-                                : "hover:bg-black/5 active:scale-90 text-gray-600"
+                            darkMode
+                              ? "hover:bg-white/10 active:scale-90 text-gray-400"
+                              : "hover:bg-black/5 active:scale-90 text-gray-500"
                           }`}
-                          title={isInactive ? "" : "Ver código grande"}
+                          title="Ver código grande"
                         >
-                          <Search
-                            className={`w-4 h-4 ${isInactive ? (darkMode ? "text-slate-600" : "text-gray-400") : ""}`}
-                          />
+                          <Search className="w-4 h-4" />
                         </button>
                       </div>
 

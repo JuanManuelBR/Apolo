@@ -108,10 +108,10 @@ export class add_exam_dto {
   @IsNumber({}, { message: "Limite de tiempo debe ser un número" })
   limiteTiempo?: number | null;
 
-  @ValidateIf((o) => o.limiteTiempo !== null && o.limiteTiempo !== undefined)
+  @ValidateIf((o) => (o.limiteTiempo !== null && o.limiteTiempo !== undefined) || !!o.horaCierre)
   @IsNotEmpty({
     message:
-      "Debe especificar limiteTiempoCumplido cuando hay límite de tiempo",
+      "Debe especificar limiteTiempoCumplido cuando hay límite de tiempo o fecha de cierre",
   })
   @IsIn(Object.values(TiempoAgotado), {
     message: "limiteTiempoCumplido debe ser 'enviar' o 'descartar'",

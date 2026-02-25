@@ -44,4 +44,6 @@ router.post("/:id/copy", authenticateToken, ExamsController.copyExam);
 
 router.patch("/:id/regenerate-code", authenticateToken, ExamsController.regenerateExamCode);
 
+router.patch("/:id/remove-time-limit", ExamsController.removeTimeLimit);
+
 export default router;
