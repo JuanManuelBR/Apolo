@@ -72,7 +72,7 @@ export class ExamAttempt {
   @Column({ type: "boolean", default: false })
   calificacionPendiente!: boolean;
 
-  @Column({ type: "varchar", nullable: true, length: 2000, default: null })
+  @Column({ type: "text", nullable: true, default: null })
   retroalimentacion?: string | null;
 
   @Index()

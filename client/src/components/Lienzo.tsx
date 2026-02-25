@@ -12,6 +12,7 @@ interface LienzoProps {
   darkMode: boolean;
   initialData?: LienzoState;
   onSave?: (data: LienzoState) => void;
+  readOnly?: boolean;
 }
 
 type Tool = 'select' | 'hand' | 'text' | 'relation' | 
@@ -208,7 +209,7 @@ const ToolBtn = ({ icon: Icon, label, isSelected, onClick }: any) => (
     </button>
 );
 
-export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
+export default function Lienzo({ darkMode, initialData, onSave, readOnly }: LienzoProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -244,7 +245,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
   const [paintActions, setPaintActions] = useState<PaintAction[]>(init?.paintActions || []);
   
   // Interacción
-  const [tool, setTool] = useState<Tool>('select');
+  const [tool, setTool] = useState<Tool>(readOnly ? 'hand' : 'select');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [relationType, setRelationType] = useState<RelationType>('Flow');
   
@@ -1311,6 +1312,11 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
     setMouseCanvasPos(pos);
     setIsDrawing(true);
 
+    if (readOnly) {
+        setIsPanning(true);
+        return;
+    }
+
     if (isPaintTool) {
         setDrawStartPos(pos);
         if (['pencil', 'marker', 'eraser'].includes(tool)) {
@@ -1674,7 +1680,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
     <div className={`flex flex-col h-full w-full ${darkMode ? 'bg-slate-900 text-slate-100' : 'bg-white text-gray-900'}`}>
         
         {/* TOP BAR */}
-        <div className="h-14 border-b flex items-center px-4 justify-between bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 z-20">
+        {!readOnly && <div className="h-14 border-b flex items-center px-4 justify-between bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 z-20">
             <div className="flex items-center gap-4">
                 <div className="font-bold text-xl flex items-center gap-2 text-slate-800 dark:text-gray-200">
                     <Layout className="fill-current" /> Herramienta De Dibujo
@@ -1690,12 +1696,12 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                 <button onClick={undo} className="p-2 rounded-lg text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-white transition-colors duration-200" title="Deshacer"><Undo size={18}/></button>
                 <button onClick={redo} className="p-2 rounded-lg text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-white transition-colors duration-200" title="Rehacer"><Redo size={18}/></button>
             </div>
-        </div>
+        </div>}
 
         <div className="flex flex-1 overflow-hidden relative">
             
             {/* LEFT SIDEBAR */}
-            <div className="w-52 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col z-10 min-h-0">
+            {!readOnly && <div className="w-52 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col z-10 min-h-0">
                 
                 <div className="p-2 grid grid-cols-4 gap-1 border-b border-gray-200 dark:border-slate-700">
                     <ToolBtn icon={MousePointer2} label="Select" isSelected={tool === 'select'} onClick={() => setTool('select')} />
@@ -1747,16 +1753,16 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                     <ToolBtn icon={Layout} label="Clase" isSelected={tool === 'uml_class'} onClick={() => setTool('uml_class')} />
                     <ToolBtn icon={Braces} label="Nota" isSelected={tool === 'uml_note'} onClick={() => setTool('uml_note')} />
                 </Accordion>
-            </div>
+            </div>}
 
             {/* CANVAS */}
             <div className="flex-1 flex flex-col min-w-0 bg-slate-50 dark:bg-slate-900 relative">
-                <div className="flex-1 relative cursor-crosshair overflow-hidden">
+                <div className={`flex-1 relative overflow-hidden ${readOnly ? (isPanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-crosshair'}`}>
                     <canvas 
                         ref={gridCanvasRef}
                         className="absolute inset-0 w-full h-full pointer-events-none"
                     />
-                    <canvas 
+                    <canvas
                         ref={canvasRef}
                         onWheel={handleWheel}
                         onMouseDown={handleMouseDown}
@@ -1782,8 +1788,8 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                             {sheet.name}
                         </button>
                     ))}
-                    {sheets.length < 3 && (
-                        <button 
+                    {!readOnly && sheets.length < 3 && (
+                        <button
                             onClick={addSheet}
                             className="p-1.5 ml-1 rounded hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400"
                             title="Nueva Hoja"
@@ -1795,7 +1801,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
             </div>
 
             {/* RIGHT SIDEBAR (INSPECTOR) */}
-            <div className="w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
+            {!readOnly && <div className="w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 font-bold text-sm uppercase tracking-wider flex justify-between items-center text-gray-700 dark:text-gray-300">
                     <span>Propiedades</span>
                 </div>
@@ -2212,7 +2218,7 @@ export default function Lienzo({ darkMode, initialData, onSave }: LienzoProps) {
                         </div>
                     )}
                 </div>
-            </div>
+            </div>}
         </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   ArrowLeft,
   CheckCircle,
@@ -9,8 +10,14 @@ import {
   HelpCircle,
   Send,
   Edit3,
+  FileText,
+  Code2,
+  PenLine,
+  Maximize2,
+  X,
 } from "lucide-react";
 import { examsAttemptsService } from "../services/examsAttempts";
+import Lienzo from "./Lienzo";
 
 // ============================================
 // INTERFACES
@@ -23,6 +30,17 @@ interface RevisarCalificacionProps {
   hideHeader?: boolean;
 }
 
+interface RespuestaPDF {
+  id: number;
+  pregunta_id: number;
+  tipo_respuesta: string;
+  respuesta: any;
+  metadata_codigo: any;
+  puntajeObtenido: number | null;
+  fecha_respuesta: string;
+  retroalimentacion: string | null;
+}
+
 interface AttemptDetails {
   intento: {
     id: number;
@@ -33,11 +51,14 @@ interface AttemptDetails {
     identificacion_estudiante: string | null;
     fecha_inicio: string;
     fecha_fin: string | null;
-    puntaje: number;
+    puntaje: number | null;
     puntajeMaximo: number;
-    porcentaje: number;
+    porcentaje: number | null;
     notaFinal: number | null;
     progreso: number;
+    esExamenPDF?: boolean;
+    calificacionPendiente?: boolean;
+    retroalimentacion?: string | null;
   };
   examen: {
     id: number;
@@ -46,16 +67,19 @@ interface AttemptDetails {
     codigoExamen: string;
     estado: string;
     nombreProfesor: string;
+    archivoPDF?: string | null;
   };
   estadisticas: {
-    totalPreguntas: number;
-    preguntasRespondidas: number;
-    preguntasCorrectas: number;
-    preguntasIncorrectas: number;
-    preguntasSinResponder: number;
+    totalPreguntas?: number;
+    preguntasRespondidas?: number;
+    preguntasCorrectas?: number;
+    preguntasIncorrectas?: number;
+    preguntasSinResponder?: number;
     tiempoTotal: number | null;
+    totalRespuestas?: number;
   };
-  preguntas: Pregunta[];
+  preguntas?: Pregunta[];
+  respuestasPDF?: RespuestaPDF[];
   eventos: any[];
 }
 
@@ -130,6 +154,10 @@ export default function RevisarCalificacion({
   const [feedback, setFeedback] = useState<Record<number, string>>({});
   const [saveStatus, setSaveStatus] = useState<Record<number, SaveStatus>>({});
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+  // PDF-specific state
+  const [pdfNota, setPdfNota] = useState<string>("");
+  const [pdfRetroalimentacion, setPdfRetroalimentacion] = useState<string>("");
+  const [pdfSaveStatus, setPdfSaveStatus] = useState<SaveStatus>("idle");
 
   useEffect(() => {
     loadDetails();
@@ -141,23 +169,31 @@ export default function RevisarCalificacion({
       setError(null);
       const data = await examsAttemptsService.getAttemptDetails(intentoId);
       setDetails(data);
-      const initialScores: Record<number, number> = {};
-      const initialInputs: Record<number, string> = {};
-      const initialFeedback: Record<number, string> = {};
-      data.preguntas.forEach((p: Pregunta) => {
-        if (p.respuestaEstudiante) {
-          initialScores[p.id] = p.respuestaEstudiante.puntajeObtenido;
-          initialInputs[p.id] = String(p.respuestaEstudiante.puntajeObtenido);
-          initialFeedback[p.id] = p.respuestaEstudiante.retroalimentacion || "";
-        } else {
-          initialScores[p.id] = 0;
-          initialInputs[p.id] = "0";
-          initialFeedback[p.id] = "";
-        }
-      });
-      setScores(initialScores);
-      setScoreInputs(initialInputs);
-      setFeedback(initialFeedback);
+
+      if (data.intento?.esExamenPDF) {
+        // PDF exam: initialize PDF-specific state
+        setPdfNota(data.intento.puntaje != null ? String(data.intento.puntaje) : "");
+        setPdfRetroalimentacion(data.intento.retroalimentacion || "");
+      } else {
+        // Regular exam: initialize per-question grading state
+        const initialScores: Record<number, number> = {};
+        const initialInputs: Record<number, string> = {};
+        const initialFeedback: Record<number, string> = {};
+        (data.preguntas || []).forEach((p: Pregunta) => {
+          if (p.respuestaEstudiante) {
+            initialScores[p.id] = p.respuestaEstudiante.puntajeObtenido;
+            initialInputs[p.id] = String(p.respuestaEstudiante.puntajeObtenido);
+            initialFeedback[p.id] = p.respuestaEstudiante.retroalimentacion || "";
+          } else {
+            initialScores[p.id] = 0;
+            initialInputs[p.id] = "0";
+            initialFeedback[p.id] = "";
+          }
+        });
+        setScores(initialScores);
+        setScoreInputs(initialInputs);
+        setFeedback(initialFeedback);
+      }
     } catch (e: any) {
       setError(e?.response?.data?.message || "Error cargando los detalles del intento.");
     } finally {
@@ -195,6 +231,30 @@ export default function RevisarCalificacion({
     } catch {
       setSaveStatus(prev => ({ ...prev, [pregunta.id]: "error" }));
       setTimeout(() => setSaveStatus(prev => ({ ...prev, [pregunta.id]: "idle" })), 3000);
+    }
+  };
+
+  const handlePDFSave = async () => {
+    const nota = parseFloat(pdfNota);
+    if (isNaN(nota) || nota < 0 || nota > 5) return;
+    setPdfSaveStatus("saving");
+    try {
+      await examsAttemptsService.updatePDFAttemptGrade(intentoId, {
+        puntaje: nota,
+        retroalimentacion: pdfRetroalimentacion || undefined,
+      });
+      const updated = await examsAttemptsService.getAttemptDetails(intentoId);
+      setDetails(updated);
+      setPdfNota(updated.intento.puntaje != null ? String(updated.intento.puntaje) : "");
+      setPdfRetroalimentacion(updated.intento.retroalimentacion || "");
+      setPdfSaveStatus("saved");
+      if (updated.intento.notaFinal !== null) {
+        onGradeUpdated(intentoId, updated.intento.notaFinal);
+      }
+      setTimeout(() => setPdfSaveStatus("idle"), 2000);
+    } catch {
+      setPdfSaveStatus("error");
+      setTimeout(() => setPdfSaveStatus("idle"), 3000);
     }
   };
 
@@ -247,51 +307,30 @@ export default function RevisarCalificacion({
     );
   }
 
-  const { intento, examen, estadisticas, preguntas } = details;
+  const { intento, examen, estadisticas, preguntas, respuestasPDF } = details;
+  const isPDF = !!intento.esExamenPDF;
+
+  const scrollbarStyles = `
+    .revisar-scroll::-webkit-scrollbar { width: 12px; height: 12px; }
+    .revisar-scroll::-webkit-scrollbar-track { background: ${darkMode ? "#1e293b" : "#f1f5f9"}; border-radius: 10px; }
+    .revisar-scroll::-webkit-scrollbar-thumb { background: ${darkMode ? "#475569" : "#cbd5e1"}; border-radius: 10px; border: 2px solid ${darkMode ? "#1e293b" : "#f1f5f9"}; }
+    .revisar-scroll::-webkit-scrollbar-thumb:hover { background: ${darkMode ? "#64748b" : "#94a3b8"}; }
+    .revisar-scroll { scrollbar-width: thin; scrollbar-color: ${darkMode ? "#475569 #1e293b" : "#cbd5e1 #f1f5f9"}; }
+    input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
+  `;
 
   // ============================================
   // RENDER - Layout idéntico a ExamPanel / VerExamen
   // ============================================
   return (
     <div className={`h-full flex flex-col transition-colors duration-300 ${darkMode ? "bg-slate-900 text-gray-100" : "bg-white text-gray-900"}`}>
-      <style>{`
-        .revisar-scroll::-webkit-scrollbar {
-          width: 12px;
-          height: 12px;
-        }
-        .revisar-scroll::-webkit-scrollbar-track {
-          background: ${darkMode ? "#1e293b" : "#f1f5f9"};
-          border-radius: 10px;
-        }
-        .revisar-scroll::-webkit-scrollbar-thumb {
-          background: ${darkMode ? "#475569" : "#cbd5e1"};
-          border-radius: 10px;
-          border: 2px solid ${darkMode ? "#1e293b" : "#f1f5f9"};
-        }
-        .revisar-scroll::-webkit-scrollbar-thumb:hover {
-          background: ${darkMode ? "#64748b" : "#94a3b8"};
-        }
-        .revisar-scroll {
-          scrollbar-width: thin;
-          scrollbar-color: ${darkMode ? "#475569 #1e293b" : "#cbd5e1 #f1f5f9"};
-        }
-        /* Ocultar flechas del input number */
-        input[type=number]::-webkit-inner-spin-button, 
-        input[type=number]::-webkit-outer-spin-button { 
-          -webkit-appearance: none; 
-          margin: 0; 
-        }
-        input[type=number] {
-          -moz-appearance: textfield;
-        }
-      `}</style>
+      <style>{scrollbarStyles}</style>
       <div className="flex-1 overflow-auto revisar-scroll">
         <div className="w-full px-6 md:px-12 py-8">
 
-
-          {/* === HEADER idéntico a ExamPanel === */}
+          {/* === HEADER === */}
           <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-            {/* Botón volver */}
             {!hideHeader && (
               <button
                 onClick={onVolver}
@@ -302,9 +341,17 @@ export default function RevisarCalificacion({
               </button>
             )}
 
-            <h1 className={`text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-3 tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
-              {examen.nombre}
-            </h1>
+            <div className="flex items-start gap-3 mb-3">
+              <h1 className={`text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
+                {examen.nombre}
+              </h1>
+              {isPDF && (
+                <span className={`mt-2 px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${darkMode ? "bg-indigo-500/10 text-indigo-400 border-indigo-500/20" : "bg-indigo-50 text-indigo-600 border-indigo-200"}`}>
+                  PDF
+                </span>
+              )}
+            </div>
+
             <div className="flex flex-wrap items-center gap-6 text-sm md:text-base">
               <div className={`flex items-center gap-2 font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -322,36 +369,193 @@ export default function RevisarCalificacion({
               </div>
             </div>
 
-            {/* Resumen de calificación */}
-            <div className={`mt-6 p-5 rounded-xl border shadow-sm flex items-center justify-between ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
-              <div className="flex gap-8">
-                <div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Puntaje</span>
-                  <p className={`text-2xl font-black ${getNotaColor(intento.puntaje, intento.puntajeMaximo)}`}>
-                    {intento.puntaje}<span className={`text-sm font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{intento.puntajeMaximo}</span>
-                  </p>
+            {/* Resumen de calificación - distinto para PDF y regular */}
+            {isPDF ? (
+              <div className={`mt-6 p-5 rounded-xl border shadow-sm flex items-center justify-between ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
+                <div className="flex gap-8 items-center">
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Nota Final</span>
+                    <p className={`text-2xl font-black ${getNotaColor(intento.notaFinal)}`}>
+                      {intento.notaFinal != null ? intento.notaFinal : "--"}
+                      <span className={`text-sm font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/5.0</span>
+                    </p>
+                  </div>
+                  {intento.calificacionPendiente ? (
+                    <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase border ${darkMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "bg-amber-50 text-amber-600 border-amber-200"}`}>
+                      Calificación pendiente
+                    </span>
+                  ) : (
+                    <span className={`px-3 py-1 rounded-lg text-xs font-bold uppercase border ${darkMode ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-emerald-50 text-emerald-600 border-emerald-200"}`}>
+                      Calificado
+                    </span>
+                  )}
                 </div>
-                <div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Nota Final</span>
-                  <p className={`text-2xl font-black ${getNotaColor(intento.notaFinal)}`}>
-                    {intento.notaFinal !== null ? intento.notaFinal : "--"}
-                  </p>
-                </div>
-                <div>
-                  <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Correctas</span>
-                  <p className={`text-2xl font-black text-emerald-500`}>{estadisticas.preguntasCorrectas}<span className={`text-sm font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{estadisticas.totalPreguntas}</span></p>
+                <div className={`text-right text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                  <p>{estadisticas.totalRespuestas ?? 0} respuesta(s) enviada(s)</p>
                 </div>
               </div>
-              <div className={`text-right text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                <p>{estadisticas.preguntasRespondidas} respondidas</p>
-                <p>{estadisticas.preguntasSinResponder} sin responder</p>
+            ) : (
+              <div className={`mt-6 p-5 rounded-xl border shadow-sm flex items-center justify-between ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
+                <div className="flex gap-8">
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Puntaje</span>
+                    <p className={`text-2xl font-black ${getNotaColor(intento.puntaje, intento.puntajeMaximo)}`}>
+                      {intento.puntaje}<span className={`text-sm font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{intento.puntajeMaximo}</span>
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Nota Final</span>
+                    <p className={`text-2xl font-black ${getNotaColor(intento.notaFinal)}`}>
+                      {intento.notaFinal !== null ? intento.notaFinal : "--"}
+                    </p>
+                  </div>
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Correctas</span>
+                    <p className={`text-2xl font-black text-emerald-500`}>{estadisticas.preguntasCorrectas}<span className={`text-sm font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{estadisticas.totalPreguntas}</span></p>
+                  </div>
+                </div>
+                <div className={`text-right text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                  <p>{estadisticas.preguntasRespondidas} respondidas</p>
+                  <p>{estadisticas.preguntasSinResponder} sin responder</p>
+                </div>
               </div>
-            </div>
+            )}
           </header>
 
-          {/* === PREGUNTAS - Layout idéntico a ExamPanel QuestionCard === */}
+          {/* ===== PDF MODE ===== */}
+          {isPDF && (
+            <div className="space-y-8">
+              {/* Panel de calificación */}
+              <div className={`rounded-2xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-700" : "bg-white border-gray-200"}`}>
+                <div className={`px-6 py-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-slate-50"}`}>
+                  <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
+                    <Edit3 className="w-4 h-4" />
+                  </div>
+                  <span className={`font-bold ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    Asignar Calificación
+                  </span>
+                </div>
+                <div className="p-6 flex flex-col md:flex-row gap-6">
+                  {/* Nota */}
+                  <div className="flex flex-col items-center gap-3 min-w-[180px]">
+                    <label className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      Nota Final (0.0 – 5.0)
+                    </label>
+                    <div className={`p-4 rounded-xl border flex items-center gap-4 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-slate-50 border-gray-200"}`}>
+                      <button
+                        onClick={() => {
+                          const v = Math.max(0, parseFloat((parseFloat(pdfNota || "0") - 0.1).toFixed(1)));
+                          setPdfNota(String(v));
+                        }}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${darkMode ? "border-slate-600 hover:bg-slate-700 text-slate-300" : "border-gray-300 hover:bg-gray-100 text-slate-600"}`}
+                      >-</button>
+                      <div className="flex flex-col items-center">
+                        <input
+                          type="number"
+                          min={0}
+                          max={5}
+                          step={0.1}
+                          value={pdfNota}
+                          onChange={(e) => {
+                            const raw = e.target.value;
+                            if (raw === "") { setPdfNota(""); return; }
+                            const v = parseFloat(raw);
+                            if (!isNaN(v)) setPdfNota(String(Math.min(5, Math.max(0, parseFloat(v.toFixed(1))))));
+                          }}
+                          className={`w-20 text-center text-3xl font-black bg-transparent focus:outline-none ${darkMode ? "text-white" : "text-slate-800"}`}
+                        />
+                        <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ 5.0</span>
+                      </div>
+                      <button
+                        onClick={() => {
+                          const v = Math.min(5, parseFloat((parseFloat(pdfNota || "0") + 0.1).toFixed(1)));
+                          setPdfNota(String(v));
+                        }}
+                        className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${darkMode ? "border-slate-600 hover:bg-slate-700 text-slate-300" : "border-gray-300 hover:bg-gray-100 text-slate-600"}`}
+                      >+</button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-2 w-full">
+                      {[["0.0","Reprobado","rose"],["2.5","Parcial","amber"],["5.0","Aprobado","emerald"]].map(([val, label, color]) => (
+                        <button key={val} onClick={() => setPdfNota(val)}
+                          className={`py-1.5 px-2 rounded text-[10px] font-bold uppercase border transition-colors ${
+                            color === "rose" ? (darkMode ? "border-rose-900/30 bg-rose-900/10 text-rose-400 hover:bg-rose-900/20" : "border-rose-100 bg-rose-50 text-rose-600 hover:bg-rose-100")
+                            : color === "amber" ? (darkMode ? "border-amber-900/30 bg-amber-900/10 text-amber-400 hover:bg-amber-900/20" : "border-amber-100 bg-amber-50 text-amber-600 hover:bg-amber-100")
+                            : (darkMode ? "border-emerald-900/30 bg-emerald-900/10 text-emerald-400 hover:bg-emerald-900/20" : "border-emerald-100 bg-emerald-50 text-emerald-600 hover:bg-emerald-100")
+                          }`}
+                        >{label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Retroalimentación */}
+                  <div className="flex-1 flex flex-col gap-2">
+                    <label className={`text-xs font-bold uppercase tracking-wider flex items-center gap-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Retroalimentación general
+                    </label>
+                    <textarea
+                      value={pdfRetroalimentacion}
+                      onChange={(e) => setPdfRetroalimentacion(e.target.value)}
+                      placeholder="Escribe aquí la retroalimentación para el estudiante. Puedes detallar cada punto del examen, errores encontrados, sugerencias, etc."
+                      rows={14}
+                      maxLength={10000}
+                      className={`w-full p-4 rounded-xl border resize-y transition-all focus:outline-none focus:ring-2 focus:ring-teal-500/20 ${
+                        darkMode
+                          ? "bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-600 focus:border-teal-500/50"
+                          : "bg-white border-gray-200 text-slate-700 placeholder:text-slate-400 focus:border-teal-400"
+                      }`}
+                    />
+                    <span className={`text-xs text-right ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                      {pdfRetroalimentacion.length} / 10 000
+                    </span>
+                    <button
+                      onClick={handlePDFSave}
+                      disabled={pdfSaveStatus === "saving" || pdfNota === ""}
+                      className={`self-end px-6 py-2.5 rounded-xl text-sm font-bold shadow-lg transition-all flex items-center gap-2 ${
+                        pdfSaveStatus === "saved"
+                          ? "bg-emerald-600 text-white shadow-emerald-500/20"
+                          : pdfSaveStatus === "error"
+                            ? "bg-rose-600 text-white shadow-rose-500/20"
+                            : pdfSaveStatus === "saving" || pdfNota === ""
+                              ? (darkMode ? "bg-slate-700 text-slate-500 cursor-not-allowed shadow-none" : "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none")
+                              : "bg-gradient-to-r from-teal-600 to-teal-500 hover:from-teal-500 hover:to-teal-400 text-white shadow-teal-500/25 hover:-translate-y-0.5"
+                      }`}
+                    >
+                      {pdfSaveStatus === "saving" && <Loader2 className="w-4 h-4 animate-spin" />}
+                      {pdfSaveStatus === "saved" && <CheckCircle className="w-4 h-4" />}
+                      {pdfSaveStatus === "error" && <XCircle className="w-4 h-4" />}
+                      {pdfSaveStatus === "idle" && <Send className="w-4 h-4" />}
+                      {pdfSaveStatus === "saving" ? "Guardando..." : pdfSaveStatus === "saved" ? "Guardado" : pdfSaveStatus === "error" ? "Error al guardar" : "Guardar Calificación"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Respuestas del estudiante */}
+              <div>
+                <h2 className={`text-lg font-bold mb-4 ${darkMode ? "text-slate-200" : "text-slate-800"}`}>
+                  Respuestas del estudiante
+                </h2>
+                {(respuestasPDF || []).length === 0 ? (
+                  <div className={`p-10 rounded-2xl border-2 border-dashed text-center ${darkMode ? "border-slate-700 text-slate-500" : "border-gray-300 text-gray-400"}`}>
+                    <HelpCircle className="w-8 h-8 mx-auto mb-3 opacity-40" />
+                    <p className="font-medium">El estudiante no envió respuestas</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {(respuestasPDF || []).map((resp, idx) => (
+                      <RenderPDFRespuesta key={resp.id} respuesta={resp} index={idx} darkMode={darkMode} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ===== REGULAR MODE - PREGUNTAS ===== */}
+          {!isPDF && (
           <div className="space-y-12">
-            {preguntas.map((pregunta, index) => {
+            {(preguntas || []).map((pregunta, index) => {
               const barColor = getStableColor(pregunta.id, QUESTION_COLORS);
               const resp = pregunta.respuestaEstudiante;
               const currentScore = scores[pregunta.id] ?? (resp ? resp.puntajeObtenido : 0);
@@ -590,9 +794,10 @@ export default function RevisarCalificacion({
                               value={feedback[pregunta.id] || ""}
                               onChange={(e) => setFeedback(prev => ({ ...prev, [pregunta.id]: e.target.value }))}
                               placeholder="Escribe tus observaciones aquí..."
+                              maxLength={2000}
                               className={`flex-1 w-full p-4 rounded-xl border resize-none transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
-                                darkMode 
-                                  ? "bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50" 
+                                darkMode
+                                  ? "bg-slate-800 border-slate-700 text-slate-200 placeholder:text-slate-600 focus:border-blue-500/50"
                                   : "bg-white border-gray-200 text-slate-700 placeholder:text-slate-400 focus:border-blue-400"
                               }`}
                             />
@@ -634,8 +839,161 @@ export default function RevisarCalificacion({
               );
             })}
           </div>
+          )}
 
         </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// SUB-COMPONENTES PDF
+// ============================================
+
+const TIPO_LABELS: Record<string, string> = {
+  normal: "Respuesta de texto",
+  texto_plano: "Texto",
+  python: "Python",
+  javascript: "JavaScript",
+  java: "Java",
+  diagrama: "Diagrama / Lienzo",
+};
+
+function RenderPDFRespuesta({ respuesta, index, darkMode }: { respuesta: RespuestaPDF; index: number; darkMode: boolean }) {
+  const tipo = respuesta.tipo_respuesta;
+  const content = respuesta.respuesta;
+  const meta = respuesta.metadata_codigo;
+  const label = TIPO_LABELS[tipo] || tipo;
+  const [showDiagramModal, setShowDiagramModal] = useState(false);
+
+  const borderColor = darkMode ? "border-slate-700" : "border-gray-200";
+  const cardBg = darkMode ? "bg-slate-800/60" : "bg-white";
+  const headerBg = darkMode ? "bg-slate-800/80" : "bg-slate-50";
+
+  const tipoIcon = () => {
+    if (tipo === "diagrama") return <PenLine className="w-4 h-4" />;
+    if (["python", "javascript", "java"].includes(tipo)) return <Code2 className="w-4 h-4" />;
+    return <FileText className="w-4 h-4" />;
+  };
+
+  return (
+    <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardBg} ${borderColor}`}>
+      <div className={`px-5 py-3 border-b flex items-center gap-3 ${headerBg} ${borderColor}`}>
+        <span className={`p-1.5 rounded-md ${darkMode ? "bg-slate-700 text-slate-300" : "bg-white text-slate-500 border border-gray-200"}`}>
+          {tipoIcon()}
+        </span>
+        <span className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+          Respuesta {index + 1}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {tipo === "diagrama" && content?.sheets && (
+            <button
+              onClick={() => setShowDiagramModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${darkMode ? "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              Ampliar
+            </button>
+          )}
+          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${darkMode ? "bg-slate-700 text-slate-400 border-slate-600" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
+            {label}
+          </span>
+        </div>
+      </div>
+      <div className="p-5">
+        {(tipo === "normal" || tipo === "texto_plano") && (
+          <div className={`w-full min-h-[80px] p-4 rounded-xl border-2 whitespace-pre-wrap text-base ${darkMode ? "bg-slate-900/40 border-slate-700 text-slate-200" : "bg-gray-50 border-gray-200 text-slate-700"}`}>
+            {String(content || "") || <span className="italic opacity-40">Sin contenido</span>}
+          </div>
+        )}
+
+        {["python", "javascript", "java"].includes(tipo) && (
+          <div className="space-y-3">
+            {/* Code cells */}
+            {Array.isArray(content) ? (
+              content.map((cell: any, ci: number) => (
+                <div key={ci} className="space-y-1">
+                  {cell.type === "code" || !cell.type ? (
+                    <pre className={`p-4 rounded-xl border-2 font-mono text-sm overflow-x-auto ${darkMode ? "bg-slate-900 border-slate-700 text-emerald-300" : "bg-slate-900 border-slate-700 text-emerald-400"}`}>
+                      <code>{String(cell.content ?? cell.code ?? cell ?? "")}</code>
+                    </pre>
+                  ) : (
+                    <div className={`p-3 rounded-lg border text-sm ${darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-white border-gray-200 text-slate-700"}`}>
+                      {String(cell.content ?? cell ?? "")}
+                    </div>
+                  )}
+                  {cell.output && (
+                    <pre className={`p-3 rounded-lg border text-xs font-mono overflow-x-auto ${darkMode ? "bg-black/40 border-slate-800 text-slate-400" : "bg-gray-100 border-gray-200 text-gray-600"}`}>
+                      {String(cell.output)}
+                    </pre>
+                  )}
+                </div>
+              ))
+            ) : (
+              <pre className={`p-4 rounded-xl border-2 font-mono text-sm overflow-x-auto ${darkMode ? "bg-slate-900 border-slate-700 text-emerald-300" : "bg-slate-900 border-slate-700 text-emerald-400"}`}>
+                <code>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</code>
+              </pre>
+            )}
+            {/* Metadata summary */}
+            {meta && (
+              <div className={`flex gap-4 text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                {meta.totalCells != null && <span>{meta.totalCells} celda(s)</span>}
+                {meta.codeCells != null && <span>{meta.codeCells} de código</span>}
+                {meta.textCells != null && <span>{meta.textCells} de texto</span>}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tipo === "diagrama" && (
+          <div className="space-y-3">
+            {content && content.sheets ? (
+              <>
+                {/* Preview clicable */}
+                <div
+                  className="rounded-xl overflow-hidden cursor-pointer"
+                  style={{ height: 400 }}
+                  onClick={() => setShowDiagramModal(true)}
+                  title="Hacer clic para ampliar"
+                >
+                  <div className="pointer-events-none w-full h-full">
+                    <Lienzo readOnly darkMode={darkMode} initialData={content} />
+                  </div>
+                </div>
+
+                {/* Modal pantalla completa */}
+                {showDiagramModal && createPortal(
+                  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div
+                      className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                      onClick={() => setShowDiagramModal(false)}
+                    />
+                    <div
+                      className={`relative w-full h-full max-w-[95vw] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl border ${darkMode ? "border-slate-700" : "border-slate-200"}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setShowDiagramModal(false)}
+                        className="absolute top-3 right-3 z-10 p-2 rounded-xl bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 border border-slate-200 dark:border-slate-700 shadow transition-colors"
+                        title="Cerrar"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                      <Lienzo readOnly darkMode={darkMode} initialData={content} />
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </>
+            ) : (
+              <div className={`p-5 rounded-xl border-2 border-dashed text-center text-sm ${darkMode ? "border-slate-600 text-slate-500" : "border-gray-300 text-gray-400"}`}>
+                <PenLine className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                <p>Sin datos del diagrama.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

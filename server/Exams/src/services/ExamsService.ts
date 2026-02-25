@@ -698,9 +698,13 @@ export class ExamService {
     schedulerService.cancelarCambioEstado(examId);
 
     if (newStatus === ExamenState.OPEN) {
-      // Al abrir manualmente: eliminar fecha de apertura (ya no aplica),
-      // mantener horaCierre y su scheduler de cierre automático.
+      // Al abrir: eliminar fecha de apertura (ya no aplica).
       exam.horaApertura = null;
+      // Si la hora de cierre ya pasó, eliminarla para que el examen no tenga
+      // un cierre automático pendiente con una fecha vencida.
+      if (exam.horaCierre && new Date(exam.horaCierre) <= new Date()) {
+        exam.horaCierre = null;
+      }
       exam.cambioEstadoAutomatico = !!exam.horaCierre;
     } else {
       exam.cambioEstadoAutomatico = false;

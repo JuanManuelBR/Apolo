@@ -90,4 +90,9 @@ export const examsAttemptsService = {
     const response = await examsAttemptsApi.patch(`/answer/${respuestaId}/manual-grade`, data);
     return response.data;
   },
+
+  async updatePDFAttemptGrade(intentoId: number, data: { puntaje?: number; retroalimentacion?: string }) {
+    const response = await examsAttemptsApi.patch(`/attempt/${intentoId}/pdf-grade`, data);
+    return response.data;
+  },
 };
