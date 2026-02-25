@@ -112,6 +112,10 @@ export class UpdateExamDto {
   @IsOptional()
   dividirPreguntas?: boolean;
 
+  @IsBoolean({ message: "permitirVolverPreguntas debe ser true o false" })
+  @IsOptional()
+  permitirVolverPreguntas?: boolean;
+
   @IsString({
     message: "El nombre del archivo PDF debe ser una cadena de texto",
   })

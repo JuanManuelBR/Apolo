@@ -193,6 +193,7 @@ export default function CrearExamen({
   const [contraseñaValida, setContraseñaValida] = useState(true);
   const [consecuenciaAbandono, setConsecuenciaAbandono] = useState("");
   const [navegacionSecuencial, setNavegacionSecuencial] = useState(false);
+  const [permitirVolverPreguntas, setPermitirVolverPreguntas] = useState(false);
 
   const [seccion1Abierta, setSeccion1Abierta] = useState(true);
   const [seccion2Abierta, setSeccion2Abierta] = useState(false);
@@ -307,8 +308,11 @@ export default function CrearExamen({
         }
 
         // Navegación secuencial
-        if (ex.navegacionSecuencial) {
+        if (ex.dividirPreguntas) {
           setNavegacionSecuencial(true);
+        }
+        if (ex.permitirVolverPreguntas) {
+          setPermitirVolverPreguntas(true);
         }
 
         // Marcar secciones como visitadas para habilitar el guardado
@@ -580,6 +584,7 @@ export default function CrearExamen({
           contraseña: contraseñaHabilitada ? contraseñaExamen : "",
           consecuenciaAbandono,
           navegacionSecuencial: tipoPregunta === "automatico" ? navegacionSecuencial : false,
+          permitirVolverPreguntas: tipoPregunta === "automatico" && navegacionSecuencial ? permitirVolverPreguntas : false,
         },
         herramientasActivas: Object.entries(herramientasActivas)
           .filter(([_, activo]) => activo)
@@ -1324,6 +1329,8 @@ export default function CrearExamen({
             tipoPregunta={tipoPregunta}
             navegacionSecuencial={navegacionSecuencial}
             onNavegacionSecuencialChange={setNavegacionSecuencial}
+            permitirVolverPreguntas={permitirVolverPreguntas}
+            onPermitirVolverPreguntasChange={setPermitirVolverPreguntas}
           />
         )}
       </div>

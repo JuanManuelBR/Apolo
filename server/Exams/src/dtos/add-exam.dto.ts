@@ -140,6 +140,10 @@ export class add_exam_dto {
   @IsOptional()
   dividirPreguntas?: boolean;
 
+  @IsBoolean({ message: "permitirVolverPreguntas debe ser true o false" })
+  @IsOptional()
+  permitirVolverPreguntas?: boolean;
+
   @IsNotEmpty()
   @IsArray({ message: "Las preguntas deben ser un array" })
   @ValidateNested({ each: true })

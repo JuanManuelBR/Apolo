@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
 
 // --- TIPOS E INTERFACES ---
 interface Question {
@@ -24,6 +24,8 @@ interface ExamData {
   descripcion: string;
   questions: Question[];
   archivoPDF?: string | null;
+  dividirPreguntas?: boolean;
+  permitirVolverPreguntas?: boolean;
 }
 
 interface ExamPanelProps {
@@ -32,6 +34,7 @@ interface ExamPanelProps {
   answers: Record<number, any>;
   onAnswerChange: (preguntaId: number, respuesta: any, delayMs?: number) => void;
   readOnly?: boolean;
+  onTerminarRevision?: () => void;
 }
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
@@ -77,9 +80,11 @@ export default function ExamPanel({
   answers,
   onAnswerChange,
   readOnly = false,
+  onTerminarRevision,
 }: ExamPanelProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
+  const [showNoAnswerConfirm, setShowNoAnswerConfirm] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
   const questions = examData?.questions || [];
@@ -95,7 +100,46 @@ export default function ExamPanel({
     }
   };
 
+  const handlePrev = () => {
+    if (contentRef.current) contentRef.current.scrollTop = 0;
+    if (allDone) {
+      setAllDone(false);
+    } else if (currentIndex > 0) {
+      setCurrentIndex((prev) => prev - 1);
+    }
+  };
+
+  const isCurrentAnswered = (): boolean => {
+    if (!currentQuestion) return true;
+    const answer = answers[currentQuestion.id];
+    if (answer === undefined || answer === null) return false;
+    if (currentQuestion.type === 'match') return Array.isArray(answer) && answer.length === (currentQuestion.pares?.length || 0);
+    if (Array.isArray(answer)) return answer.length > 0;
+    if (typeof answer === 'string') return answer.trim().length > 0;
+    return false;
+  };
+
+  const handleNextWithConfirm = () => {
+    if (!examData?.permitirVolverPreguntas && !isCurrentAnswered()) {
+      setShowNoAnswerConfirm(true);
+      return;
+    }
+    handleNext();
+  };
+
   const progressPct = allDone ? 100 : total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
+
+  // Conteo de preguntas respondidas (para el modo "todas a la vez")
+  const answeredCount = questions.filter((q: Question) => {
+    const answer = answers[q.id];
+    if (answer === undefined || answer === null) return false;
+    if (q.type === 'match') return Array.isArray(answer) && answer.length === (q.pares?.length || 0);
+    if (Array.isArray(answer)) return answer.length > 0;
+    if (typeof answer === 'string') return answer.trim().length > 0;
+    return false;
+  }).length;
+
+  const answeredPct = total > 0 ? (answeredCount / total) * 100 : 0;
 
   return (
     <div className="h-full w-full">
@@ -166,8 +210,8 @@ export default function ExamPanel({
               </div>
             </div>
           </div>
-        ) : (
-          /* --- MODO PREGUNTAS: Vista secuencial (una pregunta a la vez, sin retroceso) --- */
+        ) : examData.dividirPreguntas ? (
+          /* --- MODO SECUENCIAL: Una pregunta a la vez, sin retroceso --- */
           <div className="flex-1 flex flex-col overflow-hidden">
 
             {/* Barra de progreso superior */}
@@ -226,24 +270,117 @@ export default function ExamPanel({
             </div>
 
             {/* Botón de navegación */}
-            {!allDone && (
-              <div className={`px-6 py-4 border-t flex-shrink-0 flex items-center justify-between ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
-                <span className={`text-xs ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
-                  No podrás volver a esta pregunta
-                </span>
+            <div className={`px-6 py-4 border-t flex-shrink-0 flex items-center justify-between ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+              {/* Botón anterior (solo si permitirVolverPreguntas está activo y hay pregunta anterior o estamos en allDone) */}
+              {examData.permitirVolverPreguntas && (currentIndex > 0 || allDone) ? (
                 <button
-                  onClick={handleNext}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 ${
-                    currentIndex < total - 1
-                      ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/20"
-                      : "bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/20"
-                  }`}
+                  onClick={handlePrev}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/20"
                 >
-                  {currentIndex < total - 1 ? "Siguiente pregunta" : "Terminar revisión"}
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronLeft className="w-4 h-4" />
+                  Pregunta anterior
                 </button>
+              ) : (
+                <span className={`text-xs ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
+                  {examData.permitirVolverPreguntas ? "" : "No podrás volver a esta pregunta"}
+                </span>
+              )}
+
+              {!allDone && (
+                currentIndex < total - 1 ? (
+                  <button
+                    onClick={handleNextWithConfirm}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-900/20"
+                  >
+                    Siguiente pregunta
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onTerminarRevision?.()}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm transition-all active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-900/20"
+                  >
+                    Terminar revisión
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )
+              )}
+            </div>
+
+            {/* Diálogo de confirmación: avanzar sin responder */}
+            {showNoAnswerConfirm && (
+              <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div className={`w-full max-w-sm p-6 rounded-2xl shadow-2xl ${darkMode ? "bg-slate-800 border border-slate-700" : "bg-white border border-gray-100"}`}>
+                  <p className={`text-base font-semibold mb-5 text-center leading-snug ${darkMode ? "text-white" : "text-gray-900"}`}>
+                    ¿Estás seguro de que quieres ir a la siguiente pregunta sin contestar la pregunta actual? No podrás devolverte.
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => setShowNoAnswerConfirm(false)}
+                      className={`flex-1 py-2.5 rounded-xl font-medium transition-colors ${darkMode ? "bg-slate-700 text-white hover:bg-slate-600" : "bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm"}`}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => { setShowNoAnswerConfirm(false); handleNext(); }}
+                      className="flex-1 py-2.5 rounded-xl font-medium text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-md"
+                    >
+                      Aceptar
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
+          </div>
+        ) : (
+          /* --- MODO LIBRE: Todas las preguntas a la vez, scroll libre --- */
+          <div className="flex-1 flex flex-col overflow-hidden">
+
+            {/* Barra de progreso superior */}
+            <div className={`px-6 pt-5 pb-4 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
+                  {examData.nombre}
+                </h2>
+                <span className={`text-sm font-mono tabular-nums flex-shrink-0 ml-4 px-2.5 py-0.5 rounded-full font-semibold ${
+                  answeredCount === total
+                    ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                    : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
+                }`}>
+                  {answeredCount} / {total} respondidas
+                </span>
+              </div>
+              <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}>
+                <div
+                  className={`h-full rounded-full transition-all duration-500 ${answeredCount === total ? "bg-emerald-500" : "bg-blue-500"}`}
+                  style={{ width: `${answeredPct}%` }}
+                />
+              </div>
+            </div>
+
+            {/* Lista completa de preguntas */}
+            <div className="flex-1 overflow-auto">
+              <div className="max-w-5xl mx-auto px-6 py-8 space-y-8">
+                {questions.map((question: Question, index: number) => (
+                  <QuestionCard
+                    key={question.id}
+                    question={question}
+                    index={index}
+                    answer={answers[question.id]}
+                    onAnswerChange={onAnswerChange}
+                    darkMode={darkMode}
+                    readOnly={readOnly}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Footer informativo */}
+            <div className={`px-6 py-3 border-t flex-shrink-0 flex items-center justify-end ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+              <span className={`text-xs ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
+                Puedes revisar y cambiar tus respuestas antes de entregar
+              </span>
+            </div>
           </div>
         )}
       </div>

@@ -18,6 +18,8 @@ export interface DatosExamen {
   seguridad: {
     contraseña: string;
     consecuenciaAbandono: string;
+    navegacionSecuencial?: boolean;
+    permitirVolverPreguntas?: boolean;
   };
   herramientasActivas: string[];
 }
@@ -292,6 +294,9 @@ export const examsService = {
         consecuencia: mapearConsecuencia(
           datosExamen.seguridad.consecuenciaAbandono,
         ),
+
+        dividirPreguntas: datosExamen.seguridad.navegacionSecuencial ?? false,
+        permitirVolverPreguntas: datosExamen.seguridad.permitirVolverPreguntas ?? false,
 
         questions: preguntasMapeadas,
       };
@@ -592,6 +597,9 @@ export const examsService = {
         consecuencia: mapearConsecuencia(
           datosExamen.seguridad.consecuenciaAbandono,
         ),
+
+        dividirPreguntas: datosExamen.seguridad.navegacionSecuencial ?? false,
+        permitirVolverPreguntas: datosExamen.seguridad.permitirVolverPreguntas ?? false,
 
         questions: preguntasMapeadas,
       };
