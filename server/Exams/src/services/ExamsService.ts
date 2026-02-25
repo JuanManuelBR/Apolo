@@ -108,6 +108,7 @@ export class ExamService {
         archivoPDF: data.archivoPDF || null,
         cambioEstadoAutomatico,
         dividirPreguntas: data.dividirPreguntas ?? false,
+        permitirVolverPreguntas: data.permitirVolverPreguntas ?? false,
       });
 
       const examen_guardado = await manager.save(Exam, nuevo_examen);
@@ -360,6 +361,8 @@ export class ExamService {
         existingExam.consecuencia = data.consecuencia;
       if (data.dividirPreguntas !== undefined)
         existingExam.dividirPreguntas = data.dividirPreguntas;
+      if (data.permitirVolverPreguntas !== undefined)
+        existingExam.permitirVolverPreguntas = data.permitirVolverPreguntas;
 
       // Actualizar cambio de estado automático
       const cambioEstadoAutomatico = !!(
@@ -606,6 +609,9 @@ export class ExamService {
       incluirJavascript: exam.incluirJavascript,
       incluirPython: exam.incluirPython,
       incluirJava: exam.incluirJava,
+
+      dividirPreguntas: exam.dividirPreguntas,
+      permitirVolverPreguntas: exam.permitirVolverPreguntas,
 
       questions: sanitizedQuestions,
       nombreProfesor: nombreProfesor,

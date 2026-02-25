@@ -99,6 +99,9 @@ export class Exam {
   @Column({ type: "boolean", default: false })
   dividirPreguntas!: boolean;
 
+  @Column({ type: "boolean", default: false })
+  permitirVolverPreguntas!: boolean;
+
   @OneToMany(() => Question, (question) => question.exam, {
     onDelete: "CASCADE",
     eager: true,

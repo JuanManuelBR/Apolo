@@ -67,6 +67,8 @@ interface ExamData {
   descripcion: string;
   questions: any;
   archivoPDF?: string | null;
+  dividirPreguntas?: boolean;
+  permitirVolverPreguntas?: boolean;
 }
 
 type PanelType =
@@ -1230,7 +1232,7 @@ export default function SecureExamPlatform() {
   const renderPanel = (panel: PanelType, zoomLevel: number = 100) => {
     switch (panel) {
         case "exam": 
-          return <ExamPanel examData={examData} darkMode={darkMode} answers={answers} onAnswerChange={handleAnswerChange} />;
+          return <ExamPanel examData={examData} darkMode={darkMode} answers={answers} onAnswerChange={handleAnswerChange} onTerminarRevision={() => setShowSubmitModal(true)} />;
         
         case "answer": 
           return (
@@ -1739,7 +1741,7 @@ export default function SecureExamPlatform() {
         {/* Botón de tema flotante */}
         <button
           onClick={toggleTheme}
-          className={`fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg transition-all duration-300 border ${
+          className={`fixed bottom-25 right-8 z-50 p-3 rounded-full shadow-lg transition-all duration-300 border ${
             darkMode
               ? "bg-slate-800/90 backdrop-blur-md text-yellow-400 hover:bg-slate-700/90 border-slate-700"
               : "bg-white text-gray-700 hover:bg-gray-50 border-gray-200"
