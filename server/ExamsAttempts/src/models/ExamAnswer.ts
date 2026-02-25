@@ -43,7 +43,7 @@ export class ExamAnswer {
   @Column({ type: "double", nullable: true, default: null })
   puntaje?: number | null;
 
-  @Column({ type: "varchar", nullable: true, length: 1000 })
+  @Column({ type: "varchar", nullable: true, length: 2000 })
   retroalimentacion?: string;
 
   @Column({ type: "varchar", length: 30, default: TipoRespuesta.NORMAL })

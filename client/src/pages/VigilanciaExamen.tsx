@@ -64,6 +64,8 @@ interface ExamAttempt {
   calificacion?: number;
   notaFinal?: number | null;
   preguntasPendientes?: boolean;
+  calificacionPendiente?: boolean;
+  esExamenPDF?: boolean;
 }
 
 interface Alerta {
@@ -1183,7 +1185,7 @@ export default function VigilanciaExamenesLista({
                        Volver a la lista
                     </button>
                     <div className="flex gap-2">
-                         {examenActual.estado === "open" && !(estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null) ? (
+                         {examenActual.estado === "open" && estudianteSeleccionado.estado !== 'finished' && !(estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null) ? (
                            <>
                              <button onClick={() => handleLimpiarAlertas(estudianteSeleccionado.id)} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-slate-800 text-slate-300" : "bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"}`}>
                                 <CheckCircle className="w-3.5 h-3.5" /> Limpiar Alertas
