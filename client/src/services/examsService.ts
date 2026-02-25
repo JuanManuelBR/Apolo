@@ -61,10 +61,7 @@ function mapearConsecuencia(
 }
 
 function mapearTiempoAgotado(opcion: string): "enviar" | "descartar" {
-  if (opcion.includes("automatico") || opcion.includes("enviar")) {
-    return "enviar";
-  }
-  return "descartar";
+  return opcion === "envio-automatico" ? "enviar" : "descartar";
 }
 
 /**
@@ -281,12 +278,12 @@ export const examsService = {
 
         horaApertura: datosExamen.fechaInicio
           ? new Date(datosExamen.fechaInicio).toISOString()
-          : new Date().toISOString(),
+          : null,
         horaCierre: datosExamen.fechaCierre
           ? new Date(datosExamen.fechaCierre).toISOString()
-          : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+          : null,
         limiteTiempo: datosExamen.limiteTiempo?.valor || null,
-        limiteTiempoCumplido: datosExamen.limiteTiempo?.valor
+        limiteTiempoCumplido: (datosExamen.limiteTiempo?.valor || datosExamen.fechaCierre)
           ? mapearTiempoAgotado(datosExamen.opcionTiempoAgotado)
           : null,
 
@@ -589,7 +586,7 @@ export const examsService = {
           ? new Date(datosExamen.fechaCierre).toISOString()
           : null,
         limiteTiempo: datosExamen.limiteTiempo?.valor || null,
-        limiteTiempoCumplido: datosExamen.limiteTiempo?.valor
+        limiteTiempoCumplido: (datosExamen.limiteTiempo?.valor || datosExamen.fechaCierre)
           ? mapearTiempoAgotado(datosExamen.opcionTiempoAgotado)
           : null,
 

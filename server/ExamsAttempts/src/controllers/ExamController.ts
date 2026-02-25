@@ -250,6 +250,23 @@ export class ExamController {
     }
   }
 
+  static async finishByExamClose(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.examId);
+      if (isNaN(examId)) {
+        return res.status(400).json({ message: "ID de examen inválido" });
+      }
+      const result = await ExamService.finishByExamClose(examId, req.app.get("io"));
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async forceFinishActiveAttempts(
     req: Request,
     res: Response,
@@ -405,6 +422,34 @@ export class ExamController {
       }
 
       const result = await ExamService.getAttemptFeedback(codigo_acceso);
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
+  static async removeTimeLimit(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.examId);
+
+      if (isNaN(examId)) {
+        return res.status(400).json({ message: "ID de examen inválido" });
+      }
+
+      const result = await ExamService.removeTimeLimit(examId, req.app.get("io"));
+
+      // Detener timers en memoria del SocketHandler para cada intento afectado
+      const socketHandler = req.app.get("socketHandler");
+      if (socketHandler && result.intentoIds) {
+        for (const intentoId of result.intentoIds) {
+          socketHandler.stopTimer(intentoId);
+        }
+      }
+
       res.status(200).json(result);
     } catch (err) {
       next(err);

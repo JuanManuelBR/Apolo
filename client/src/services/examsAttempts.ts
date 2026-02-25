@@ -59,6 +59,11 @@ export const examsAttemptsService = {
     return response.data;
   },
 
+  async removeTimeLimit(examId: number) {
+    const response = await examsAttemptsApi.patch(`/${examId}/remove-time-limit`);
+    return response.data;
+  },
+
   async forceFinishAttempt(attemptId: number) {
     const response = await examsAttemptsApi.post(`/attempt/${attemptId}/force-finish`);
     return response.data;

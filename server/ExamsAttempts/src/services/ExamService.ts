@@ -116,6 +116,12 @@ export class ExamService {
   static forceFinishSingleAttempt(attemptId: number, io: Server) {
     return ScoringService.forceFinishSingleAttempt(attemptId, io);
   }
+  static finishByExamClose(examId: number, io: Server) {
+    return ScoringService.finishByExamClose(examId, io);
+  }
+  static removeTimeLimit(examId: number, io: Server) {
+    return ScoringService.removeTimeLimit(examId, io);
+  }
 
   // ── Consultas y reportes ──
   static getAttemptDetails(intento_id: number) {

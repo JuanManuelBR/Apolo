@@ -674,6 +674,8 @@ router.patch('/attempt/:intento_id/pdf-grade', ExamController.updatePDFAttemptGr
  *               $ref: '#/components/schemas/Error'
  */
 router.post('/:examId/force-finish', ExamController.forceFinishActiveAttempts);
+router.post('/:examId/close-finish', ExamController.finishByExamClose);
+router.patch('/:examId/remove-time-limit', ExamController.removeTimeLimit);
 
 /**
  * @openapi

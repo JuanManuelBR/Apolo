@@ -197,6 +197,17 @@ export class SocketHandler {
       const attemptRepo = AppDataSource.getRepository(ExamAttempt);
       const progressRepo = AppDataSource.getRepository(ExamInProgress);
 
+      const examInProgress = await progressRepo.findOne({
+        where: { intento_id: attemptId },
+      });
+
+      // Si fecha_expiracion fue eliminada (removeTimeLimit), abortar
+      if (!examInProgress || !examInProgress.fecha_expiracion) {
+        console.log(`ℹ️ Tiempo límite eliminado para intento ${attemptId}, ignorando expiración`);
+        this.stopTimer(attemptId);
+        return;
+      }
+
       const attempt = await attemptRepo.findOne({
         where: { id: attemptId },
         relations: ["respuestas"],
@@ -210,15 +221,6 @@ export class SocketHandler {
       // Solo procesar si el intento sigue activo
       if (attempt.estado !== AttemptState.ACTIVE) {
         console.log(`ℹ️ Intento ${attemptId} ya no está activo (${attempt.estado}), ignorando expiración`);
-        return;
-      }
-
-      const examInProgress = await progressRepo.findOne({
-        where: { intento_id: attemptId },
-      });
-
-      if (!examInProgress) {
-        console.log(`⚠️ ExamInProgress no encontrado para intento ${attemptId}`);
         return;
       }
 
@@ -247,7 +249,7 @@ export class SocketHandler {
     }
   }
 
-  private stopTimer(attemptId: number) {
+  stopTimer(attemptId: number) {
     const timer = this.timers.get(attemptId);
     if (timer) {
       clearInterval(timer);

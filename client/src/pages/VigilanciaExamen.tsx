@@ -20,6 +20,7 @@ import {
   Trash2,
   User,
   EyeOff,
+  TimerOff,
 } from "lucide-react";
 import { io } from "socket.io-client";
 import AlertasModal from "../components/AlertasModal";
@@ -587,6 +588,26 @@ export default function VigilanciaExamenesLista({
       }
     }, cerrarModal);
   };
+
+  const handleEliminarTiempoLimite = () => {
+    if (!examenActual) return;
+    mostrarModal(
+      "confirmar",
+      "Eliminar tiempo límite",
+      "Esta acción eliminará el tiempo límite del examen y la fecha de cierre automático. Los estudiantes en curso ya no tendrán contador de tiempo. El examen no se cerrará solo; deberás hacerlo manualmente o forzar el envío. ¿Deseas continuar?",
+      async () => {
+        cerrarModal();
+        try {
+          await examsAttemptsService.removeTimeLimit(examenActual.id);
+          mostrarModal("exito", "Tiempo límite eliminado", "El tiempo límite y la fecha de cierre automático han sido eliminados. Los estudiantes ya no ven contador.", cerrarModal);
+        } catch (error) {
+          console.error("Error al eliminar tiempo límite:", error);
+          mostrarModal("error", "Error", "No se pudo eliminar el tiempo límite. Intenta de nuevo.", cerrarModal);
+        }
+      },
+      cerrarModal,
+    );
+  };
   const handleCalificarAutomaticamente = async () => {
       console.log("Calificando...");
       setModoPrivacidad(true);
@@ -928,13 +949,22 @@ export default function VigilanciaExamenesLista({
                         
                         <div className="flex items-center gap-2">
                             {examenActual.estado === "open" && (
-                                <button 
-                                    onClick={handleForzarEnvio}
-                                    className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-orange-500 text-slate-200" : "bg-white border-slate-200 hover:border-orange-500 text-slate-700"}`}
-                                >
-                                    <Send className="w-3.5 h-3.5 text-orange-500" />
-                                    Forzar Envío
-                                </button>
+                                <>
+                                    <button
+                                        onClick={handleEliminarTiempoLimite}
+                                        className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-red-500 text-slate-200" : "bg-white border-slate-200 hover:border-red-500 text-slate-700"}`}
+                                    >
+                                        <TimerOff className="w-3.5 h-3.5 text-red-500" />
+                                        Eliminar tiempo límite
+                                    </button>
+                                    <button
+                                        onClick={handleForzarEnvio}
+                                        className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-orange-500 text-slate-200" : "bg-white border-slate-200 hover:border-orange-500 text-slate-700"}`}
+                                    >
+                                        <Send className="w-3.5 h-3.5 text-orange-500" />
+                                        Forzar Envío
+                                    </button>
+                                </>
                             )}
 
                             {examenActual.estado === "closed" && (
