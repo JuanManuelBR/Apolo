@@ -28,6 +28,8 @@ interface RevisarCalificacionProps {
   onVolver: () => void;
   onGradeUpdated: (intentoId: number, notaFinal: number) => void;
   hideHeader?: boolean;
+  readOnly?: boolean;
+  codigoRevision?: string;
 }
 
 interface RespuestaPDF {
@@ -49,6 +51,7 @@ interface AttemptDetails {
     nombre_estudiante: string;
     correo_estudiante: string | null;
     identificacion_estudiante: string | null;
+    codigo_acceso: string | null;
     fecha_inicio: string;
     fecha_fin: string | null;
     puntaje: number | null;
@@ -145,6 +148,8 @@ export default function RevisarCalificacion({
   onVolver,
   onGradeUpdated,
   hideHeader = false,
+  readOnly = false,
+  codigoRevision,
 }: RevisarCalificacionProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -161,13 +166,15 @@ export default function RevisarCalificacion({
 
   useEffect(() => {
     loadDetails();
-  }, [intentoId]);
+  }, [intentoId, codigoRevision]);
 
   const loadDetails = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await examsAttemptsService.getAttemptDetails(intentoId);
+      const data = readOnly && codigoRevision
+        ? await examsAttemptsService.getAttemptFeedback(codigoRevision)
+        : await examsAttemptsService.getAttemptDetails(intentoId);
       setDetails(data);
 
       if (data.intento?.esExamenPDF) {
@@ -367,6 +374,17 @@ export default function RevisarCalificacion({
                   ? `${Math.floor(estadisticas.tiempoTotal / 60)}m ${estadisticas.tiempoTotal % 60}s`
                   : "Sin tiempo registrado"}
               </div>
+              {intento.codigo_acceso && (
+                <div className={`flex items-center gap-2 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                  </svg>
+                  <span className="text-xs">{["finished", "submitted", "finalizado", "terminado", "graded", "calificado"].includes(intento.estado?.toLowerCase() || "") ? "Código de revisión:" : "Código de acceso:"}</span>
+                  <span className={`font-mono font-bold text-sm tracking-widest px-2 py-0.5 rounded ${darkMode ? "bg-slate-700 text-amber-400" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                    {intento.codigo_acceso}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Resumen de calificación - distinto para PDF y regular */}
@@ -426,6 +444,27 @@ export default function RevisarCalificacion({
           {isPDF && (
             <div className="space-y-8">
               {/* Panel de calificación */}
+              {readOnly ? (
+                <div className={`rounded-2xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-700" : "bg-white border-gray-200"}`}>
+                  <div className={`px-6 py-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-slate-50"}`}>
+                    <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
+                      <MessageSquare className="w-4 h-4" />
+                    </div>
+                    <span className={`font-bold ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                      Retroalimentación del profesor
+                    </span>
+                  </div>
+                  <div className="p-6">
+                    {intento.retroalimentacion ? (
+                      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                        {intento.retroalimentacion}
+                      </p>
+                    ) : (
+                      <p className={`text-sm italic ${darkMode ? "text-slate-600" : "text-slate-400"}`}>Sin retroalimentación</p>
+                    )}
+                  </div>
+                </div>
+              ) : (
               <div className={`rounded-2xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-700" : "bg-white border-gray-200"}`}>
                 <div className={`px-6 py-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-slate-50"}`}>
                   <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
@@ -530,6 +569,7 @@ export default function RevisarCalificacion({
                   </div>
                 </div>
               </div>
+              )}
 
               {/* Respuestas del estudiante */}
               <div>
@@ -607,6 +647,15 @@ export default function RevisarCalificacion({
 
                         {/* Botón de Puntaje a la Derecha */}
                         <div className="flex-shrink-0">
+                          {readOnly ? (
+                            <div className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
+                              <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
+                              <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>
+                                {currentScore}
+                              </span>
+                              <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
+                            </div>
+                          ) : (
                           <button
                             onClick={() => toggleEditMode(pregunta.id)}
                             className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border transition-all cursor-pointer hover:scale-105 active:scale-95 ${
@@ -618,13 +667,14 @@ export default function RevisarCalificacion({
                           >
                             <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
                             <span className={`text-2xl font-black ${
-                              currentScore > 0 
-                                ? (darkMode ? "text-emerald-400" : "text-emerald-600") 
+                              currentScore > 0
+                                ? (darkMode ? "text-emerald-400" : "text-emerald-600")
                                 : (darkMode ? "text-slate-500" : "text-slate-400")
                             }`}>
                               {currentScore}
                             </span>
                           </button>
+                          )}
                         </div>
                       </div>
 
@@ -662,7 +712,22 @@ export default function RevisarCalificacion({
                     </div>
 
                     {/* PANEL LATERAL DE CALIFICACIÓN */}
-                    {isEditing && (
+                    {readOnly && resp?.retroalimentacion && (
+                      <div className={`w-full xl:w-80 border-t xl:border-t-0 xl:border-l flex flex-col flex-shrink-0 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-slate-50 border-gray-200"}`}>
+                        <div className={`p-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/50" : "border-gray-200 bg-white"}`}>
+                          <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
+                            <MessageSquare className="w-4 h-4" />
+                          </div>
+                          <span className={`text-sm font-bold ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                            Retroalimentación
+                          </span>
+                        </div>
+                        <div className={`p-5 text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                          {resp.retroalimentacion}
+                        </div>
+                      </div>
+                    )}
+                    {!readOnly && isEditing && (
                       <div className={`w-full xl:w-80 border-t xl:border-t-0 xl:border-l flex flex-col transition-all flex-shrink-0 ${
                         darkMode ? "bg-slate-900/50 border-slate-700" : "bg-slate-50 border-gray-200"
                       }`}>

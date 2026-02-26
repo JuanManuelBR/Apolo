@@ -13,6 +13,7 @@ export class AttemptQueryService {
   static async getAttemptDetails(intento_id: number) {
     const attemptRepo = AppDataSource.getRepository(ExamAttempt);
     const eventRepo = AppDataSource.getRepository(ExamEvent);
+    const progressRepo = AppDataSource.getRepository(ExamInProgress);
 
     // 1. Obtener el intento con todas sus respuestas
     const attempt = await attemptRepo.findOne({
@@ -23,6 +24,11 @@ export class AttemptQueryService {
     if (!attempt) {
       throwHttpError("Intento no encontrado", 404);
     }
+
+    // 1b. Obtener el código de acceso desde ExamInProgress
+    const examInProgress = await progressRepo.findOne({
+      where: { intento_id },
+    });
 
     // 2. Obtener todos los eventos de seguridad
     const eventos = await eventRepo.find({
@@ -71,7 +77,10 @@ export class AttemptQueryService {
       );
 
       return {
-        intento: QuestionResponseBuilder.buildAttemptSummary(attempt, true),
+        intento: {
+          ...QuestionResponseBuilder.buildAttemptSummary(attempt, true),
+          codigo_acceso: examInProgress?.codigo_acceso ?? attempt.codigoRevision ?? null,
+        },
         examen: {
           id: exam.id,
           nombre: exam.nombre,
@@ -105,7 +114,10 @@ export class AttemptQueryService {
       );
 
     return {
-      intento: QuestionResponseBuilder.buildAttemptSummary(attempt),
+      intento: {
+        ...QuestionResponseBuilder.buildAttemptSummary(attempt),
+        codigo_acceso: examInProgress?.codigo_acceso ?? attempt.codigoRevision ?? null,
+      },
       examen: {
         id: exam.id,
         nombre: exam.nombre,
@@ -268,7 +280,7 @@ export class AttemptQueryService {
         progreso: attempt.progreso || 0,
         alertas: events.length,
         alertasNoLeidas: unreadCount,
-        codigo_acceso: progress?.codigo_acceso,
+        codigo_acceso: progress?.codigo_acceso ?? attempt.codigoRevision ?? null,
         fecha_expiracion: progress?.fecha_expiracion,
         fecha_fin: attempt.fecha_fin,
         esExamenPDF: attempt.esExamenPDF,
