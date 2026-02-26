@@ -22,6 +22,7 @@ import {
   Pencil,
   Bot,
   ClipboardList,
+  FileDown,
 } from "lucide-react";
 import {
   examsService,
@@ -30,6 +31,7 @@ import {
 } from "../services/examsService";
 import { examsAttemptsService } from "../services/examsAttempts";
 import ModalConfirmacion from "../components/ModalConfirmacion";
+import ExportarPDFModal from "../components/ExportarPDFModal";
 
 interface ListaExamenesProps {
   darkMode: boolean;
@@ -66,6 +68,7 @@ export default function ListaExamenes({
   );
   const [correoDestino, setCorreoDestino] = useState("");
   const [compartiendoExito, setCompartiendoExito] = useState(false);
+  const [exportModal, setExportModal] = useState<ExamenConEstado | null>(null);
 
   const [modal, setModal] = useState<{ visible: boolean; tipo: "exito" | "error" | "advertencia" | "info" | "confirmar"; titulo: string; mensaje: string; onConfirmar: () => void; onCancelar?: () => void }>({ visible: false, tipo: "info", titulo: "", mensaje: "", onConfirmar: () => {} });
   const mostrarModal = (tipo: "exito" | "error" | "advertencia" | "info" | "confirmar", titulo: string, mensaje: string, onConfirmar: () => void, onCancelar?: () => void) => setModal({ visible: true, tipo, titulo, mensaje, onConfirmar, onCancelar });
@@ -1048,6 +1051,18 @@ export default function ListaExamenes({
                               </button>
                             )}
 
+                            <button
+                              onClick={() => { setMenuAbierto(null); setExportModal(examen); }}
+                              className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
+                                darkMode
+                                  ? "text-gray-300 hover:bg-slate-700"
+                                  : "text-gray-700 hover:bg-gray-50"
+                              }`}
+                            >
+                              <FileDown className="w-4 h-4 text-teal-500" />
+                              Exportar a PDF
+                            </button>
+
                             <div
                               className={`my-1 h-px ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}
                             />
@@ -1082,6 +1097,14 @@ export default function ListaExamenes({
         darkMode={darkMode}
         onCancelar={modal.onCancelar || cerrarModal}
       />
+
+      {exportModal && (
+        <ExportarPDFModal
+          examen={exportModal}
+          darkMode={darkMode}
+          onClose={() => setExportModal(null)}
+        />
+      )}
     </div>
   );
 }
