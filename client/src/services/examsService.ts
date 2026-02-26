@@ -665,6 +665,11 @@ export const examsService = {
       { withCredentials: true },
     );
   },
+
+  getExamById: async (examId: number): Promise<any> => {
+    const response = await examsApi.get(`/by-id/${examId}`, { withCredentials: true });
+    return response.data;
+  },
 };
 
 // ==================== HELPER: Obtener usuario actual ====================
