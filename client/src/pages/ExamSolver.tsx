@@ -49,8 +49,9 @@ interface StudentData {
   id_sesion?: string;
   fecha_expiracion?: string | null;
   examCode: string;
-  startTime: string;
+  startTime?: string;
   contrasena?: string;
+  isResuming?: boolean;
 }
 
 interface ExamData {
@@ -541,18 +542,23 @@ export default function SecureExamPlatform() {
   useEffect(() => {
     if (!examStarted || !studentData || !examData || timeLimitRemoved) return;
 
-    // Calcular tiempo final: usar fecha_expiracion del backend (cubre tanto limiteTiempo como horaCierre)
-    // o calcular desde limiteTiempo si está disponible
-    const startMs = new Date(studentData.startTime).getTime();
+    // fecha_expiracion es la fuente de verdad: el backend la calcula como
+    // min(inicio + limiteTiempo, horaCierre) al crear el intento y la preserva
+    // en la BD. Sirve igual para intentos nuevos y reanudados.
+    // Si es null el examen no tiene límite de tiempo de ningún tipo.
     let endTime: number;
     let duration: number;
 
     if (studentData.fecha_expiracion) {
       endTime = new Date(studentData.fecha_expiracion).getTime();
-      duration = endTime - startMs;
-    } else if (examData.limiteTiempo && examData.limiteTiempo > 0) {
-      duration = examData.limiteTiempo * 60 * 1000;
-      endTime = startMs + duration;
+      // duration para calcular % de alertas: relativo al momento actual
+      duration = endTime - Date.now();
+      if (duration <= 0) {
+        // El tiempo ya expiró antes de que el timer arrancara (raro, pero posible)
+        setRemainingTime("00:00:00");
+        blockExam("Tiempo finalizado", "INFO");
+        return;
+      }
     } else {
       setRemainingTime("Sin límite");
       return;
@@ -921,33 +927,49 @@ export default function SecureExamPlatform() {
         return;
       }
 
-      const attemptPayload = {
-        codigo_examen: studentData.examCode,
-        nombre_estudiante: studentData.nombre || undefined,
-        correo_estudiante: studentData.correoElectronico || undefined,
-        identificacion_estudiante: studentData.codigoEstudiante || undefined,
-        contrasena: studentData.contrasena || undefined,
-      };
+      let attempt: { id: number };
+      let examInProgress: { codigo_acceso: string; id_sesion: string; fecha_expiracion: string | null };
 
-      console.log("🚀 Creando intento con:", attemptPayload);
+      if (studentData.isResuming && studentData.attemptId && studentData.id_sesion) {
+        // Caso reanudación: usar datos de sesión existentes, sin crear nuevo intento
+        console.log("🔄 Reanudando intento:", studentData.attemptId);
+        attempt = { id: studentData.attemptId };
+        examInProgress = {
+          codigo_acceso: studentData.codigo_acceso!,
+          id_sesion: studentData.id_sesion,
+          fecha_expiracion: studentData.fecha_expiracion ?? null,
+        };
+      } else {
+        // Caso normal: crear nuevo intento
+        const attemptPayload = {
+          codigo_examen: studentData.examCode,
+          nombre_estudiante: studentData.nombre || undefined,
+          correo_estudiante: studentData.correoElectronico || undefined,
+          identificacion_estudiante: studentData.codigoEstudiante || undefined,
+          contrasena: studentData.contrasena || undefined,
+        };
 
-      const res = await fetch(`${ATTEMPTS_API_URL}/api/exam/attempt/start`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(attemptPayload),
-      });
+        console.log("🚀 Creando intento con:", attemptPayload);
 
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.message || "Error al crear intento");
+        const res = await fetch(`${ATTEMPTS_API_URL}/api/exam/attempt/start`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(attemptPayload),
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.message || "Error al crear intento");
+        }
+
+        const result = await res.json();
+        attempt = result.attempt;
+        examInProgress = result.examInProgress;
+        console.log("✅ Intento creado:", attempt);
       }
 
-      const result = await res.json();
-      const { attempt, examInProgress } = result;
-
-      console.log("✅ Intento creado:", attempt);
       console.log("📘 Cargando preguntas del examen...");
-      
+
       const examDetailsRes = await fetch(
         `${EXAMS_API_URL}/api/exams/forAttempt/${studentData.examCode}`
       );
@@ -955,18 +977,20 @@ export default function SecureExamPlatform() {
       if (!examDetailsRes.ok) throw new Error("Error al cargar detalles del examen");
 
       const examDetails = await examDetailsRes.json();
-      
-      // Aleatorizar el orden de las preguntas
-      if (examDetails.questions && Array.isArray(examDetails.questions)) {
+
+      // Aleatorizar el orden de las preguntas solo en intentos nuevos
+      if (!studentData.isResuming && examDetails.questions && Array.isArray(examDetails.questions)) {
         examDetails.questions = shuffleArray(examDetails.questions);
       }
-      
+
       console.log("✅ Preguntas cargadas:", examDetails);
 
       setExamData(examDetails);
 
       const updatedStudentData: StudentData = {
         ...studentData,
+        isResuming: false,
+        startTime: studentData.startTime || new Date().toISOString(),
         attemptId: attempt.id,
         codigo_acceso: examInProgress.codigo_acceso,
         id_sesion: examInProgress.id_sesion,
@@ -975,6 +999,45 @@ export default function SecureExamPlatform() {
 
       setStudentData(updatedStudentData);
       localStorage.setItem("studentData", JSON.stringify(updatedStudentData));
+
+      // Restaurar respuestas guardadas al reanudar
+      if (studentData.isResuming) {
+        const savedAnswersRaw = localStorage.getItem("savedAnswers");
+        if (savedAnswersRaw) {
+          try {
+            const savedAnswers: Array<{ pregunta_id: number; respuesta: string; tipo_respuesta: string }> =
+              JSON.parse(savedAnswersRaw);
+
+            const restoredAnswers: Record<number, any> = {};
+            for (const answer of savedAnswers) {
+              try {
+                const parsed = JSON.parse(answer.respuesta);
+                if (answer.tipo_respuesta === "texto_plano") {
+                  setAnswerPanelContent(parsed);
+                } else if (answer.tipo_respuesta === "python") {
+                  setPythonCells(parsed);
+                } else if (answer.tipo_respuesta === "javascript") {
+                  setJsCells(parsed);
+                } else if (answer.tipo_respuesta === "java") {
+                  setJavaCells(parsed);
+                } else if (answer.tipo_respuesta === "diagrama") {
+                  setLienzoState(parsed);
+                } else {
+                  restoredAnswers[answer.pregunta_id] = parsed;
+                }
+              } catch {
+                restoredAnswers[answer.pregunta_id] = answer.respuesta;
+              }
+            }
+            if (Object.keys(restoredAnswers).length > 0) {
+              setAnswers(restoredAnswers);
+            }
+          } catch (e) {
+            console.error("Error al restaurar respuestas guardadas:", e);
+          }
+          localStorage.removeItem("savedAnswers");
+        }
+      }
 
       const newSocket = io(ATTEMPTS_API_URL, {
         transports: ["websocket", "polling"],

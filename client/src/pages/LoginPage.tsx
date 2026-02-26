@@ -61,7 +61,7 @@ export default function LoginPage() {
     const currentUser = authService.getCurrentUser();
     if (currentUser) {
       console.log('ℹ️ Usuario ya autenticado, redirigiendo...');
-      navigate('/');
+      navigate('/home');
     }
   }, [navigate]);
 
@@ -101,7 +101,7 @@ export default function LoginPage() {
       console.log('✅ Login exitoso, redirigiendo...');
       
       // Navegar a la página principal
-      navigate('/');
+      navigate('/home');
       
     } catch (error: any) {
       console.error('❌ Error al iniciar sesión:', error);
@@ -133,7 +133,7 @@ export default function LoginPage() {
 
     try {
       await authService.loginWithGoogle(auth, googleProvider);
-      navigate('/');
+      navigate('/home');
     } catch (error: any) {
       if (!error.message.includes('cancelada')) {
         setError(error.message || 'Error al iniciar sesión con Google.');

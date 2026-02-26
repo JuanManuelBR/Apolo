@@ -12,6 +12,11 @@ export const examsAttemptsService = {
     return response.data;
   },
 
+  async resumeAttempt(data: { codigo_acceso: string }) {
+    const response = await examsAttemptsApi.post("/attempt/resume", data);
+    return response.data;
+  },
+
   async getActiveAttemptsByExam(examId: number) {
     const response = await examsAttemptsApi.get(`/${examId}/active-attempts`);
     return response.data;
@@ -93,6 +98,11 @@ export const examsAttemptsService = {
 
   async updatePDFAttemptGrade(intentoId: number, data: { puntaje?: number; retroalimentacion?: string }) {
     const response = await examsAttemptsApi.patch(`/attempt/${intentoId}/pdf-grade`, data);
+    return response.data;
+  },
+
+  async getAttemptFeedback(codigoRevision: string) {
+    const response = await examsAttemptsApi.get(`/attempt/feedback/${codigoRevision}`);
     return response.data;
   },
 };

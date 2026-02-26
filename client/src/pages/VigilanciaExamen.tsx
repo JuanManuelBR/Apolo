@@ -66,6 +66,7 @@ interface ExamAttempt {
   preguntasPendientes?: boolean;
   calificacionPendiente?: boolean;
   esExamenPDF?: boolean;
+  codigo_acceso?: string | null;
 }
 
 interface Alerta {
@@ -1263,7 +1264,7 @@ export default function VigilanciaExamenesLista({
                                     </button>
                                 )}
                             </div>
-                            <div className="flex items-center gap-2 mt-1">
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
                                 <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase tracking-wide border ${getEstadoBadgeColor(traducirEstado(estudianteSeleccionado.estado), darkMode)}`}>
                                     {traducirEstado(estudianteSeleccionado.estado)}
                                 </span>
@@ -1275,6 +1276,14 @@ export default function VigilanciaExamenesLista({
                                 <span className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
                                     {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).secundario}
                                 </span>
+                                {estudianteSeleccionado.codigo_acceso && (
+                                    <span className={`flex items-center gap-1.5 text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                                        <span>{["Terminado", "Calificado"].includes(traducirEstado(estudianteSeleccionado.estado)) ? "Código de revisión:" : "Código de acceso:"}</span>
+                                        <span className={`font-mono font-bold tracking-widest px-2 py-0.5 rounded ${darkMode ? "bg-slate-700 text-amber-400" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                                            {estudianteSeleccionado.codigo_acceso}
+                                        </span>
+                                    </span>
+                                )}
                             </div>
                         </div>
                      </div>
