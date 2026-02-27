@@ -449,14 +449,14 @@ export default function ExamAccessPage() {
       className="min-h-screen flex items-center justify-center p-6 relative bg-cover bg-center transition-all duration-300"
       style={{ backgroundImage: `url(${fondoImagen})` }}
     >
-      {/* Overlay ajustable según el tema */}
+      {/* Overlay — mismo estilo que LandingPage */}
       <div
-        className={`absolute inset-0 backdrop-blur-sm transition-all duration-300 ${
+        className={`absolute inset-0 z-0 transition-all duration-500 ${
           darkMode
-            ? "bg-gradient-to-br from-gray-900/95 via-slate-900/90 to-gray-900/95"
-            : "bg-gradient-to-br from-[#003876]/75 via-[#00508f]/70 to-[#003876]/75"
+            ? "bg-gradient-to-b from-slate-950/90 via-slate-900/80 to-slate-950/90 backdrop-blur-[3px]"
+            : "bg-gradient-to-b from-sky-950/55 via-sky-900/30 to-sky-950/55 backdrop-blur-[5px]"
         }`}
-      ></div>
+      />
 
       {/* Logo */}
       <div className="absolute top-8 left-1/2 -translate-x-1/2 z-10">
@@ -472,14 +472,14 @@ export default function ExamAccessPage() {
       {/* Botón de tema */}
       <button
         onClick={toggleTheme}
-        className={`fixed bottom-6 right-6 z-20 p-3 rounded-full shadow-lg transition-all duration-300 ${
+        className={`fixed bottom-6 right-6 z-20 p-4 rounded-full shadow-2xl border transition-all duration-300 hover:scale-110 hover:rotate-12 ${
           darkMode
-            ? "bg-slate-800 text-yellow-400 hover:bg-slate-700"
-            : "bg-white text-gray-700 hover:bg-gray-100"
+            ? "bg-slate-800/80 backdrop-blur-xl border-slate-600 text-yellow-400 hover:bg-slate-700"
+            : "bg-white/90 backdrop-blur-sm border-slate-200 text-slate-600 shadow-slate-300/60 hover:bg-white"
         }`}
         title={darkMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
       >
-        {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
       </button>
 
       {/* Tarjeta principal */}

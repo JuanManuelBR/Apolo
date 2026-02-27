@@ -517,7 +517,7 @@ export default function LMSDashboard() {
           className="bg-transparent px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
           <div className="flex items-center justify-end">
-            <div className="flex items-center">
+            <div className="flex items-center mt-3">
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Logo Universidad"

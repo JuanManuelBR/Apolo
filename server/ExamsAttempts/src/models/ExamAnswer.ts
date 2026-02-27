@@ -15,6 +15,7 @@ export enum TipoRespuesta {
   JAVASCRIPT = "javascript",
   JAVA = "java",
   DIAGRAMA = "diagrama",
+  HOJA_CALCULO = "hoja_calculo",
 }
 
 @Entity("exam_answers")

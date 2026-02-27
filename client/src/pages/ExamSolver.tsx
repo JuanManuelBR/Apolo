@@ -275,6 +275,9 @@ export default function SecureExamPlatform() {
   // Estado persistente para Lienzo (Dibujo)
   const [lienzoState, setLienzoState] = useState<any>(null);
 
+  // Estado persistente para Hoja de Cálculo
+  const [hojaCalcState, setHojaCalcState] = useState<any>(null);
+
   // Estado persistente para Calculadora
   const [calculatorState, setCalculatorState] = useState<any>(null);
 
@@ -289,6 +292,7 @@ export default function SecureExamPlatform() {
   const PDF_JS_ID = 2;        // Editor JavaScript/HTML
   const PDF_JAVA_ID = 3;      // Editor Java
   const PDF_LIENZO_ID = 4;    // Lienzo / Diagrama
+  const PDF_HOJA_ID = 5;      // Hoja de Cálculo
 
   // Refs para debounce de auto-save PDF
   const pdfSaveTimersRef = useRef<Record<number, number>>({});
@@ -380,6 +384,31 @@ export default function SecureExamPlatform() {
     return { sheets: cleanSheets, activeSheetIndex: state.activeSheetIndex };
   };
 
+  // Limpia el estado de la Hoja de Cálculo para persistencia
+  const cleanHojaForSave = (state: any) => ({
+    allCells: state.allCells ?? {},
+    allCharts: state.allCharts ?? {},
+    sheets: state.sheets ?? [],
+    activeSheet: state.activeSheet ?? 1,
+    colWidths: state.colWidths ?? {},
+  });
+
+  // Auto-save: Hoja de Cálculo
+  useEffect(() => {
+    if (!examData?.archivoPDF || !examData?.incluirHojaExcel || !hojaCalcState) return;
+    const clean = cleanHojaForSave(hojaCalcState);
+    const totalCells = Object.values(clean.allCells as Record<number, Record<string, any>>)
+      .reduce((sum, sheet) => sum + Object.values(sheet).filter((c: any) => c.value || c.formula).length, 0);
+    const chartsCount = Object.values(clean.allCharts as Record<number, any[]>)
+      .reduce((sum, charts) => sum + charts.length, 0);
+    savePdfAnswer(
+      PDF_HOJA_ID,
+      clean,
+      "hoja_calculo",
+      JSON.stringify({ sheetsCount: clean.sheets.length, totalCells, chartsCount }),
+    );
+  }, [hojaCalcState]);
+
   // Auto-save: Lienzo / Diagrama
   useEffect(() => {
     if (!examData?.archivoPDF || !examData?.incluirHerramientaDibujo || !lienzoState) return;
@@ -437,8 +466,19 @@ export default function SecureExamPlatform() {
   useEffect(() => {
     const storedStudentData = localStorage.getItem("studentData");
     const storedExamData = localStorage.getItem("currentExam");
+    const storedBlockState = localStorage.getItem("examBlockedState");
 
-    if (storedStudentData) setStudentData(JSON.parse(storedStudentData));
+    if (storedStudentData) {
+      const parsedStudentData = JSON.parse(storedStudentData);
+      setStudentData(parsedStudentData);
+      if (storedBlockState) {
+        const blockState = JSON.parse(storedBlockState);
+        if (blockState.attemptId === parsedStudentData.attemptId) {
+          setExamBlocked(true);
+          setBlockReason(blockState.reason);
+        }
+      }
+    }
     if (storedExamData) setExamData(JSON.parse(storedExamData));
   }, []);
 
@@ -652,6 +692,7 @@ export default function SecureExamPlatform() {
     // localStorage
     localStorage.removeItem("studentData");
     localStorage.removeItem("currentExam");
+    localStorage.removeItem("examBlockedState");
     // sessionStorage
     sessionStorage.clear();
     // Cookies del dominio
@@ -743,6 +784,9 @@ export default function SecureExamPlatform() {
     if (examData?.consecuencia === "notificar") return;
     setExamBlocked(true);
     setBlockReason(reason);
+    if (studentData?.attemptId) {
+      localStorage.setItem("examBlockedState", JSON.stringify({ attemptId: studentData.attemptId, reason }));
+    }
   };
 
   // Función para cerrar la página / salir
@@ -853,6 +897,19 @@ export default function SecureExamPlatform() {
             JSON.stringify({ totalCells: cleaned.length, codeCells, textCells }),
           ));
         }
+        if (examData.incluirHojaExcel && hojaCalcState) {
+          const clean = cleanHojaForSave(hojaCalcState);
+          const totalCells = Object.values(clean.allCells as Record<number, Record<string, any>>)
+            .reduce((sum, sheet) => sum + Object.values(sheet).filter((c: any) => c.value || c.formula).length, 0);
+          const chartsCount = Object.values(clean.allCharts as Record<number, any[]>)
+            .reduce((sum, charts) => sum + charts.length, 0);
+          pdfSaves.push(saveAnswer(
+            PDF_HOJA_ID,
+            clean,
+            "hoja_calculo",
+            JSON.stringify({ sheetsCount: clean.sheets.length, totalCells, chartsCount }),
+          ));
+        }
         if (examData.incluirHerramientaDibujo && lienzoState) {
           const cleanState = cleanLienzoForSave(lienzoState);
           const totalNodes = cleanState.sheets.reduce((sum: number, s: any) => sum + s.nodes.length, 0);
@@ -890,7 +947,7 @@ export default function SecureExamPlatform() {
               } catch (e) { console.log("No se pudo cerrar automáticamente"); }
           } catch (error) { 
               console.error("Error:", error); 
-              alert("Error al entregar el examen");
+              console.error("Error al entregar el examen");
               setIsSubmitting(false);
           }
       } else {
@@ -923,7 +980,6 @@ export default function SecureExamPlatform() {
       const heightDiff = window.outerHeight - window.innerHeight;
 
       if (widthDiff > 200 || heightDiff > 200) {
-        alert("Por favor cierra las herramientas de desarrollador antes de iniciar el examen.");
         return;
       }
 
@@ -1020,6 +1076,8 @@ export default function SecureExamPlatform() {
                   setJsCells(parsed);
                 } else if (answer.tipo_respuesta === "java") {
                   setJavaCells(parsed);
+                } else if (answer.tipo_respuesta === "hoja_calculo") {
+                  setHojaCalcState(parsed);
                 } else if (answer.tipo_respuesta === "diagrama") {
                   setLienzoState(parsed);
                 } else {
@@ -1073,6 +1131,7 @@ export default function SecureExamPlatform() {
         console.log("✅ Examen desbloqueado por el profesor", data);
         setExamBlocked(false);
         setBlockReason("");
+        localStorage.removeItem("examBlockedState");
         setShowUnlockScreen(true);
 
         // Traer la ventana al frente y darle foco
@@ -1133,7 +1192,7 @@ export default function SecureExamPlatform() {
     } catch (error: any) {
         console.error("❌ Error al iniciar examen:", error);
         setIsStarting(false);
-        alert(error.message || "Error al iniciar el examen");
+        console.error(error.message || "Error al iniciar el examen");
     }
   };
 
@@ -1206,10 +1265,30 @@ export default function SecureExamPlatform() {
       return;
     }
 
-    // Lógica para reemplazar herramientas si ya hay una abierta
+    // Lógica para reemplazar herramientas si ya hay una abierta (o el panel "answer")
     const tools: PanelType[] = ["calculadora", "excel", "dibujo", "javascript", "python", "java"];
-    if (tools.includes(panelType)) {
+
+    // Si se abre "answer" y hay una herramienta abierta, reemplazarla
+    if (panelType === "answer") {
       const existingToolIndex = openPanels.findIndex((p) => tools.includes(p));
+      if (existingToolIndex !== -1) {
+        const newPanels = [...openPanels];
+        newPanels[existingToolIndex] = panelType;
+        setOpenPanels(newPanels);
+        const newZooms = [...panelZooms];
+        newZooms[existingToolIndex] = 100;
+        setPanelZooms(newZooms);
+        setPanelSizes(calculateOptimalSizes(newPanels));
+        return;
+      }
+    }
+
+    if (tools.includes(panelType)) {
+      let existingToolIndex = openPanels.findIndex((p) => tools.includes(p));
+      // Si no hay herramienta abierta, revisar si "answer" está abierto para reemplazarlo
+      if (existingToolIndex === -1) {
+        existingToolIndex = openPanels.indexOf("answer");
+      }
       if (existingToolIndex !== -1) {
         let newPanels = [...openPanels];
         newPanels[existingToolIndex] = panelType;
@@ -1243,7 +1322,7 @@ export default function SecureExamPlatform() {
          return;
     }
 
-    if (openPanels.length >= 2) { alert("Máximo 2 paneles"); return; }
+    if (openPanels.length >= 2) { return; }
     const newPanels = [...openPanels, panelType];
     setOpenPanels(newPanels);
     
@@ -1352,8 +1431,8 @@ export default function SecureExamPlatform() {
             />
           );
         
-        case "excel": 
-          return <HojaCalculo darkMode={darkMode} />;
+        case "excel":
+          return <HojaCalculo darkMode={darkMode} initialData={hojaCalcState} onSave={setHojaCalcState} />;
         
         case "dibujo": 
           return <Lienzo darkMode={darkMode} initialData={lienzoState} onSave={setLienzoState} />;
@@ -1464,17 +1543,6 @@ export default function SecureExamPlatform() {
     );
   }
 
-  if (!examStarted) {
-    return (
-      <div className={`min-h-screen ${darkMode ? "bg-slate-900" : "bg-gray-50"}`}>
-        <button onClick={toggleTheme} className={`fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-yellow-400" : "bg-white border-gray-200 text-gray-600"}`}>
-          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-        </button>
-        <MonitoreoSupervisado darkMode={darkMode} onStartExam={startExam} isStarting={isStarting} />
-      </div>
-    );
-  }
-
   if (examBlocked) {
     return (
         <div className="min-h-screen flex items-center justify-center bg-red-900 p-4">
@@ -1485,6 +1553,17 @@ export default function SecureExamPlatform() {
                 <button onClick={handleEscapeFromBlock} className="px-6 py-3 bg-red-600 text-white rounded-lg font-bold">Salir de Pantalla Completa</button>
             </div>
         </div>
+    );
+  }
+
+  if (!examStarted) {
+    return (
+      <div className={`min-h-screen ${darkMode ? "bg-slate-900" : "bg-gray-50"}`}>
+        <button onClick={toggleTheme} className={`fixed bottom-6 right-6 z-50 p-3 rounded-full shadow-lg border ${darkMode ? "bg-slate-800 border-slate-700 text-yellow-400" : "bg-white border-gray-200 text-gray-600"}`}>
+          {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        </button>
+        <MonitoreoSupervisado darkMode={darkMode} onStartExam={startExam} isStarting={isStarting} />
+      </div>
     );
   }
 

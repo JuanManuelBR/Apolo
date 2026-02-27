@@ -961,6 +961,8 @@ export class ExamService {
         archivoPDF: nuevoPDF,
         cambioEstadoAutomatico: false,
         tienePreguntasAbiertas: original.tienePreguntasAbiertas,
+        dividirPreguntas: original.dividirPreguntas,
+        permitirVolverPreguntas: original.permitirVolverPreguntas,
       });
 
       const examenGuardado = await manager.save(Exam, nuevoExamen);
