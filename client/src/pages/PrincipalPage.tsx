@@ -21,6 +21,7 @@ import { getAuth } from "firebase/auth";
 import { usersService } from "../services/Authservice";
 import { getAuthToken } from "../services/authToken";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import AnimatedPage from "../components/AnimatedPage";
 import {
   Home,
   Bell,
@@ -403,7 +404,7 @@ export default function LMSDashboard() {
 
           {showProfileMenu && !sidebarCollapsed && (
             <div
-              className={`absolute left-4 top-16 right-4 ${darkMode ? "bg-slate-800/95 backdrop-blur-md border-slate-700/50" : "bg-white/95 backdrop-blur-md border-gray-200/50"} border rounded-lg shadow-2xl z-50 py-1`}
+              className={`absolute left-4 top-16 right-4 anim-slideDown ${darkMode ? "bg-slate-800/95 backdrop-blur-md border-slate-700/50" : "bg-white/95 backdrop-blur-md border-gray-200/50"} border rounded-lg shadow-2xl z-50 py-1`}
             >
               <button
                 onClick={() => handleMenuItemClick("/mi-perfil")}
@@ -534,33 +535,39 @@ export default function LMSDashboard() {
             </div>
           ) : <Routes>
             <Route index element={<Navigate to="/home" replace />} />
-            <Route path="home" element={<HomeContent darkMode={darkMode} />} />
+            <Route path="home" element={<AnimatedPage key="home"><HomeContent darkMode={darkMode} /></AnimatedPage>} />
             <Route path="notificaciones" element={
-              <NotificationsContent
-                darkMode={darkMode}
-                notificaciones={notificaciones}
-                onMarkAsRead={handleMarkAsRead}
-                onDelete={handleDeleteNotification}
-                onClearAll={handleClearAllNotifications}
-                onAcceptExam={handleAcceptExam}
-              />
+              <AnimatedPage key="notificaciones">
+                <NotificationsContent
+                  darkMode={darkMode}
+                  notificaciones={notificaciones}
+                  onMarkAsRead={handleMarkAsRead}
+                  onDelete={handleDeleteNotification}
+                  onClearAll={handleClearAllNotifications}
+                  onAcceptExam={handleAcceptExam}
+                />
+              </AnimatedPage>
             } />
             <Route path="nuevo-examen" element={
-              <CrearExamen
-                darkMode={darkMode}
-                onExamenCreado={() => navigate("/lista-examenes")}
-              />
+              <AnimatedPage key="nuevo-examen">
+                <CrearExamen
+                  darkMode={darkMode}
+                  onExamenCreado={() => navigate("/lista-examenes")}
+                />
+              </AnimatedPage>
             } />
             <Route path="editar-examen" element={
-              <CrearExamen
-                darkMode={darkMode}
-                onExamenCreado={() => navigate("/lista-examenes")}
-              />
+              <AnimatedPage key="editar-examen">
+                <CrearExamen
+                  darkMode={darkMode}
+                  onExamenCreado={() => navigate("/lista-examenes")}
+                />
+              </AnimatedPage>
             } />
-            <Route path="ver-examen" element={<VerExamen darkMode={darkMode} />} />
-            <Route path="lista-examenes" element={<ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} />} />
-            <Route path="vigilancia" element={<VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} />} />
-            <Route path="mi-perfil" element={<MiPerfil darkMode={darkMode} />} />
+            <Route path="ver-examen" element={<AnimatedPage key="ver-examen"><VerExamen darkMode={darkMode} /></AnimatedPage>} />
+            <Route path="lista-examenes" element={<AnimatedPage key="lista-examenes"><ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} /></AnimatedPage>} />
+            <Route path="vigilancia" element={<AnimatedPage key="vigilancia"><VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} /></AnimatedPage>} />
+            <Route path="mi-perfil" element={<AnimatedPage key="mi-perfil"><MiPerfil darkMode={darkMode} /></AnimatedPage>} />
           </Routes>}
         </main>
       </div>

@@ -28,6 +28,7 @@ import { examsService } from "../services/examsService";
 import { examsAttemptsService } from "../services/examsAttempts";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import RevisarCalificacion from "../components/RevisarCalificacion";
+import PageLoader from "../components/PageLoader";
 
 // ============================================
 // INTERFACES
@@ -117,6 +118,7 @@ export default function VigilanciaExamenesLista({
   // Estados
   const [examAttempts, setExamAttempts] = useState<{ [key: number]: ExamAttempt[] }>({});
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<ExamAttempt | null>(null);
+  const [vistaTransicionando, setVistaTransicionando] = useState(false);
   const [examenActual, setExamenActual] = useState<Examen | null>(null);
   const [alertasEstudiante, setAlertasEstudiante] = useState<Alerta[]>([]);
   const [mostrarModalAlertas, setMostrarModalAlertas] = useState(false);
@@ -499,6 +501,24 @@ export default function VigilanciaExamenesLista({
     } catch (e) { console.error(e); }
   };
 
+  const handleSeleccionarEstudiante = (estudiante: ExamAttempt) => {
+    setVistaTransicionando(true);
+    setTimeout(async () => {
+      setVistaTransicionando(false);
+      await seleccionarEstudiante(estudiante);
+    }, 180);
+  };
+
+  const handleVolverLista = () => {
+    setVistaTransicionando(true);
+    setTimeout(() => {
+      setVistaTransicionando(false);
+      setEstudianteSeleccionado(null);
+      setModoRevision(false);
+      sessionStorage.removeItem("vigilancia_estudianteId");
+    }, 180);
+  };
+
   const seleccionarEstudiante = async (estudiante: ExamAttempt) => {
     setEstudianteSeleccionado({ ...estudiante, alertasNoLeidas: 0 });
     sessionStorage.setItem("vigilancia_estudianteId", estudiante.id.toString());
@@ -809,7 +829,7 @@ export default function VigilanciaExamenesLista({
       .join(" ");
   };
 
-  if (loadingExamenes) return <div className="flex justify-center h-screen items-center"><div className="animate-spin rounded-full h-10 w-10 border-4 border-teal-500 border-t-transparent"></div></div>;
+  if (loadingExamenes) return <PageLoader darkMode={darkMode} mensaje="Cargando vigilancia..." />;
 
   return (
     <>
@@ -951,7 +971,7 @@ export default function VigilanciaExamenesLista({
               </div>
             ) : !estudianteSeleccionado ? (
               // ================= VISTA LISTA DE ESTUDIANTES =================
-              <div className="flex flex-col h-full">
+              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
                 
                 <div className="p-6 pb-4 flex-shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -1092,7 +1112,7 @@ export default function VigilanciaExamenesLista({
                            return (
                              <button
                                key={estudiante.id}
-                               onClick={() => seleccionarEstudiante(estudiante)}
+                               onClick={() => handleSeleccionarEstudiante(estudiante)}
                                className={`w-full text-left p-4 rounded-xl border transition-all group relative ${
                                   darkMode 
                                   ? "bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-600" 
@@ -1187,9 +1207,9 @@ export default function VigilanciaExamenesLista({
 
             ) : (
               // ================= VISTA DETALLE ESTUDIANTE =================
-              <div className={`flex flex-col h-full ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
+              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-slideUp"} ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
                  <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-                    <button onClick={() => { setEstudianteSeleccionado(null); setModoRevision(false); sessionStorage.removeItem("vigilancia_estudianteId"); }} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
+                    <button onClick={handleVolverLista} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
                        </div>

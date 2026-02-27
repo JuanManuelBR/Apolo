@@ -32,6 +32,8 @@ import {
 import { examsAttemptsService } from "../services/examsAttempts";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import ExportarPDFModal from "../components/ExportarPDFModal";
+import PageLoader from "../components/PageLoader";
+import ScrollReveal from "../components/ScrollReveal";
 
 interface ListaExamenesProps {
   darkMode: boolean;
@@ -381,20 +383,7 @@ export default function ListaExamenes({
   };
 
   if (cargando) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
-          <Loader2
-            className={`w-12 h-12 animate-spin mx-auto mb-4 ${
-              darkMode ? "text-teal-500" : "text-slate-700"
-            }`}
-          />
-          <p className={`${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-            Cargando exámenes...
-          </p>
-        </div>
-      </div>
-    );
+    return <PageLoader darkMode={darkMode} mensaje="Cargando exámenes..." inline />;
   }
 
   if (error) {
@@ -670,15 +659,15 @@ export default function ListaExamenes({
             </p>
           </div>
         ) : (
-          examenesAMostrar.map((examen) => {
+          examenesAMostrar.map((examen, index) => {
             const estado = obtenerEstadoExamen(examen);
             const isInactive = !examen.activoManual || examen.archivado;
             const isMenuOpen = menuAbierto === examen.codigoExamen;
             const tipoExamen = obtenerTipoExamen(examen);
 
             return (
+              <ScrollReveal key={examen.id} delay={index * 55}>
               <div
-                key={examen.id}
                 className={`group rounded-2xl p-5 border transition-all duration-300 ${
                   isMenuOpen ? "z-50 relative shadow-xl" : "z-0 relative"
                 } ${
@@ -1087,6 +1076,7 @@ export default function ListaExamenes({
                   </div>
                 </div>
               </div>
+              </ScrollReveal>
             );
           })
         )}

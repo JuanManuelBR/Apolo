@@ -86,9 +86,9 @@ export default function ModalConfirmacion({
   const btnCancelarTexto = textoCancelar || "Cancelar";
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm anim-fadeIn">
       <div
-        className={`w-full max-w-md p-6 rounded-2xl shadow-2xl border-2 ${
+        className={`w-full max-w-md p-6 rounded-2xl shadow-2xl border-2 anim-scaleIn ${
           darkMode ? `bg-slate-800 ${config.borderColor[0]}` : `bg-white ${config.borderColor[1]}`
         }`}
       >

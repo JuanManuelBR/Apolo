@@ -21,6 +21,7 @@ import {
   Hash,
 } from "lucide-react";
 import { examsAttemptsService } from "../services/examsAttempts";
+import PageLoader from "./PageLoader";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import Lienzo from "./Lienzo";
@@ -306,14 +307,7 @@ export default function RevisarCalificacion({
   // LOADING / ERROR
   // ============================================
   if (loading) {
-    return (
-      <div className="min-h-[40vh] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className={`text-xl font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Cargando revisión...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader darkMode={darkMode} mensaje="Cargando revisión..." inline />;
   }
 
   if (error || !details) {

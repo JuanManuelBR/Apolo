@@ -482,6 +482,46 @@ export default function SecureExamPlatform() {
     if (storedExamData) setExamData(JSON.parse(storedExamData));
   }, []);
 
+  // Socket para recibir desbloqueo cuando la página fue recargada con examen bloqueado
+  useEffect(() => {
+    if (!examBlocked || examStarted || !studentData?.attemptId) return;
+
+    const blockedSocket = io(ATTEMPTS_API_URL, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
+    });
+
+    blockedSocket.on("connect", () => {
+      blockedSocket.emit("join_attempt", {
+        attemptId: studentData.attemptId,
+        sessionId: studentData.id_sesion,
+      });
+    });
+
+    blockedSocket.on("attempt_unlocked", () => {
+      setExamBlocked(false);
+      setBlockReason("");
+      localStorage.removeItem("examBlockedState");
+      // Marcar como reanudación para que startExam use el intento existente
+      setStudentData((prev) => {
+        if (!prev) return prev;
+        const updated = { ...prev, isResuming: true };
+        localStorage.setItem("studentData", JSON.stringify(updated));
+        return updated;
+      });
+      setShowUnlockScreen(true);
+      try { window.focus(); } catch (e) {}
+      blockedSocket.disconnect();
+    });
+
+    return () => {
+      blockedSocket.disconnect();
+    };
+  }, [examBlocked, examStarted, studentData?.attemptId]);
+
   // Verificación de integridad
   useEffect(() => {
     integrityCheckRef.current = Math.random();
@@ -1185,8 +1225,11 @@ export default function SecureExamPlatform() {
 
       setTimeout(async () => {
         if (fullscreenRef.current) {
-            try { await fullscreenRef.current.requestFullscreen(); } 
-            catch (err) { addSecurityViolation("No se pudo activar pantalla completa"); }
+            try { await fullscreenRef.current.requestFullscreen(); }
+            catch (err) {
+              // Si la página estaba oculta, los handlers de focus/visibilitychange lo detectarán al volver
+              if (!document.hidden) addSecurityViolation("No se pudo activar pantalla completa");
+            }
         }
       }, 100);
     } catch (error: any) {
@@ -1221,7 +1264,19 @@ export default function SecureExamPlatform() {
     };
 
     const handleVisibilityChange = () => {
-      if (examStarted && document.hidden && !examBlocked && !isSubmitting && !examFinished) blockExam("Cambio de pestaña detectado", "CRITICAL");
+      if (!examStarted || examBlocked || isSubmitting || examFinished) return;
+      if (document.hidden) {
+        blockExam("Cambio de pestaña detectado", "CRITICAL");
+      } else if (!document.fullscreenElement) {
+        // Volvió a la página sin pantalla completa activa (la activación falló durante el inicio)
+        blockExam("Examen iniciado sin pantalla completa", "CRITICAL");
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (examStarted && !examBlocked && !isSubmitting && !examFinished && !document.fullscreenElement) {
+        blockExam("Examen iniciado sin pantalla completa", "CRITICAL");
+      }
     };
 
     const handleBlur = () => {
@@ -1241,6 +1296,7 @@ export default function SecureExamPlatform() {
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("focus", handleWindowFocus);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("beforeunload", handleBeforeUnload);
 
@@ -1248,6 +1304,7 @@ export default function SecureExamPlatform() {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       clearTimeout(fullscreenTimeout);
@@ -1582,24 +1639,25 @@ export default function SecureExamPlatform() {
                 <button
                     type="button"
                     onClick={async () => {
-                      console.log("🔵 Botón clickeado - Intentando activar pantalla completa");
-                      // Activar pantalla completa
-                      if (fullscreenRef.current) {
-                        try {
-                          await fullscreenRef.current.requestFullscreen();
-                          console.log("✅ Pantalla completa reactivada exitosamente");
-                          // Ocultar pantalla de desbloqueo después de activar pantalla completa
-                          setTimeout(() => {
+                      if (!examStarted) {
+                        // Caso recarga: el examen no estaba en curso en esta sesión,
+                        // startExam() maneja la pantalla completa y reanuda el intento
+                        setShowUnlockScreen(false);
+                        startExam();
+                      } else {
+                        // Caso normal: el examen estaba en curso, solo reactivar pantalla completa
+                        if (fullscreenRef.current) {
+                          try {
+                            await fullscreenRef.current.requestFullscreen();
+                            setTimeout(() => {
+                              setShowUnlockScreen(false);
+                            }, 500);
+                          } catch (err) {
                             setShowUnlockScreen(false);
-                          }, 500);
-                        } catch (err) {
-                          console.error("❌ Error al reactivar pantalla completa:", err);
-                          // Intentar de todas formas ocultar la pantalla
+                          }
+                        } else {
                           setShowUnlockScreen(false);
                         }
-                      } else {
-                        console.warn("⚠️ fullscreenRef.current es null");
-                        setShowUnlockScreen(false);
                       }
                     }}
                     className="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold text-lg shadow-xl hover:from-green-600 hover:to-emerald-700 transition-all hover:scale-105 flex items-center gap-3 mx-auto"

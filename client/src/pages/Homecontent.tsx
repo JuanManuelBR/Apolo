@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { FileEdit, User, Bell, CheckCircle, AlertTriangle, TrendingUp } from 'lucide-react';
+import ScrollReveal from '../components/ScrollReveal';
 
 interface HomeContentProps {
   darkMode: boolean;
@@ -75,12 +76,13 @@ export default function HomeContent({ darkMode }: HomeContentProps) {
     <div className="max-w-7xl mx-auto">
       {/* Tarjetas de Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <StatCard title="Total Exámenes" value="12" icon={FileEdit} color="bg-blue-500" darkMode={darkMode} />
-        <StatCard title="Estudiantes Activos" value="245" icon={User} color="bg-green-500" darkMode={darkMode} />
-        <StatCard title="Pendientes" value="5" icon={Bell} color="bg-orange-500" darkMode={darkMode} />
+        <ScrollReveal delay={0}><StatCard title="Total Exámenes" value="12" icon={FileEdit} color="bg-blue-500" darkMode={darkMode} /></ScrollReveal>
+        <ScrollReveal delay={60}><StatCard title="Estudiantes Activos" value="245" icon={User} color="bg-green-500" darkMode={darkMode} /></ScrollReveal>
+        <ScrollReveal delay={120}><StatCard title="Pendientes" value="5" icon={Bell} color="bg-orange-500" darkMode={darkMode} /></ScrollReveal>
       </div>
 
       {/* Actividad Reciente */}
+      <ScrollReveal>
       <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg p-6 shadow-sm transition-colors duration-300 mb-6`}>
         <h2 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Actividad Reciente</h2>
         <div className="space-y-4">
@@ -131,9 +133,12 @@ export default function HomeContent({ darkMode }: HomeContentProps) {
         </div>
       </div>
 
+      </ScrollReveal>
+
       {/* Exámenes Activos y Resumen de Calificaciones */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Exámenes Activos */}
+        <ScrollReveal delay={0}>
         <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg p-6 shadow-sm transition-colors duration-300`}>
           <h2 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>Exámenes Activos</h2>
           <div className="space-y-3">
@@ -166,8 +171,10 @@ export default function HomeContent({ darkMode }: HomeContentProps) {
             ))}
           </div>
         </div>
+        </ScrollReveal>
 
         {/* Resumen de Calificaciones */}
+        <ScrollReveal delay={80}>
         <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg p-6 shadow-sm transition-colors duration-300`}>
           <h2 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
             Resumen de Calificaciones
@@ -230,6 +237,7 @@ export default function HomeContent({ darkMode }: HomeContentProps) {
             </div>
           )}
         </div>
+        </ScrollReveal>
       </div>
     </div>
   );
