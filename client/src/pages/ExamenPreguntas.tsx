@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { ChevronRight, ChevronLeft, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronLeft, CheckCircle2, ZoomIn, ZoomOut } from "lucide-react";
+import * as pdfjsLib from "pdfjs-dist";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  "pdfjs-dist/build/pdf.worker.min.mjs",
+  import.meta.url
+).href;
 
 // --- TIPOS E INTERFACES ---
 interface Question {
@@ -35,6 +41,9 @@ interface ExamPanelProps {
   onAnswerChange: (preguntaId: number, respuesta: any, delayMs?: number) => void;
   readOnly?: boolean;
   onTerminarRevision?: () => void;
+  remainingTime?: string;
+  timerStatus?: 'normal' | 'warning' | 'critical';
+  timeLimitRemoved?: boolean;
 }
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
@@ -73,6 +82,93 @@ const getStableColor = (id: number, colors: any[]) => {
   return colors[(id * 37) % colors.length];
 };
 
+// --- VISOR PDF PARA MÓVIL (canvas inline, sin abrir pestaña) ---
+function MobilePdfViewer({ blobUrl, darkMode }: { blobUrl: string; darkMode: boolean }) {
+  const [pages, setPages] = useState<HTMLCanvasElement[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [scale, setScale] = useState(1.2);
+  const pdfDocRef = useRef<any>(null);
+
+  const renderPages = useCallback(async (pdf: any, s: number) => {
+    const rendered: HTMLCanvasElement[] = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const viewport = page.getViewport({ scale: s });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      const ctx = canvas.getContext("2d")!;
+      await page.render({ canvasContext: ctx, viewport }).promise;
+      rendered.push(canvas);
+    }
+    setPages(rendered);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(false);
+    setPages([]);
+    pdfjsLib.getDocument(blobUrl).promise
+      .then((pdf) => {
+        if (cancelled) return;
+        pdfDocRef.current = pdf;
+        return renderPages(pdf, scale);
+      })
+      .catch(() => {
+        if (!cancelled) { setError(true); setLoading(false); }
+      });
+    return () => { cancelled = true; };
+  }, [blobUrl, scale, renderPages]);
+
+  const changeScale = (delta: number) => {
+    setScale((s) => Math.min(3, Math.max(0.6, parseFloat((s + delta).toFixed(1)))));
+  };
+
+  if (loading) return (
+    <div className={`flex flex-col items-center justify-center gap-3 py-16 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+      <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+      <span className="text-sm font-medium">Cargando PDF…</span>
+    </div>
+  );
+
+  if (error) return (
+    <div className={`text-center py-10 text-sm ${darkMode ? "text-red-400" : "text-red-500"}`}>
+      No se pudo cargar el PDF. Intenta de nuevo.
+    </div>
+  );
+
+  return (
+    <div>
+      {/* Controles de zoom */}
+      <div className={`flex items-center justify-end gap-2 p-2 border-b ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+        <button onClick={() => changeScale(-0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <span className={`text-xs font-mono w-10 text-center ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{Math.round(scale * 100)}%</span>
+        <button onClick={() => changeScale(0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
+          <ZoomIn className="w-4 h-4" />
+        </button>
+      </div>
+      {/* Páginas renderizadas */}
+      <div className="overflow-x-auto">
+        {pages.map((canvas, i) => (
+          <div key={i} className={`mb-2 flex justify-center ${darkMode ? "bg-slate-900" : "bg-gray-100"}`}>
+            <img
+              src={canvas.toDataURL()}
+              alt={`Página ${i + 1}`}
+              style={{ maxWidth: "100%", display: "block" }}
+              draggable={false}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // --- COMPONENTE PRINCIPAL ---
 export default function ExamPanel({
   examData,
@@ -81,11 +177,17 @@ export default function ExamPanel({
   onAnswerChange,
   readOnly = false,
   onTerminarRevision,
+  remainingTime,
+  timerStatus = 'normal',
+  timeLimitRemoved = false,
 }: ExamPanelProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [allDone, setAllDone] = useState(false);
   const [showNoAnswerConfirm, setShowNoAnswerConfirm] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Detectar móvil: pantalla pequeña o touch device
+  const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);
 
   // PDF: cargamos el archivo como Blob URL para que iOS Safari pueda mostrarlo inline en el iframe
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
@@ -239,43 +341,60 @@ export default function ExamPanel({
                 )}
               </header>
               <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-                {pdfBlobLoading ? (
-                  <div
-                    className={`w-full flex flex-col items-center justify-center gap-3 ${darkMode ? "bg-slate-800 text-slate-400" : "bg-gray-50 text-gray-500"}`}
-                    style={{ height: "70vh" }}
-                  >
-                    <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    <span className="text-sm font-medium">Cargando PDF del examen...</span>
-                  </div>
-                ) : pdfBlobUrl ? (
-                  <iframe
-                    src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-                    className="w-full border-0"
-                    style={{ height: "70vh" }}
-                    title="Examen PDF"
-                  />
+                {isMobile ? (
+                  /* ── MÓVIL: renderizado inline con PDF.js (sin abrir pestaña) ── */
+                  pdfBlobLoading ? (
+                    <div className={`flex flex-col items-center justify-center gap-3 py-16 ${darkMode ? "bg-slate-800 text-slate-400" : "bg-gray-50 text-gray-500"}`}>
+                      <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-medium">Cargando PDF del examen…</span>
+                    </div>
+                  ) : pdfBlobUrl ? (
+                    <MobilePdfViewer blobUrl={pdfBlobUrl} darkMode={darkMode} />
+                  ) : (
+                    <div className={`flex flex-col items-center justify-center gap-3 py-16 ${darkMode ? "bg-slate-800 text-slate-400" : "bg-gray-50 text-gray-500"}`}>
+                      <svg className="w-10 h-10 opacity-40" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                      <span className="text-sm">No se pudo cargar el PDF.</span>
+                    </div>
+                  )
                 ) : (
-                  /* Fallback si el blob falla: mostrar iframe directo y botón de descarga */
-                  <div className="flex flex-col" style={{ height: "70vh" }}>
+                  /* ── DESKTOP: iframe normal ── */
+                  pdfBlobLoading ? (
+                    <div
+                      className={`w-full flex flex-col items-center justify-center gap-3 ${darkMode ? "bg-slate-800 text-slate-400" : "bg-gray-50 text-gray-500"}`}
+                      style={{ height: "70vh" }}
+                    >
+                      <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <span className="text-sm font-medium">Cargando PDF del examen...</span>
+                    </div>
+                  ) : pdfBlobUrl ? (
                     <iframe
-                      src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-                      className="w-full border-0 flex-1"
+                      src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                      className="w-full border-0"
+                      style={{ height: "70vh" }}
                       title="Examen PDF"
                     />
-                    <div className={`p-3 border-t text-center ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50"}`}>
-                      <p className={`text-xs mb-2 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-                        Si el PDF no se muestra, usa el botón para verlo sin salir del examen:
-                      </p>
-                      <a
-                        href={buildPdfViewUrl(examData.archivoPDF!)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-block px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        Ver PDF en nueva pestaña
-                      </a>
+                  ) : (
+                    <div className="flex flex-col" style={{ height: "70vh" }}>
+                      <iframe
+                        src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                        className="w-full border-0 flex-1"
+                        title="Examen PDF"
+                      />
+                      <div className={`p-3 border-t text-center ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50"}`}>
+                        <p className={`text-xs mb-2 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                          Si el PDF no se muestra, usa el botón para verlo:
+                        </p>
+                        <a
+                          href={buildPdfViewUrl(examData.archivoPDF!)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                        >
+                          Ver PDF en nueva pestaña
+                        </a>
+                      </div>
                     </div>
-                  </div>
+                  )
                 )}
               </div>
             </div>
@@ -286,17 +405,34 @@ export default function ExamPanel({
 
             {/* Barra de progreso superior */}
             <div className={`px-3 sm:px-6 pt-4 pb-3 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2">
                 <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
                   {examData.nombre}
                 </h2>
-                <span className={`text-sm font-mono tabular-nums flex-shrink-0 ml-4 px-2.5 py-0.5 rounded-full font-semibold ${
-                  allDone
-                    ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
-                    : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
-                }`}>
-                  {allDone ? total : currentIndex + 1} / {total}
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Timer — solo visible en móvil (en desktop ya se muestra en la barra superior) */}
+                  {!timeLimitRemoved && remainingTime && (
+                    <span className={`md:hidden flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-bold tabular-nums ${
+                      timerStatus === 'critical'
+                        ? "bg-red-500/20 text-red-400 animate-pulse"
+                        : timerStatus === 'warning'
+                        ? "bg-amber-500/20 text-amber-400"
+                        : (darkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-50 text-blue-600")
+                    }`}>
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      {remainingTime}
+                    </span>
+                  )}
+                  <span className={`text-sm font-mono tabular-nums px-2.5 py-0.5 rounded-full font-semibold ${
+                    allDone
+                      ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                      : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
+                  }`}>
+                    {allDone ? total : currentIndex + 1} / {total}
+                  </span>
+                </div>
               </div>
               <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}>
                 <div
@@ -408,17 +544,34 @@ export default function ExamPanel({
 
             {/* Barra de progreso superior */}
             <div className={`px-3 sm:px-6 pt-4 pb-3 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2">
                 <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
                   {examData.nombre}
                 </h2>
-                <span className={`text-sm font-mono tabular-nums flex-shrink-0 ml-4 px-2.5 py-0.5 rounded-full font-semibold ${
-                  answeredCount === total
-                    ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
-                    : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
-                }`}>
-                  {answeredCount} / {total} respondidas
-                </span>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {/* Timer — solo visible en móvil */}
+                  {!timeLimitRemoved && remainingTime && (
+                    <span className={`md:hidden flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-sm font-bold tabular-nums ${
+                      timerStatus === 'critical'
+                        ? "bg-red-500/20 text-red-400 animate-pulse"
+                        : timerStatus === 'warning'
+                        ? "bg-amber-500/20 text-amber-400"
+                        : (darkMode ? "bg-blue-900/30 text-blue-300" : "bg-blue-50 text-blue-600")
+                    }`}>
+                      <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                      </svg>
+                      {remainingTime}
+                    </span>
+                  )}
+                  <span className={`text-sm font-mono tabular-nums px-2.5 py-0.5 rounded-full font-semibold ${
+                    answeredCount === total
+                      ? (darkMode ? "bg-emerald-900/40 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                      : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-gray-600")
+                  }`}>
+                    {answeredCount} / {total} respondidas
+                  </span>
+                </div>
               </div>
               <div className={`h-1.5 rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}>
                 <div

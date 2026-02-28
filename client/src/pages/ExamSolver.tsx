@@ -1478,7 +1478,7 @@ export default function SecureExamPlatform() {
   const renderPanel = (panel: PanelType, zoomLevel: number = 100) => {
     switch (panel) {
         case "exam": 
-          return <ExamPanel examData={examData} darkMode={darkMode} answers={answers} onAnswerChange={handleAnswerChange} onTerminarRevision={() => setShowSubmitModal(true)} />;
+          return <ExamPanel examData={examData} darkMode={darkMode} answers={answers} onAnswerChange={handleAnswerChange} onTerminarRevision={() => setShowSubmitModal(true)} remainingTime={remainingTime} timerStatus={timerStatus} timeLimitRemoved={timeLimitRemoved} />;
         
         case "answer": 
           return (
