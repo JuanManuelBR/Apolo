@@ -530,22 +530,26 @@ export default function LMSDashboard() {
       {/* Main Content - SCROLL CONDICIONAL */}
       <div className="flex-1 flex flex-col relative z-10" style={{ overflow: location.pathname === '/vigilancia' ? 'hidden' : 'auto' }}>
         <header
-          className="bg-transparent px-4 md:px-8 py-2 transition-colors duration-300 flex-shrink-0"
+          className="bg-transparent px-3 md:px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
-          <div className="flex items-center justify-between md:justify-end">
+          <div className="flex items-center justify-between md:justify-end gap-3">
             {/* Hamburguesa — solo mobile */}
             <button
-              className={`md:hidden p-2 rounded-lg transition-colors ${darkMode ? "text-gray-300 hover:bg-slate-800/50" : "text-gray-600 hover:bg-gray-100"}`}
+              className={`md:hidden p-2 rounded-lg border shadow-md transition-colors flex-shrink-0 ${
+                darkMode
+                  ? "bg-slate-900/80 border-slate-700 text-gray-300 hover:bg-slate-800"
+                  : "bg-white/80 border-gray-200 text-gray-700 hover:bg-gray-50"
+              }`}
               onClick={() => setIsMobileMenuOpen(v => !v)}
               aria-label="Abrir menú"
             >
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center mt-3">
+            <div className="flex items-center">
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Logo Universidad"
-                className="h-13 w-auto object-contain transition-opacity duration-300 drop-shadow-lg"
+                className="h-10 md:h-14 w-auto object-contain transition-opacity duration-300 drop-shadow-lg"
               />
             </div>
           </div>

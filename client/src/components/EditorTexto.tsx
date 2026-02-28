@@ -283,18 +283,19 @@ export default function EditorTexto({
     <div className={`w-full ${fullHeight ? "h-full flex flex-col" : ""}`}>
       {/* Barra de herramientas (oculta en modo lectura) */}
       {!readOnly && <div
-        className={`flex flex-wrap items-center gap-1 p-2 rounded-t-lg border ${
+        className={`flex items-center gap-1 p-2 rounded-t-lg border overflow-x-auto ${
           darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-100 border-gray-300'
         }`}
+        style={{ scrollbarWidth: 'none' }}
       >
         {/* Tamaño de letra */}
-        <div className="flex items-center gap-1 mr-1">
-          <Type className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+        <div className="flex items-center gap-1 mr-1 flex-shrink-0">
+          <Type className={`w-4 h-4 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
           <select
             onChange={(e) => setFontSize(e.target.value)}
-            className={`px-2 py-1 rounded text-sm border ${
-              darkMode 
-                ? 'bg-slate-700 border-slate-600 text-white' 
+            className={`px-1 py-1 rounded text-xs border w-16 sm:w-auto ${
+              darkMode
+                ? 'bg-slate-700 border-slate-600 text-white'
                 : 'bg-white border-gray-300 text-gray-900'
             } focus:outline-none focus:ring-1 focus:ring-teal-500`}
             title="Tamaño de fuente"
@@ -316,19 +317,19 @@ export default function EditorTexto({
         </div>
 
         {/* Color de texto */}
-        <div className="flex items-center gap-1 mr-1">
-          <Palette className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+        <div className="flex items-center gap-1 mr-1 flex-shrink-0">
+          <Palette className={`w-4 h-4 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
           <input
             type="color"
             onChange={(e) => setTextColor(e.target.value)}
-            className="w-8 h-8 rounded cursor-pointer border-0"
+            className="w-6 h-6 rounded cursor-pointer border-0 flex-shrink-0"
             title="Color de texto"
           />
           <select
             onChange={(e) => setTextColor(e.target.value)}
-            className={`px-2 py-1 rounded text-sm border ${
-              darkMode 
-                ? 'bg-slate-700 border-slate-600 text-white' 
+            className={`px-1 py-1 rounded text-xs border w-16 sm:w-auto ${
+              darkMode
+                ? 'bg-slate-700 border-slate-600 text-white'
                 : 'bg-white border-gray-300 text-gray-900'
             } focus:outline-none focus:ring-1 focus:ring-teal-500`}
             title="Colores predefinidos"
