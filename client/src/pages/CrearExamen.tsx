@@ -926,7 +926,7 @@ export default function CrearExamen({
                     </p>
                     {tipoPregunta === "pdf" && tipo === "pdf" && (
                       <div className="mt-4">
-                        <label className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-colors ${archivoPDF ? "bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100" : "bg-gray-100 text-gray-900 hover:bg-gray-200"}`}>
+                        <label className={`w-full flex flex-col items-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-colors ${archivoPDF ? "bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100" : "bg-gray-100 text-gray-900 hover:bg-gray-200"}`}>
                           <div className="flex items-center gap-2">
                             <Upload className="w-4 h-4 flex-shrink-0" />
                             <span className="text-sm font-medium">
