@@ -926,11 +926,18 @@ export default function CrearExamen({
                     </p>
                     {tipoPregunta === "pdf" && tipo === "pdf" && (
                       <div className="mt-4">
-                        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors">
-                          <Upload className="w-4 h-4" />
-                          <span className="text-sm font-medium">
-                            {archivoPDF ? archivoPDF.name : "Seleccionar PDF"}
-                          </span>
+                        <label className={`flex flex-col items-center gap-2 px-4 py-3 rounded-lg cursor-pointer transition-colors ${archivoPDF ? "bg-emerald-50 border border-emerald-300 text-emerald-800 hover:bg-emerald-100" : "bg-gray-100 text-gray-900 hover:bg-gray-200"}`}>
+                          <div className="flex items-center gap-2">
+                            <Upload className="w-4 h-4 flex-shrink-0" />
+                            <span className="text-sm font-medium">
+                              {archivoPDF ? "Cambiar PDF" : "Seleccionar PDF"}
+                            </span>
+                          </div>
+                          {archivoPDF && (
+                            <span className="text-xs text-center max-w-[200px] truncate font-normal opacity-80" title={archivoPDF.name}>
+                              📄 {archivoPDF.name}
+                            </span>
+                          )}
                           <input
                             type="file"
                             accept=".pdf"

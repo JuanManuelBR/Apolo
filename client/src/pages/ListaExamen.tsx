@@ -1052,6 +1052,49 @@ export default function ListaExamenes({
                               Exportar a PDF
                             </button>
 
+                            {/* Visualizar y Editar — solo visibles en mobile (sm:hidden) */}
+                            <div className={`sm:hidden`}>
+                              <div className={`my-1 h-px ${darkMode ? "bg-slate-700" : "bg-gray-200"}`} />
+                              <button
+                                onClick={() => {
+                                  setMenuAbierto(null);
+                                  navigate("/ver-examen", { state: { examen } });
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
+                                  darkMode
+                                    ? "text-gray-300 hover:bg-slate-700"
+                                    : "text-gray-700 hover:bg-gray-50"
+                                }`}
+                              >
+                                <Eye className="w-4 h-4 text-sky-500" />
+                                Visualizar examen
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  setMenuAbierto(null);
+                                  if (examen.activoManual) return;
+                                  try {
+                                    const count = await examsAttemptsService.getAttemptCount(examen.id);
+                                    if (count > 0) {
+                                      mostrarModal("advertencia", "No se puede editar", `Este examen tiene ${count} intento(s) registrado(s). Crea una copia si deseas hacer cambios.`, cerrarModal);
+                                      return;
+                                    }
+                                  } catch {
+                                    // Si falla la verificación, dejar pasar y que el backend rechace
+                                  }
+                                  navigate("/editar-examen", { state: { examenAEditar: examen } });
+                                }}
+                                className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
+                                  examen.activoManual
+                                    ? (darkMode ? "text-slate-500" : "text-gray-400")
+                                    : (darkMode ? "text-gray-300 hover:bg-slate-700" : "text-gray-700 hover:bg-gray-50")
+                                }`}
+                              >
+                                <Pencil className="w-4 h-4 text-violet-500" />
+                                {examen.activoManual ? "Editar (desactiva primero)" : "Editar examen"}
+                              </button>
+                            </div>
+
                             <div className={`my-1 h-px ${darkMode ? "bg-slate-700" : "bg-gray-200"}`} />
 
                             <button

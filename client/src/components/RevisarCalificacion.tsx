@@ -489,7 +489,7 @@ export default function RevisarCalificacion({
           </>
         )}
 
-        <div className={studentMode ? "px-6 md:px-10 py-8" : "w-full px-6 md:px-12 py-8"}>
+        <div className={studentMode ? "px-3 sm:px-6 md:px-10 py-4 md:py-8" : "w-full px-3 sm:px-6 md:px-12 py-4 md:py-8"}>
 
           {/* === HEADER (modo profesor) === */}
           {!studentMode && <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
@@ -504,7 +504,7 @@ export default function RevisarCalificacion({
             )}
 
             <div className="flex items-start gap-3 mb-3">
-              <h1 className={`text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
+              <h1 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
                 {examen.nombre}
               </h1>
               {isPDF && (
@@ -514,7 +514,7 @@ export default function RevisarCalificacion({
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-6 text-sm md:text-base">
+            <div className="flex flex-wrap items-center gap-3 md:gap-6 text-sm md:text-base">
               <div className={`flex items-center gap-2 font-semibold ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -544,8 +544,8 @@ export default function RevisarCalificacion({
 
             {/* Resumen de calificación - distinto para PDF y regular */}
             {isPDF ? (
-              <div className={`mt-6 p-5 rounded-xl border shadow-sm flex items-center justify-between ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
-                <div className="flex gap-8 items-center">
+              <div className={`mt-6 p-4 md:p-5 rounded-xl border shadow-sm flex flex-wrap items-center justify-between gap-3 ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
+                <div className="flex flex-wrap gap-4 md:gap-8 items-center">
                   <div>
                     <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Nota Final</span>
                     <p className={`text-2xl font-black ${getNotaColor(intento.notaFinal)}`}>
@@ -568,8 +568,8 @@ export default function RevisarCalificacion({
                 </div>
               </div>
             ) : (
-              <div className={`mt-6 p-5 rounded-xl border shadow-sm flex items-center justify-between ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
-                <div className="flex gap-8">
+              <div className={`mt-6 p-4 md:p-5 rounded-xl border shadow-sm flex flex-wrap items-center justify-between gap-3 ${darkMode ? "bg-slate-800/50 border-slate-800" : "bg-white border-gray-200"}`}>
+                <div className="flex flex-wrap gap-4 md:gap-8">
                   <div>
                     <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-teal-500" : "text-teal-600"}`}>Puntaje</span>
                     <p className={`text-2xl font-black ${getNotaColor(intento.puntaje, intento.puntajeMaximo)}`}>
@@ -793,7 +793,7 @@ export default function RevisarCalificacion({
                   
                   <div className="flex flex-col xl:flex-row items-stretch">
                     {/* CONTENIDO PRINCIPAL */}
-                    <div className="flex-1 p-6 md:p-8 pl-8 md:pl-10 min-w-0">
+                    <div className="flex-1 p-4 md:p-8 pl-6 md:pl-10 min-w-0">
                       <div className="flex items-start gap-4 mb-6">
                         {/* Columna Izquierda: Número y Puntaje */}
                         <div className="flex-shrink-0 flex flex-col items-center gap-3">

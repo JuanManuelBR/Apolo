@@ -214,6 +214,7 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
   const gridCanvasRef = useRef<HTMLCanvasElement>(null);
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [showGrid, setShowGrid] = useState(false);
+  const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
   // Gestión de Hojas
   const [sheets, setSheets] = useState<Sheet[]>(initialData?.sheets || [
       { 
@@ -1681,11 +1682,19 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
         
         {/* TOP BAR */}
         {!readOnly && <div className="h-14 border-b flex items-center px-4 justify-between bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 z-20">
-            <div className="flex items-center gap-4">
-                <div className="font-bold text-xl flex items-center gap-2 text-slate-800 dark:text-gray-200">
+            <div className="flex items-center gap-2 md:gap-4">
+                {/* Hamburger — mobile only */}
+                <button
+                  onClick={() => setMobileLeftOpen(v => !v)}
+                  className="md:hidden p-2 rounded-lg text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                  title="Herramientas"
+                >
+                  <Layout className="w-5 h-5" />
+                </button>
+                <div className="hidden md:flex font-bold text-xl items-center gap-2 text-slate-800 dark:text-gray-200">
                     <Layout className="fill-current" /> Herramienta De Dibujo
                 </div>
-                <div className="h-6 w-px bg-gray-300 dark:bg-slate-700"/>
+                <div className="hidden md:block h-6 w-px bg-gray-300 dark:bg-slate-700"/>
             </div>
 
             <div className="flex items-center gap-2">
@@ -1699,15 +1708,23 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
         </div>}
 
         <div className="flex flex-1 overflow-hidden relative">
-            
+
+            {/* Backdrop para mobile */}
+            {!readOnly && mobileLeftOpen && (
+              <div
+                className="fixed inset-0 bg-black/50 z-40 md:hidden"
+                onClick={() => setMobileLeftOpen(false)}
+              />
+            )}
+
             {/* LEFT SIDEBAR */}
-            {!readOnly && <div className="w-52 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col z-10 min-h-0">
+            {!readOnly && <div className={`absolute md:relative inset-y-0 left-0 z-50 w-52 border-r bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 overflow-y-auto custom-scrollbar flex flex-col min-h-0 transition-transform duration-300 ${mobileLeftOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}`}>
                 
                 <div className="p-2 grid grid-cols-4 gap-1 border-b border-gray-200 dark:border-slate-700">
-                    <ToolBtn icon={MousePointer2} label="Select" isSelected={tool === 'select'} onClick={() => setTool('select')} />
-                    <ToolBtn icon={ImageIcon} label="Mover" isSelected={tool === 'hand'} onClick={() => setTool('hand')} />
-                    <ToolBtn icon={Type} label="Texto" isSelected={tool === 'text'} onClick={() => setTool('text')} />
-                    <ToolBtn icon={Share2} label="Unir" isSelected={tool === 'relation'} onClick={() => setTool('relation')} />
+                    <ToolBtn icon={MousePointer2} label="Select" isSelected={tool === 'select'} onClick={() => { setTool('select'); setMobileLeftOpen(false); }} />
+                    <ToolBtn icon={ImageIcon} label="Mover" isSelected={tool === 'hand'} onClick={() => { setTool('hand'); setMobileLeftOpen(false); }} />
+                    <ToolBtn icon={Type} label="Texto" isSelected={tool === 'text'} onClick={() => { setTool('text'); setMobileLeftOpen(false); }} />
+                    <ToolBtn icon={Share2} label="Unir" isSelected={tool === 'relation'} onClick={() => { setTool('relation'); setMobileLeftOpen(false); }} />
                 </div>
 
                 <Accordion title="Dibujo y Formas" defaultOpen>
@@ -1800,8 +1817,8 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
                 </div>
             </div>
 
-            {/* RIGHT SIDEBAR (INSPECTOR) */}
-            {!readOnly && <div className="w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex flex-col z-20 shadow-xl overflow-y-auto min-h-0">
+            {/* RIGHT SIDEBAR (INSPECTOR) — oculto en mobile */}
+            {!readOnly && <div className="hidden md:flex w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex-col z-20 shadow-xl overflow-y-auto min-h-0">
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 font-bold text-sm uppercase tracking-wider flex justify-between items-center text-gray-700 dark:text-gray-300">
                     <span>Propiedades</span>
                 </div>

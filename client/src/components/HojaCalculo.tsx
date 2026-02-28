@@ -964,7 +964,7 @@ function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose,
   return (
     <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${hidden ? 'hidden' : ''}`} onClick={onClose}>
       <div
-        className={`flex flex-col overflow-hidden rounded-xl shadow-2xl w-[700px] max-w-[96vw] ${dm ? 'bg-slate-800' : 'bg-white'}`}
+        className={`flex flex-col overflow-hidden rounded-xl shadow-2xl w-full max-w-[700px] mx-2 ${dm ? 'bg-slate-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 bg-[#188038]">
@@ -972,8 +972,8 @@ function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose,
           <button onClick={onClose} className="text-white/80 hover:text-white text-xl bg-transparent border-none cursor-pointer">&times;</button>
         </div>
 
-        <div className="flex flex-1">
-          <div className={`w-36 shrink-0 p-2 border-r ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+        <div className="flex flex-col sm:flex-row flex-1 overflow-auto">
+          <div className={`flex sm:flex-col flex-wrap gap-1 sm:gap-0 shrink-0 p-2 sm:w-36 border-b sm:border-b-0 sm:border-r overflow-x-auto ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
             <p className={`text-[10px] font-semibold tracking-wider mb-2 pl-1 ${dm ? 'text-slate-500' : 'text-gray-400'}`}>TIPO</p>
             {chartTypes.map((t) => (
               <button
