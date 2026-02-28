@@ -495,16 +495,16 @@ function QuestionCard({
       {/* Barra lateral de estado (decorativa) con color dinámico */}
       <div className={`absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b ${barColor}`}></div>
 
-      <div className="p-10 md:p-12 pl-12 md:pl-14 min-h-96">
+      <div className="p-4 sm:p-8 md:p-10 pl-6 sm:pl-10 md:pl-14">
         {/* Encabezado de la Pregunta */}
-        <div className="flex items-start gap-5 mb-8">
-          <span className={`flex items-center justify-center w-11 h-11 rounded-xl font-bold text-base shrink-0 transition-all duration-300 ${
+        <div className="flex items-start gap-3 sm:gap-5 mb-4 sm:mb-8">
+          <span className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl font-bold text-sm sm:text-base shrink-0 transition-all duration-300 ${
             isAnswered
               ? (darkMode ? "bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/50" : "bg-emerald-100 text-emerald-600 ring-1 ring-emerald-200")
               : (darkMode ? "bg-slate-700 text-slate-300" : "bg-gray-100 text-slate-600")
           }`}>
             {isAnswered ? (
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <svg className="w-4 h-4 sm:w-6 sm:h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
               </svg>
             ) : (
@@ -512,10 +512,10 @@ function QuestionCard({
             )}
           </span>
           <div className="flex-1">
-            <h3 className={`text-2xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
+            <h3 className={`text-base sm:text-xl md:text-2xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
               {question.enunciado}
             </h3>
-            <span className={`inline-block mt-3 text-xs font-semibold px-3 py-1 rounded-full ${darkMode ? "bg-slate-700/60 text-slate-400" : "bg-gray-100 text-slate-500"}`}>
+            <span className={`inline-block mt-2 text-xs font-semibold px-3 py-1 rounded-full ${darkMode ? "bg-slate-700/60 text-slate-400" : "bg-gray-100 text-slate-500"}`}>
               {question.puntaje} {question.puntaje === 1 ? "punto" : "puntos"}
             </span>
           </div>
@@ -607,7 +607,7 @@ function TestQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
           <label
             key={option.id}
             className={`
-              flex items-center gap-4 p-4 rounded-xl border-2 ${readOnly ? "cursor-default" : "cursor-pointer"} transition-all duration-200 group
+              flex items-center gap-3 p-3 sm:p-4 rounded-xl border-2 ${readOnly ? "cursor-default" : "cursor-pointer"} transition-all duration-200 group
               ${
                 isSelected
                   ? (darkMode ? "border-blue-500 bg-blue-900/30" : "border-blue-500 bg-blue-50")
@@ -615,7 +615,7 @@ function TestQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
               }
             `}
           >
-            <div className="relative flex items-center justify-center">
+            <div className="relative flex items-center justify-center flex-shrink-0">
               <input
                 disabled={readOnly}
                 type="checkbox"
@@ -624,25 +624,25 @@ function TestQuestion({ question, answer, onChange, darkMode, readOnly }: any) {
                   const newSelected = e.target.checked
                     ? [...selectedOptions, option.id]
                     : selectedOptions.filter((id: number) => id !== option.id);
-                  onChange(question.id, newSelected, 500); // Guardado rápido
+                  onChange(question.id, newSelected, 500);
                 }}
                 className="peer sr-only"
               />
               <div
-                className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
+                className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md border-2 flex items-center justify-center transition-colors ${
                   isSelected
                     ? "bg-blue-500 border-blue-500"
                     : (darkMode ? "border-slate-500 bg-slate-800/80 group-hover:border-blue-600" : "border-gray-300 bg-white group-hover:border-blue-400")
                 }`}
               >
                 {isSelected && (
-                  <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 )}
               </div>
             </div>
-            <span className={`flex-1 font-medium ${isSelected ? (darkMode ? "text-blue-300" : "text-blue-700") : (darkMode ? "text-slate-300" : "text-slate-700")}`}>
+            <span className={`flex-1 text-sm sm:text-base font-medium ${isSelected ? (darkMode ? "text-blue-300" : "text-blue-700") : (darkMode ? "text-slate-300" : "text-slate-700")}`}>
               {option.texto}
             </span>
           </label>
@@ -659,7 +659,7 @@ function FillBlanksQuestion({ question, answer, onChange, darkMode, readOnly }: 
   const respuestasArray = answer || [];
 
   return (
-    <div className={`p-6 rounded-xl border leading-loose text-lg ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
+    <div className={`p-3 sm:p-6 rounded-xl border leading-relaxed text-sm sm:text-base ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
       {partes.map((parte: string, idx: number) => (
         <React.Fragment key={idx}>
           <span className={darkMode ? "text-slate-300" : "text-slate-700"}>{parte}</span>
@@ -815,129 +815,142 @@ function MatchQuestion({ question, answer, onChange, darkMode, readOnly }: any) 
   };
 
   return (
-    <div className={`relative select-none p-4 rounded-xl border ${darkMode ? "bg-slate-800/50 border-slate-700/80" : "bg-white border-gray-200"}`} ref={containerRef}>
-      {/* SVG LAYER PARA LÍNEAS */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
-        {respuestasPares.map((par: any, idx: number) => {
-          const posA = itemPositions[`a-${par.itemA_id}`];
-          const posB = itemPositions[`b-${par.itemB_id}`];
-          if (!posA || !posB) return null;
-          const style = getStableColor(par.itemA_id, PAIR_COLORS);
+    <div className={`select-none rounded-xl border ${darkMode ? "bg-slate-800/50 border-slate-700/80" : "bg-white border-gray-200"}`}>
+
+      {/* ── MÓVIL: tarjetas con dropdown ── */}
+      <div className="md:hidden p-3 space-y-3">
+        <p className={`text-[11px] font-bold uppercase tracking-wider text-center mb-1 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+          Empareja cada elemento
+        </p>
+        {itemsA.map((itemA: any) => {
+          const pair = respuestasPares.find((p: any) => p.itemA_id === itemA.id);
+          const selectedBId = pair?.itemB_id;
+          const style = pair ? getStableColor(itemA.id, PAIR_COLORS) : null;
 
           return (
-            <g key={idx}>
-              {/* Sombra de la línea para profundidad */}
-              <path
-                d={getPath(posA, posB)}
-                fill="none"
-                stroke="rgba(0,0,0,0.1)"
-                strokeWidth="6"
-                className={darkMode ? "stroke-black/20" : ""}
-              />
-              {/* Línea principal */}
-              <path
-                d={getPath(posA, posB)}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                className={darkMode ? style.darkStroke : style.stroke}
-                strokeDasharray="500"
-                strokeDashoffset="0"
+            <div
+              key={itemA.id}
+              className={`p-3 rounded-xl border-2 transition-all ${
+                pair
+                  ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
+                  : (darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50")
+              }`}
+            >
+              <p className={`text-sm font-semibold mb-2 ${pair ? (darkMode ? style?.darkText : style?.text) : (darkMode ? "text-slate-200" : "text-slate-800")}`}>
+                {itemA.text}
+              </p>
+              <select
+                disabled={readOnly}
+                value={selectedBId ?? ''}
+                onChange={(e) => {
+                  if (!e.target.value) {
+                    onChange(question.id, respuestasPares.filter((p: any) => p.itemA_id !== itemA.id));
+                  } else {
+                    const bId = Number(e.target.value);
+                    const nuevos = respuestasPares.filter((p: any) => p.itemA_id !== itemA.id && p.itemB_id !== bId);
+                    nuevos.push({ itemA_id: itemA.id, itemB_id: bId });
+                    onChange(question.id, nuevos);
+                  }
+                }}
+                className={`w-full text-sm p-2 rounded-lg border outline-none transition-colors ${
+                  darkMode
+                    ? "bg-slate-900 border-slate-600 text-slate-200 focus:border-indigo-500"
+                    : "bg-white border-gray-300 text-slate-700 focus:border-indigo-500"
+                }`}
               >
-                <animate attributeName="stroke-dashoffset" from="500" to="0" dur="0.8s" fill="freeze" />
-              </path>
-              {/* Puntos en los extremos */}
-              <circle cx={posA.left} cy={posA.top} r="4" className={darkMode ? style.darkFill : style.fill} />
-              <circle cx={posB.left} cy={posB.top} r="4" className={darkMode ? style.darkFill : style.fill} />
-            </g>
+                <option value="">— Seleccionar —</option>
+                {itemsB.map((itemB: any) => (
+                  <option key={itemB.id} value={itemB.id}>{itemB.text}</option>
+                ))}
+              </select>
+              {pair && (
+                <button
+                  disabled={readOnly}
+                  onClick={() => onChange(question.id, respuestasPares.filter((p: any) => p.itemA_id !== itemA.id))}
+                  className={`mt-1.5 text-[11px] font-medium flex items-center gap-1 ${darkMode ? "text-slate-500 hover:text-rose-400" : "text-slate-400 hover:text-rose-500"}`}
+                >
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  Quitar
+                </button>
+              )}
+            </div>
           );
         })}
-      </svg>
+      </div>
 
-      <div className="flex flex-col md:flex-row justify-between gap-12 md:gap-24 relative z-20">
-        
-        {/* COLUMNA A (Izquierda) */}
-        <div className="flex-1 space-y-4">
-          <div className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">Columna A</div>
-          {itemsA.map((item: any) => {
-            const isSelected = selection?.side === 'A' && selection.id === item.id;
-            const pair = respuestasPares.find((p: any) => p.itemA_id === item.id);
-            const isConnected = !!pair;
-            const style = isConnected ? getStableColor(item.id, PAIR_COLORS) : null;
-            const canReceive = selection?.side === 'B';
-
+      {/* ── DESKTOP: dos columnas con líneas SVG ── */}
+      <div className={`hidden md:block relative p-4`} ref={containerRef}>
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+          {respuestasPares.map((par: any, idx: number) => {
+            const posA = itemPositions[`a-${par.itemA_id}`];
+            const posB = itemPositions[`b-${par.itemB_id}`];
+            if (!posA || !posB) return null;
+            const style = getStableColor(par.itemA_id, PAIR_COLORS);
             return (
-              <div
-                key={item.id}
-                id={`match-a-${question.id}-${item.id}`}
-                onClick={() => handleItemClick('A', item.id)}
-                className={`
-                  relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300
-                  flex items-center justify-between group
-                  ${isSelected 
-                    ? (darkMode ? "border-indigo-500 bg-indigo-900/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]" : "border-indigo-500 bg-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]")
-                    : isConnected
-                      ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
-                      : canReceive
-                        ? (darkMode ? "border-dashed border-indigo-700/70 bg-indigo-900/20 hover:bg-indigo-900/40" : "border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-100")
-                        : (darkMode ? "border-slate-700 bg-slate-800/80 hover:border-slate-600" : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md")
-                  }
-                `}
-              >
-                <span className={`font-medium ${isSelected ? (darkMode ? "text-indigo-300" : "text-indigo-700") : isConnected ? (darkMode ? style?.darkText : style?.text) : (darkMode ? "text-slate-300" : "text-slate-700")}`}>
-                  {item.text}
-                </span>
-                
-                {/* Socket derecho (Punto de conexión) */}
-                <div className={`
-                  w-3 h-3 rounded-full border-2 absolute -right-1.5 top-1/2 -translate-y-1/2 transition-colors
-                  ${isSelected ? "bg-indigo-500 border-indigo-500" : isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-700 border-slate-500 group-hover:border-indigo-400" : "bg-white border-gray-300 group-hover:border-indigo-400")}
-                `}></div>
-              </div>
+              <g key={idx}>
+                <path d={getPath(posA, posB)} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="6" />
+                <path d={getPath(posA, posB)} fill="none" stroke="currentColor" strokeWidth="3"
+                  className={darkMode ? style.darkStroke : style.stroke}
+                  strokeDasharray="500" strokeDashoffset="0">
+                  <animate attributeName="stroke-dashoffset" from="500" to="0" dur="0.8s" fill="freeze" />
+                </path>
+                <circle cx={posA.left} cy={posA.top} r="4" className={darkMode ? style.darkFill : style.fill} />
+                <circle cx={posB.left} cy={posB.top} r="4" className={darkMode ? style.darkFill : style.fill} />
+              </g>
             );
           })}
-        </div>
+        </svg>
 
-        {/* COLUMNA B (Derecha) */}
-        <div className="flex-1 space-y-4">
-          <div className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">Columna B</div>
-          {itemsB.map((item: any) => {
-            const isSelected = selection?.side === 'B' && selection.id === item.id;
-            const pair = respuestasPares.find((p: any) => p.itemB_id === item.id);
-            const isConnected = !!pair;
-            const style = pair ? getStableColor(pair.itemA_id, PAIR_COLORS) : null;
-            const canReceive = selection?.side === 'A';
+        <div className="flex justify-between gap-24 relative z-20">
+          {/* Columna A */}
+          <div className="flex-1 space-y-4">
+            <div className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">Columna A</div>
+            {itemsA.map((item: any) => {
+              const isSelected = selection?.side === 'A' && selection.id === item.id;
+              const pair = respuestasPares.find((p: any) => p.itemA_id === item.id);
+              const isConnected = !!pair;
+              const style = isConnected ? getStableColor(item.id, PAIR_COLORS) : null;
+              const canReceive = selection?.side === 'B';
+              return (
+                <div key={item.id} id={`match-a-${question.id}-${item.id}`}
+                  onClick={() => handleItemClick('A', item.id)}
+                  className={`relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300 flex items-center justify-between group
+                    ${isSelected ? (darkMode ? "border-indigo-500 bg-indigo-900/40 scale-[1.02]" : "border-indigo-500 bg-indigo-50 scale-[1.02]")
+                      : isConnected ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
+                      : canReceive ? (darkMode ? "border-dashed border-indigo-700/70 bg-indigo-900/20" : "border-dashed border-indigo-300 bg-indigo-50/50")
+                      : (darkMode ? "border-slate-700 bg-slate-800/80 hover:border-slate-600" : "border-gray-200 bg-white hover:border-indigo-300 hover:shadow-md")}`}>
+                  <span className={`font-medium ${isSelected ? (darkMode ? "text-indigo-300" : "text-indigo-700") : isConnected ? (darkMode ? style?.darkText : style?.text) : (darkMode ? "text-slate-300" : "text-slate-700")}`}>{item.text}</span>
+                  <div className={`w-3 h-3 rounded-full border-2 absolute -right-1.5 top-1/2 -translate-y-1/2 transition-colors
+                    ${isSelected ? "bg-indigo-500 border-indigo-500" : isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-700 border-slate-500" : "bg-white border-gray-300")}`} />
+                </div>
+              );
+            })}
+          </div>
 
-            return (
-              <div
-                key={item.id}
-                id={`match-b-${question.id}-${item.id}`}
-                onClick={() => handleItemClick('B', item.id)}
-                className={`
-                  relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300
-                  flex items-center group
-                  ${isSelected 
-                    ? (darkMode ? "border-indigo-500 bg-indigo-900/40 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]" : "border-indigo-500 bg-indigo-50 shadow-[0_0_15px_rgba(99,102,241,0.3)] scale-[1.02]")
-                    : isConnected
-                    ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
-                    : canReceive
-                      ? (darkMode ? "border-dashed border-indigo-700/70 bg-indigo-900/20 hover:bg-indigo-900/40" : "border-dashed border-indigo-300 bg-indigo-50/50 hover:bg-indigo-100")
-                      : (darkMode ? "border-slate-700 bg-slate-800/80 hover:border-slate-600" : "border-gray-200 bg-white hover:border-gray-300")
-                  }
-                `}
-              >
-                {/* Socket izquierdo */}
-                <div className={`
-                  w-3 h-3 rounded-full border-2 absolute -left-1.5 top-1/2 -translate-y-1/2 transition-colors
-                  ${isSelected ? "bg-indigo-500 border-indigo-500" : isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-700 border-slate-500 group-hover:border-indigo-400" : "bg-white border-gray-300 group-hover:border-indigo-400")}
-                `}></div>
-
-                <span className={`flex-1 text-right font-medium ${isConnected ? (darkMode ? style?.darkText : style?.text) : (darkMode ? "text-slate-300" : "text-slate-700")}`}>
-                  {item.text}
-                </span>
-              </div>
-            );
-          })}
+          {/* Columna B */}
+          <div className="flex-1 space-y-4">
+            <div className="text-xs font-bold uppercase text-slate-400 tracking-wider mb-2 text-center">Columna B</div>
+            {itemsB.map((item: any) => {
+              const isSelected = selection?.side === 'B' && selection.id === item.id;
+              const pair = respuestasPares.find((p: any) => p.itemB_id === item.id);
+              const isConnected = !!pair;
+              const style = pair ? getStableColor(pair.itemA_id, PAIR_COLORS) : null;
+              const canReceive = selection?.side === 'A';
+              return (
+                <div key={item.id} id={`match-b-${question.id}-${item.id}`}
+                  onClick={() => handleItemClick('B', item.id)}
+                  className={`relative p-4 rounded-xl border-2 ${!readOnly ? "cursor-pointer" : ""} transition-all duration-300 flex items-center group
+                    ${isSelected ? (darkMode ? "border-indigo-500 bg-indigo-900/40 scale-[1.02]" : "border-indigo-500 bg-indigo-50 scale-[1.02]")
+                      : isConnected ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
+                      : canReceive ? (darkMode ? "border-dashed border-indigo-700/70 bg-indigo-900/20" : "border-dashed border-indigo-300 bg-indigo-50/50")
+                      : (darkMode ? "border-slate-700 bg-slate-800/80 hover:border-slate-600" : "border-gray-200 bg-white hover:border-gray-300")}`}>
+                  <div className={`w-3 h-3 rounded-full border-2 absolute -left-1.5 top-1/2 -translate-y-1/2 transition-colors
+                    ${isSelected ? "bg-indigo-500 border-indigo-500" : isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-700 border-slate-500" : "bg-white border-gray-300")}`} />
+                  <span className={`flex-1 text-right font-medium ${isConnected ? (darkMode ? style?.darkText : style?.text) : (darkMode ? "text-slate-300" : "text-slate-700")}`}>{item.text}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>
