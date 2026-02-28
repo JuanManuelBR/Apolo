@@ -498,7 +498,7 @@ export default function ExamAccessPage() {
 
       {/* Tarjeta principal */}
       <div
-        className={`rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl z-10 transition-colors duration-300 ${
+        className={`rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl z-10 transition-colors duration-300 anim-scaleIn ${
           darkMode ? "bg-slate-900" : "bg-white"
         }`}
       >
@@ -549,134 +549,141 @@ export default function ExamAccessPage() {
           </div>
         )}
 
-        {/* Paso 1: Ingresar código de examen */}
-        {!showForm && mode === "exam" && (
-          <>
-            <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              {loading ? "Verificando código..." : "Ingresa el código de 8 caracteres de tu examen"}
-            </p>
-            <div className="mb-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={examCode}
-                  onChange={(e) => setExamCode(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !loading && handleSearchCode()}
-                  placeholder="CÓDIGO"
-                  maxLength={8}
-                  disabled={loading}
-                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
-                             outline-none transition-all ${
-                               darkMode
-                                 ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
-                                 : "bg-white border-gray-300 text-gray-900 focus:border-[#003876] focus:ring-2 focus:ring-[#003876]/20"
-                             } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                />
-                <button
-                  type="button"
-                  onClick={handleSearchCode}
-                  disabled={loading}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    darkMode ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-[#4a7ba7] text-white hover:bg-[#3d6a93]"
-                  }`}
-                >
-                  {loading ? "Verificando..." : "Acceder"}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Contenido del tab — key en el wrapper dispara anim-fadeIn al cambiar de modo */}
+        {!showForm && (
+          <div key={mode} className="anim-fadeIn">
 
-        {/* Reanudar intento abandonado */}
-        {!showForm && mode === "resume" && (
-          <>
-            <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Ingresa el código de acceso que te proporcionó el profesor
-            </p>
-            <div className="mb-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={resumeCode}
-                  onChange={(e) => setResumeCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && !loading && handleResume()}
-                  placeholder="CÓDIGO DE ACCESO"
-                  maxLength={10}
-                  disabled={loading}
-                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
-                             outline-none transition-all ${
-                               darkMode
-                                 ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
-                                 : "bg-white border-gray-300 text-gray-900 focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20"
-                             } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                />
-                <button
-                  type="button"
-                  onClick={handleResume}
-                  disabled={loading}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    darkMode ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-amber-600 text-white hover:bg-amber-700"
-                  }`}
-                >
-                  {loading ? "Verificando..." : "Reanudar"}
-                </button>
-              </div>
-            </div>
-            {resumeError && (
-              <div className={`mb-3 p-3 border rounded-lg flex items-start gap-2 ${
-                darkMode ? "bg-red-900/30 border-red-800/50" : "bg-red-50 border-red-200"
-              }`}>
-                <div className={`w-4 h-4 rounded-full flex-shrink-0 mt-0.5 ${darkMode ? "bg-red-600" : "bg-red-500"}`} />
-                <span className={`text-sm ${darkMode ? "text-red-400" : "text-red-700"}`}>{resumeError}</span>
-              </div>
+            {/* Paso 1: Ingresar código de examen */}
+            {mode === "exam" && (
+              <>
+                <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                  {loading ? "Verificando código..." : "Ingresa el código de 8 caracteres de tu examen"}
+                </p>
+                <div className="mb-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={examCode}
+                      onChange={(e) => setExamCode(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && !loading && handleSearchCode()}
+                      placeholder="CÓDIGO"
+                      maxLength={8}
+                      disabled={loading}
+                      className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                                 outline-none transition-all ${
+                                   darkMode
+                                     ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
+                                     : "bg-white border-gray-300 text-gray-900 focus:border-[#003876] focus:ring-2 focus:ring-[#003876]/20"
+                                 } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchCode}
+                      disabled={loading}
+                      className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        darkMode ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-[#4a7ba7] text-white hover:bg-[#3d6a93]"
+                      }`}
+                    >
+                      {loading ? "Verificando..." : "Acceder"}
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
-          </>
-        )}
 
-        {/* Revisar calificación */}
-        {!showForm && mode === "revision" && (
-          <>
-            <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
-              Ingresa el código de revisión para ver tu calificación y retroalimentación
-            </p>
-            <div className="mb-3">
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="text"
-                  value={revisionCode}
-                  onChange={(e) => setRevisionCode(e.target.value.toUpperCase())}
-                  onKeyDown={(e) => e.key === "Enter" && !loading && handleRevision()}
-                  placeholder="CÓDIGO DE REVISIÓN"
-                  maxLength={10}
-                  disabled={loading}
-                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
-                             outline-none transition-all ${
-                               darkMode
-                                 ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-                                 : "bg-white border-gray-300 text-gray-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
-                             } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
-                />
-                <button
-                  type="button"
-                  onClick={handleRevision}
-                  disabled={loading}
-                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                    darkMode ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-600 text-white hover:bg-teal-700"
-                  }`}
-                >
-                  Ver calificación
-                </button>
-              </div>
-            </div>
-            {revisionError && (
-              <div className={`mb-3 p-3 border rounded-lg flex items-start gap-2 ${
-                darkMode ? "bg-red-900/30 border-red-800/50" : "bg-red-50 border-red-200"
-              }`}>
-                <div className={`w-4 h-4 rounded-full flex-shrink-0 mt-0.5 ${darkMode ? "bg-red-600" : "bg-red-500"}`} />
-                <span className={`text-sm ${darkMode ? "text-red-400" : "text-red-700"}`}>{revisionError}</span>
-              </div>
+            {/* Reanudar intento abandonado */}
+            {mode === "resume" && (
+              <>
+                <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                  Ingresa el código de acceso que te proporcionó el profesor
+                </p>
+                <div className="mb-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={resumeCode}
+                      onChange={(e) => setResumeCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && !loading && handleResume()}
+                      placeholder="CÓDIGO DE ACCESO"
+                      maxLength={10}
+                      disabled={loading}
+                      className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                                 outline-none transition-all ${
+                                   darkMode
+                                     ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
+                                     : "bg-white border-gray-300 text-gray-900 focus:border-amber-600 focus:ring-2 focus:ring-amber-600/20"
+                                 } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleResume}
+                      disabled={loading}
+                      className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        darkMode ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-amber-600 text-white hover:bg-amber-700"
+                      }`}
+                    >
+                      {loading ? "Verificando..." : "Reanudar"}
+                    </button>
+                  </div>
+                </div>
+                {resumeError && (
+                  <div className={`mb-3 p-3 border rounded-lg flex items-start gap-2 ${
+                    darkMode ? "bg-red-900/30 border-red-800/50" : "bg-red-50 border-red-200"
+                  }`}>
+                    <div className={`w-4 h-4 rounded-full flex-shrink-0 mt-0.5 ${darkMode ? "bg-red-600" : "bg-red-500"}`} />
+                    <span className={`text-sm ${darkMode ? "text-red-400" : "text-red-700"}`}>{resumeError}</span>
+                  </div>
+                )}
+              </>
             )}
-          </>
+
+            {/* Revisar calificación */}
+            {mode === "revision" && (
+              <>
+                <p className={`text-sm text-center mb-3 ${darkMode ? "text-gray-400" : "text-gray-600"}`}>
+                  Ingresa el código de revisión para ver tu calificación y retroalimentación
+                </p>
+                <div className="mb-3">
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      value={revisionCode}
+                      onChange={(e) => setRevisionCode(e.target.value.toUpperCase())}
+                      onKeyDown={(e) => e.key === "Enter" && !loading && handleRevision()}
+                      placeholder="CÓDIGO DE REVISIÓN"
+                      maxLength={10}
+                      disabled={loading}
+                      className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                                 outline-none transition-all ${
+                                   darkMode
+                                     ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
+                                     : "bg-white border-gray-300 text-gray-900 focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20"
+                                 } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRevision}
+                      disabled={loading}
+                      className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        darkMode ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-600 text-white hover:bg-teal-700"
+                      }`}
+                    >
+                      Ver calificación
+                    </button>
+                  </div>
+                </div>
+                {revisionError && (
+                  <div className={`mb-3 p-3 border rounded-lg flex items-start gap-2 ${
+                    darkMode ? "bg-red-900/30 border-red-800/50" : "bg-red-50 border-red-200"
+                  }`}>
+                    <div className={`w-4 h-4 rounded-full flex-shrink-0 mt-0.5 ${darkMode ? "bg-red-600" : "bg-red-500"}`} />
+                    <span className={`text-sm ${darkMode ? "text-red-400" : "text-red-700"}`}>{revisionError}</span>
+                  </div>
+                )}
+              </>
+            )}
+
+          </div>
         )}
 
         {/* Paso 2: Formulario de datos */}

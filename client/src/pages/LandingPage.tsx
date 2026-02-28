@@ -99,7 +99,7 @@ export default function LandingPage() {
       </button>
 
       {/* Contenido Principal */}
-      <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center gap-6 md:gap-10">
+      <div className="relative z-10 w-full max-w-5xl mx-auto flex flex-col items-center gap-6 md:gap-10 anim-fadeIn">
 
         {/* Encabezado */}
         <div className="flex flex-col items-center text-center animate-fade-in-down">
