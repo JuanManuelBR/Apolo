@@ -1779,16 +1779,16 @@ export default function SecureExamPlatform() {
         {/* Backdrop para sidebar en mobile */}
         {!sidebarCollapsed && (
           <div
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            className="fixed inset-0 z-30 bg-black/50 md:hidden"
             onClick={() => setSidebarCollapsed(true)}
           />
         )}
 
         {/* --- SIDEBAR REFACTORIZADO (Estilo Dashboard) --- */}
-        <div className={`flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out border-r ${
+        <div className={`fixed md:relative inset-y-0 left-0 z-40 flex-shrink-0 flex flex-col transition-transform md:transition-all duration-300 ease-in-out border-r ${
             sidebarCollapsed
-              ? "w-0 overflow-hidden md:w-20 md:overflow-visible"
-              : "absolute inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-30 md:w-64"
+              ? "-translate-x-full md:translate-x-0 md:w-20"
+              : "translate-x-0 w-64"
           } ${
             darkMode
               ? "bg-slate-900/80 backdrop-blur-md border-slate-800"
@@ -1953,7 +1953,7 @@ export default function SecureExamPlatform() {
                   <img
                     src={darkMode ? logoUniversidadNoche : logoUniversidad}
                     alt="Logo Universidad"
-                    className="h-10 md:h-14 w-auto object-contain transition-opacity duration-300"
+                    className="h-7 md:h-10 w-auto object-contain transition-opacity duration-300"
                   />
               </div>
           </div>

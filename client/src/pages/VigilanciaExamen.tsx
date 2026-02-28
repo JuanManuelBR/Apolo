@@ -836,12 +836,12 @@ export default function VigilanciaExamenesLista({
     <>
       <style>{`.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; } .scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
-      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-6 px-2 md:px-12 overflow-auto md:overflow-hidden">
+      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-6 px-2 md:px-12 md:overflow-hidden">
         
         {/* =======================================================
             PANEL IZQUIERDO
            ======================================================= */}
-        <div className="w-full md:w-80 flex flex-col gap-3 md:gap-4 flex-shrink-0 overflow-hidden max-h-52 md:max-h-none">
+        <div className="w-full md:w-80 flex flex-col gap-3 md:gap-4 flex-shrink-0 md:overflow-hidden">
           
           <div className={`p-4 rounded-2xl shadow-sm flex-shrink-0 border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
             <div className="flex items-start justify-between mb-4">
@@ -862,8 +862,8 @@ export default function VigilanciaExamenesLista({
             </div>
           </div>
 
-          <div className={`flex-1 rounded-2xl shadow-sm border flex flex-col min-h-0 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
-            <div className="flex-1 overflow-y-scroll scrollbar-hide p-2 space-y-2">
+          <div className={`md:flex-1 rounded-2xl shadow-sm border flex flex-col md:min-h-0 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
+            <div className="md:flex-1 md:overflow-y-scroll scrollbar-hide p-2 space-y-2">
               {examenes.filter((examen) => 
                 examen.nombre.toLowerCase().includes(searchExamen.toLowerCase()) ||
                 examen.codigoExamen.toLowerCase().includes(searchExamen.toLowerCase())
@@ -925,24 +925,24 @@ export default function VigilanciaExamenesLista({
         {/* =======================================================
             PANEL DERECHO
            ======================================================= */}
-        <div className="flex-1 flex flex-col gap-5 min-w-0 overflow-hidden">
+        <div className="flex-1 flex flex-col gap-5 min-w-0 md:overflow-hidden">
           
           {/* Stats Cards */}
           {examenActual && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 flex-shrink-0">
+            <div className="hidden md:grid md:grid-cols-4 gap-4 flex-shrink-0">
               {[
                 { label: "Han empezado", val: contadores.hanEmpezado, icon: Activity, colorClass: "bg-blue-500 shadow-blue-200" },
                 { label: "Han enviado", val: contadores.hanEnviado, icon: Send, colorClass: "bg-emerald-500 shadow-emerald-200" },
                 { label: "En curso", val: contadores.enCurso, icon: Clock, colorClass: "bg-amber-500 shadow-amber-200" },
                 { label: "Bloqueados", val: contadores.bloqueados, icon: Ban, colorClass: "bg-rose-500 shadow-rose-200" },
               ].map((stat, idx) => (
-                <div key={idx} className={`rounded-2xl p-4 flex items-center justify-between shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800 shadow-none" : "bg-white border-slate-100"}`}>
-                    <div>
-                        <p className={`text-[11px] font-bold uppercase tracking-wider mb-1 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{stat.label}</p>
-                        <p className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{stat.val}</p>
+                <div key={idx} className={`rounded-xl md:rounded-2xl p-2 md:p-4 flex flex-col md:flex-row items-center md:justify-between shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800 shadow-none" : "bg-white border-slate-100"}`}>
+                    <div className="text-center md:text-left w-full">
+                        <p className={`text-[7px] md:text-[11px] font-bold uppercase tracking-wider mb-0.5 md:mb-1 leading-tight ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{stat.label}</p>
+                        <p className={`text-lg md:text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{stat.val}</p>
                     </div>
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-white ${stat.colorClass} ${darkMode ? "shadow-none" : "shadow-lg"}`}>
-                        <stat.icon className="w-5 h-5" />
+                    <div className={`w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center text-white mt-1 md:mt-0 flex-shrink-0 ${stat.colorClass} ${darkMode ? "shadow-none" : "shadow-lg"}`}>
+                        <stat.icon className="w-3 h-3 md:w-5 md:h-5" />
                     </div>
                 </div>
               ))}
@@ -950,7 +950,7 @@ export default function VigilanciaExamenesLista({
           )}
 
           {/* Contenido Principal */}
-          <div className={`flex-1 flex flex-col overflow-hidden rounded-2xl shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+          <div className={`flex flex-col md:flex-1 md:overflow-hidden rounded-2xl shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
             
             {!examenActual ? (
               <div className="flex flex-col items-center justify-center h-full p-12 text-center">
@@ -972,7 +972,7 @@ export default function VigilanciaExamenesLista({
               </div>
             ) : !estudianteSeleccionado ? (
               // ================= VISTA LISTA DE ESTUDIANTES =================
-              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
+              <div className={`flex flex-col md:h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
                 
                 <div className="p-3 sm:p-6 pb-3 sm:pb-4 flex-shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
@@ -1072,7 +1072,28 @@ export default function VigilanciaExamenesLista({
                     </div>
                 </div>
 
-                <div className={`flex gap-1 px-6 flex-shrink-0 mb-4 border-b ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
+                {/* Mobile: selector dropdown */}
+                <div className="block md:hidden px-3 mb-3 flex-shrink-0">
+                  <select
+                    value={filtroActual}
+                    onChange={(e) => cambiarFiltroExamen(e.target.value as FiltroEstado)}
+                    className={`w-full px-3 py-2 rounded-lg border text-sm font-medium focus:outline-none focus:border-teal-500 ${darkMode ? "bg-slate-800 border-slate-700 text-slate-200" : "bg-white border-slate-200 text-slate-700"}`}
+                  >
+                    {[
+                      { key: "todos" as FiltroEstado, label: "Todos", count: contadores.todos },
+                      { key: "activos" as FiltroEstado, label: "En Curso", count: contadores.activos },
+                      { key: "bloqueados" as FiltroEstado, label: "Bloqueados", count: contadores.bloqueados },
+                      { key: "terminados" as FiltroEstado, label: "Entregados", count: contadores.terminados },
+                      { key: "calificados" as FiltroEstado, label: "Calificados", count: contadores.calificados },
+                      { key: "abandonados" as FiltroEstado, label: "Abandonos", count: contadores.abandonados },
+                    ].map((filtro) => (
+                      <option key={filtro.key} value={filtro.key}>{filtro.label} ({filtro.count})</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Desktop: tabs */}
+                <div className={`hidden md:flex gap-1 px-6 flex-shrink-0 mb-4 border-b ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
                    {[
                       { key: "todos" as FiltroEstado, label: "Todos", count: contadores.todos },
                       { key: "activos" as FiltroEstado, label: "En Curso", count: contadores.activos },
@@ -1084,8 +1105,8 @@ export default function VigilanciaExamenesLista({
                       <button
                         key={filtro.key}
                         onClick={() => cambiarFiltroExamen(filtro.key)}
-                        className={`py-3 px-4 text-sm font-medium border-b-2 transition-all ${
-                          filtroActual === filtro.key 
+                        className={`py-3 px-4 text-sm font-medium border-b-2 transition-all whitespace-nowrap flex-shrink-0 ${
+                          filtroActual === filtro.key
                           ? `border-teal-500 ${darkMode ? "text-teal-400" : "text-teal-600"}`
                           : `border-transparent ${darkMode ? "text-slate-400 hover:text-slate-300" : "text-slate-500 hover:text-slate-700"}`
                         }`}
@@ -1095,7 +1116,7 @@ export default function VigilanciaExamenesLista({
                    ))}
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-6 pb-4 scrollbar-hide">
+                <div className="md:flex-1 md:overflow-y-auto px-3 sm:px-6 pb-4 scrollbar-hide">
                    {estudiantesFiltrados.length === 0 ? (
                       <div className={`h-64 flex flex-col items-center justify-center ${darkMode ? "text-slate-400" : "text-slate-400"}`}>
                          <p>No se encontraron estudiantes</p>
@@ -1163,7 +1184,7 @@ export default function VigilanciaExamenesLista({
                                       </div>
                                    </div>
 
-                                   <div className="flex items-center gap-8 mr-4">
+                                   <div className="flex items-center gap-3 sm:gap-8 sm:mr-4 mr-1 flex-shrink-0">
                                       {mostrarOpcionesPostCalificacion && estudiante.calificacion !== undefined && estudiante.calificacion !== null && (
                                         <div className="flex flex-col items-end">
                                             <div className="flex items-center gap-1">
@@ -1185,7 +1206,7 @@ export default function VigilanciaExamenesLista({
                                          <span className="text-[10px] font-bold mt-1">{estudiante.alertas}</span>
                                       </div>
 
-                                      <div className="w-32 flex flex-col items-end">
+                                      <div className="w-20 sm:w-32 flex flex-col items-end">
                                           <div className="flex justify-between w-full mb-1">
                                               <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Progreso</span>
                                               <span className={`text-xs font-bold ${darkMode ? "text-teal-400" : "text-teal-600"}`}>{estudiante.progreso}%</span>
@@ -1208,15 +1229,15 @@ export default function VigilanciaExamenesLista({
 
             ) : (
               // ================= VISTA DETALLE ESTUDIANTE =================
-              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-slideUp"} ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
-                 <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+              <div className={`flex flex-col md:h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-slideUp"} ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
+                 <div className={`px-3 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap items-center justify-between gap-2 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
                     <button onClick={handleVolverLista} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
                        </div>
                        Volver a la lista
                     </button>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                          {examenActual.estado === "open" && estudianteSeleccionado.estado !== 'finished' && !(estudianteSeleccionado.calificacion !== undefined && estudianteSeleccionado.calificacion !== null) ? (
                            <>
                              <button onClick={() => handleLimpiarAlertas(estudianteSeleccionado.id)} className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "border-slate-700 hover:bg-slate-800 text-slate-300" : "bg-slate-800 border-slate-700 hover:bg-slate-700 text-white"}`}>
@@ -1237,8 +1258,8 @@ export default function VigilanciaExamenesLista({
                     </div>
                  </div>
 
-                 <div className="flex-1 flex flex-col min-h-0">
-                     <div className={`p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
+                 <div className="md:flex-1 flex flex-col md:min-h-0">
+                     <div className={`p-3 sm:p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
 
                      <div className="flex items-center gap-4 mb-4 relative overflow-hidden">
                         {/* Stamp de nota - sello grande rotado semi-transparente */}
@@ -1278,7 +1299,7 @@ export default function VigilanciaExamenesLista({
                         </div>
                         <div className="flex-1 z-10">
                             <div className="flex items-center gap-3">
-                                <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
+                                <h2 className={`text-lg sm:text-2xl font-bold ${darkMode ? "text-white" : "text-slate-900"}`}>
                                     {modoPrivacidad && !estudiantesRevelados.has(estudianteSeleccionado.id) ? "******" : obtenerInfoVisual(estudianteSeleccionado).principal}
                                 </h2>
                                 {modoPrivacidad && (
@@ -1363,7 +1384,7 @@ export default function VigilanciaExamenesLista({
                      </div>
                      </div>
 
-                     <div className={`flex-1 overflow-y-auto px-6 pb-6 scrollbar-hide ${darkMode ? "bg-transparent" : "bg-white"}`}>
+                     <div className={`md:flex-1 md:overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-6 scrollbar-hide ${darkMode ? "bg-transparent" : "bg-white"}`}>
                         <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 sticky top-0 py-2 z-10 backdrop-blur-sm ${darkMode ? "bg-slate-900/95 text-white" : "bg-white/95 text-slate-800"}`}>
                             <Activity className="w-4 h-4 text-teal-500" />
                             Registro de Actividad

@@ -350,13 +350,13 @@ export default function EditorTexto({
         </div>
 
         {/* Resaltado (Highlight) */}
-        <div className="flex items-center gap-1 mr-1">
-          <Brush className={`w-4 h-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
+        <div className="flex items-center gap-1 mr-1 flex-shrink-0">
+          <Brush className={`w-4 h-4 flex-shrink-0 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`} />
           <select
             onChange={(e) => setHighlight(e.target.value)}
-            className={`px-2 py-1 rounded text-sm border ${
-              darkMode 
-                ? 'bg-slate-700 border-slate-600 text-white' 
+            className={`px-1 py-1 rounded text-xs border w-16 sm:w-auto ${
+              darkMode
+                ? 'bg-slate-700 border-slate-600 text-white'
                 : 'bg-white border-gray-300 text-gray-900'
             } focus:outline-none focus:ring-1 focus:ring-teal-500`}
             title="Resaltar texto"
