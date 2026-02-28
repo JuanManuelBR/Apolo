@@ -1670,33 +1670,64 @@ function RenderMatch({ pregunta, darkMode }: { pregunta: Pregunta; darkMode: boo
     return `M ${x1} ${y1} C ${x1 + delta} ${y1}, ${x2 - delta} ${y2}, ${x2} ${y2}`;
   };
 
+  // ¿Hay algún par incorrecto o sin conectar?
+  const hayErrores = paresCorrectos.some(par => {
+    const studentPair = respuestas.find(r => r.itemA.id === par.itemA.id);
+    return !(studentPair?.esCorrecto || puntajeTotal);
+  });
+
   return (
     <div ref={containerRef} className={`relative p-6 rounded-xl border select-none ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
       {/* SVG Layer */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+        {/* Líneas correctas punteadas — se muestran cuando el estudiante falló o no conectó */}
+        {paresCorrectos.map((par) => {
+          const studentPair = respuestas.find(r => r.itemA.id === par.itemA.id);
+          const isCorrectlyAnswered = studentPair?.esCorrecto || puntajeTotal;
+          if (isCorrectlyAnswered) return null; // Ya está bien, no mostrar pista
+          const posA = itemPositions[`a-${par.itemA.id}`];
+          const posB = itemPositions[`b-${par.itemB.id}`];
+          if (!posA || !posB) return null;
+          return (
+            <g key={`hint-${par.id}`}>
+              <path
+                d={getPath(posA, posB)}
+                fill="none"
+                stroke={darkMode ? "rgba(52,211,153,0.55)" : "rgba(5,150,105,0.55)"}
+                strokeWidth="2.5"
+                strokeDasharray="7 4"
+                strokeLinecap="round"
+              />
+              <circle cx={posA.left} cy={posA.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
+              <circle cx={posB.left} cy={posB.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
+            </g>
+          );
+        })}
+
+        {/* Líneas del estudiante (encima de las pistas) */}
         {respuestas.map((resp, idx) => {
           const posA = itemPositions[`a-${resp.itemA.id}`];
           const posB = itemPositions[`b-${resp.itemB.id}`];
           if (!posA || !posB) return null;
-          
+
           const style = getStableColor(resp.itemA.id, PAIR_COLORS);
-          
+
           return (
             <g key={idx}>
               {/* Sombra de la línea para profundidad */}
-              <path 
-                d={getPath(posA, posB)} 
-                fill="none" 
-                stroke="rgba(0,0,0,0.1)" 
-                strokeWidth="6" 
-                className={darkMode ? "stroke-black/20" : ""} 
+              <path
+                d={getPath(posA, posB)}
+                fill="none"
+                stroke="rgba(0,0,0,0.1)"
+                strokeWidth="6"
+                className={darkMode ? "stroke-black/20" : ""}
               />
-              <path 
-                d={getPath(posA, posB)} 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="3" 
-                className={darkMode ? style.darkStroke : style.stroke} 
+              <path
+                d={getPath(posA, posB)}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                className={darkMode ? style.darkStroke : style.stroke}
               />
               <circle cx={posA.left} cy={posA.top} r="4" className={darkMode ? style.darkFill : style.fill} />
               <circle cx={posB.left} cy={posB.top} r="4" className={darkMode ? style.darkFill : style.fill} />
@@ -1754,6 +1785,20 @@ function RenderMatch({ pregunta, darkMode }: { pregunta: Pregunta; darkMode: boo
           )})}
         </div>
       </div>
+
+      {/* Leyenda — solo cuando hay errores */}
+      {hayErrores && (
+        <div className={`mt-4 flex flex-wrap gap-4 text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+          <span className="flex items-center gap-2">
+            <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(52,211,153,0.7)" : "rgba(5,150,105,0.7)"} strokeWidth="2" strokeDasharray="5 3" strokeLinecap="round"/></svg>
+            Conexión correcta
+          </span>
+          <span className="flex items-center gap-2">
+            <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(248,113,113,0.9)" : "rgba(220,38,38,0.9)"} strokeWidth="2.5" strokeLinecap="round"/></svg>
+            Tu respuesta (incorrecta)
+          </span>
+        </div>
+      )}
     </div>
   );
 }

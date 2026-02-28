@@ -747,7 +747,7 @@ export default function CrearExamen({
       >
         <button
           onClick={() => setSeccion1Abierta(!seccion1Abierta)}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -756,7 +756,7 @@ export default function CrearExamen({
               1
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Información básica
             </div>
@@ -839,7 +839,7 @@ export default function CrearExamen({
       >
         <button
           onClick={() => setSeccion2Abierta(!seccion2Abierta)}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -848,7 +848,7 @@ export default function CrearExamen({
               2
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Preguntas del examen
             </div>
@@ -987,7 +987,7 @@ export default function CrearExamen({
       >
         <button
           onClick={() => setSeccion3Abierta(!seccion3Abierta)}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -996,7 +996,7 @@ export default function CrearExamen({
               3
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Datos del estudiante
             </div>
@@ -1065,7 +1065,7 @@ export default function CrearExamen({
             setSeccion4Abierta(!seccion4Abierta);
             if (!seccion4Abierta) setSeccion4Visitada(true);
           }}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -1074,7 +1074,7 @@ export default function CrearExamen({
               4
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Tiempo
             </div>
@@ -1298,7 +1298,7 @@ export default function CrearExamen({
             setSeccion5Abierta(!seccion5Abierta);
             if (!seccion5Abierta) setSeccion5Visitada(true);
           }}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -1307,7 +1307,7 @@ export default function CrearExamen({
               5
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Herramientas
             </div>
@@ -1355,7 +1355,7 @@ export default function CrearExamen({
       >
         <button
           onClick={() => setSeccion6Abierta(!seccion6Abierta)}
-          className="w-full flex items-center justify-between p-6"
+          className="w-full flex items-center justify-between p-4 sm:p-6"
         >
           <div className="flex items-center gap-3">
             <div
@@ -1364,7 +1364,7 @@ export default function CrearExamen({
               6
             </div>
             <div
-              className="text-xl font-semibold text-primary"
+              className="text-base sm:text-xl font-semibold text-primary"
             >
               Seguridad
             </div>
