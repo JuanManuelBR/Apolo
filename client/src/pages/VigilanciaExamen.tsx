@@ -1429,12 +1429,12 @@ export default function VigilanciaExamenesLista({
           onClick={() => setModoRevision(false)}
         >
           <div
-            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl w-[95vw] h-[95vh] relative shadow-2xl flex flex-row overflow-hidden`}
+            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl w-[95vw] h-[95vh] relative shadow-2xl flex flex-col md:flex-row overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Panel izquierdo: PDF del examen */}
+            {/* Panel izquierdo: PDF del examen — oculto en mobile */}
             {examenActual?.archivoPDF && mostrarPDFRevision && (
-              <div className={`flex-shrink-0 w-[42%] flex flex-col border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+              <div className={`hidden md:flex flex-shrink-0 w-[42%] flex-col border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
                 <div className={`flex items-center justify-between px-4 py-2 border-b text-xs font-semibold ${darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-gray-200 text-slate-500"}`}>
                   <span className="flex items-center gap-1.5">
                     <FileText className="w-3.5 h-3.5" />
@@ -1458,9 +1458,9 @@ export default function VigilanciaExamenesLista({
               </div>
             )}
 
-            {/* Botón para mostrar PDF si está oculto */}
+            {/* Botón para mostrar PDF si está oculto — solo desktop */}
             {examenActual?.archivoPDF && !mostrarPDFRevision && (
-              <div className={`flex-shrink-0 flex items-start pt-4 px-2 border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+              <div className={`hidden md:flex flex-shrink-0 items-start pt-4 px-2 border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
                 <button
                   onClick={() => setMostrarPDFRevision(true)}
                   className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl text-[10px] font-semibold border transition-colors ${darkMode ? "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}

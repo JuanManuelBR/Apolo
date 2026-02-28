@@ -459,33 +459,32 @@ plt.show = show_custom
     <div className={`h-full w-full flex flex-col ${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-gray-900'}`}>
       
       {/* Toolbar */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
-        <div className="flex items-center gap-2 min-w-0">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 ${
-                pyodideReady
-                ? darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
-                : darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
-            }`}>
-                {pyodideReady ? <CheckCircle2 className="w-3 h-3"/> : <Loader2 className="w-3 h-3 animate-spin"/>}
-                <span>{pyodideReady ? 'Python Listo' : (loadingProgress || 'Cargando...')}</span>
-            </div>
+      <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold shrink-0 ${
+            pyodideReady
+            ? darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
+            : darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
+        }`}>
+            {pyodideReady ? <CheckCircle2 className="w-3 h-3"/> : <Loader2 className="w-3 h-3 animate-spin"/>}
+            <span className="hidden sm:inline">{pyodideReady ? 'Python Listo' : (loadingProgress || 'Cargando...')}</span>
+            <span className="sm:hidden">PY</span>
         </div>
 
-        <div className="flex gap-2 shrink-0">
-           {!viewMode && <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
-             <Plus className="w-4 h-4"/> <Code className="w-4 h-4"/>
+        <div className="flex-1 flex flex-wrap gap-1.5 justify-end">
+           {!viewMode && <button onClick={() => addCell('code')} title="Agregar celda de código" className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
+             <Plus className="w-3.5 h-3.5"/> <Code className="w-3.5 h-3.5"/>
            </button>}
-           {!viewMode && <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
-             <Plus className="w-4 h-4"/> <Type className="w-4 h-4"/>
+           {!viewMode && <button onClick={() => addCell('markdown')} title="Agregar celda de texto" className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
+             <Plus className="w-3.5 h-3.5"/> <Type className="w-3.5 h-3.5"/>
            </button>}
-           <button onClick={runAllCells} disabled={!pyodideReady} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50' : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50'}`}>
-             <Play className="w-4 h-4"/> Ejecutar Todo
+           <button onClick={runAllCells} disabled={!pyodideReady} className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50' : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50'}`}>
+             <Play className="w-3.5 h-3.5"/> <span className="hidden sm:inline">Ejecutar</span>
            </button>
-           <button onClick={restartPython} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Python">
-             <RefreshCw className="w-4 h-4"/>
+           <button onClick={restartPython} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Python">
+             <RefreshCw className="w-3.5 h-3.5"/>
            </button>
-           {!viewMode && <button onClick={() => setCells([])} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white' : 'bg-gray-200 hover:bg-red-100 text-gray-800'}`}>
-             <Trash2 className="w-4 h-4"/>
+           {!viewMode && <button onClick={() => setCells([])} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white' : 'bg-gray-200 hover:bg-red-100 text-gray-800'}`} title="Limpiar todo">
+             <Trash2 className="w-3.5 h-3.5"/>
            </button>}
         </div>
       </div>

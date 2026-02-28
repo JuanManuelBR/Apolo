@@ -663,48 +663,40 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
     <div className={`h-full w-full flex flex-col ${darkMode ? 'bg-slate-900 text-white' : 'bg-white text-gray-900'}`}>
       
       {/* Toolbar */}
-      <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
-        <div className="flex items-center gap-2">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
-            isReady 
-              ? (darkMode ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
-              : (darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700')
-          }`}>
-            {isReady ? (
-              <>
-                <CheckCircle2 className="w-3 h-3" />
-                <span>JS Listo</span>
-              </>
-            ) : (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Cargando...</span>
-              </>
-            )}
-          </div>
+      <div className={`flex flex-wrap items-center gap-2 px-3 py-2 border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
+        <div className={`flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-bold ${
+          isReady
+            ? (darkMode ? 'bg-yellow-900/30 text-yellow-400' : 'bg-yellow-100 text-yellow-700')
+            : (darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700')
+        }`}>
+          {isReady ? (
+            <><CheckCircle2 className="w-3 h-3" /><span>JS</span></>
+          ) : (
+            <><Loader2 className="w-3 h-3 animate-spin" /><span>...</span></>
+          )}
         </div>
 
-        <div className="flex gap-2">
-          {!viewMode && <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`} title="Agregar código">
-            <Plus className="w-4 h-4" /> <Code className="w-4 h-4" />
+        <div className="flex-1 flex flex-wrap gap-1.5 justify-end">
+          {!viewMode && <button onClick={() => addCell('code')} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`} title="Agregar código">
+            <Plus className="w-3.5 h-3.5" /><Code className="w-3.5 h-3.5" /><span className="hidden sm:inline">JS</span>
           </button>}
-          {!viewMode && <button onClick={() => addCell('html')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} title="Agregar HTML">
-            <Plus className="w-4 h-4" /> <LayoutTemplate className="w-4 h-4" />
+          {!viewMode && <button onClick={() => addCell('html')} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} title="Agregar HTML">
+            <Plus className="w-3.5 h-3.5" /><LayoutTemplate className="w-3.5 h-3.5" /><span className="hidden sm:inline">HTML</span>
           </button>}
-          {!viewMode && <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`} title="Agregar texto">
-            <Plus className="w-4 h-4" /> <Type className="w-4 h-4" />
+          {!viewMode && <button onClick={() => addCell('markdown')} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`} title="Agregar texto">
+            <Plus className="w-3.5 h-3.5" /><Type className="w-3.5 h-3.5" /><span className="hidden sm:inline">Texto</span>
           </button>}
-          <button onClick={runAllCells} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title="Ejecutar todo">
-            <Play className="w-4 h-4" /> Ejecutar Todo
+          <button onClick={runAllCells} className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title="Ejecutar todo">
+            <Play className="w-3.5 h-3.5" /><span className="hidden sm:inline">Ejecutar</span>
           </button>
-          <button onClick={() => setShowPreview(!showPreview)} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title={showPreview ? "Ocultar Vista Previa" : "Mostrar Vista Previa"}>
-            {showPreview ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          <button onClick={() => setShowPreview(!showPreview)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title={showPreview ? "Ocultar Vista Previa" : "Mostrar Vista Previa"}>
+            {showPreview ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
           </button>
-          <button onClick={resetEnvironment} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Entorno">
-            <RefreshCw className="w-4 h-4" />
+          <button onClick={resetEnvironment} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Entorno">
+            <RefreshCw className="w-3.5 h-3.5" />
           </button>
-          {!viewMode && <button onClick={deleteAllCells} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white hover:text-red-400' : 'bg-gray-200 hover:bg-red-100 text-gray-800 hover:text-red-600'}`} title="Borrar todo">
-            <Trash2 className="w-4 h-4" />
+          {!viewMode && <button onClick={deleteAllCells} className={`p-1.5 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white hover:text-red-400' : 'bg-gray-200 hover:bg-red-100 text-gray-800 hover:text-red-600'}`} title="Borrar todo">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>}
         </div>
       </div>

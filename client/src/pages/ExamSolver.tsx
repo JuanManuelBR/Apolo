@@ -1316,6 +1316,20 @@ export default function SecureExamPlatform() {
   };
 
   const openPanel = (panelType: PanelType) => {
+    // En mobile: un solo panel a la vez — siempre reemplaza
+    if (window.innerWidth < 768) {
+      if (openPanels[0] === panelType) {
+        // Ya está activo, solo cerrar sidebar
+        setSidebarCollapsed(true);
+        return;
+      }
+      setOpenPanels([panelType]);
+      setPanelSizes([100]);
+      setPanelZooms([100]);
+      setSidebarCollapsed(true);
+      return;
+    }
+
     const panelIndex = openPanels.indexOf(panelType);
     if (panelIndex !== -1) {
       closePanel(panelIndex);
@@ -1908,7 +1922,7 @@ export default function SecureExamPlatform() {
                   >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
-                  <div className={`flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
+                  <div className={`hidden md:flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
                       <button onClick={() => setLayout("vertical")} className={`p-1.5 rounded ${layout === "vertical" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Columns className="w-4 h-4"/></button>
                       <button onClick={() => setLayout("horizontal")} className={`p-1.5 rounded ${layout === "horizontal" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Rows className="w-4 h-4"/></button>
                   </div>
