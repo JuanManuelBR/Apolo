@@ -93,7 +93,7 @@ export default function ModalExamenCreado({
             <div className={`flex items-center gap-2 p-6 rounded-lg border ${
               darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-50 border-gray-200'
             }`}>
-              <code className={`flex-1 text-4xl font-bold tracking-widest text-center ${darkMode ? 'text-teal-400' : 'text-teal-600'}`}>
+              <code className={`flex-1 text-2xl sm:text-4xl font-bold tracking-widest text-center ${darkMode ? 'text-teal-400' : 'text-teal-600'}`}>
                 {codigo}
               </code>
               <button

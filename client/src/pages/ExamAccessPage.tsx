@@ -446,7 +446,7 @@ export default function ExamAccessPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6 relative bg-cover bg-center transition-all duration-300"
+      className="min-h-screen flex items-center justify-center pt-24 md:pt-6 p-4 md:p-6 relative bg-cover bg-center transition-all duration-300 overflow-x-hidden"
       style={{ backgroundImage: `url(${fondoImagen})` }}
     >
       {/* Overlay — mismo estilo que LandingPage */}
@@ -464,7 +464,7 @@ export default function ExamAccessPage() {
           <img
             src={logoUniversidadNoche}
             alt="Universidad de Ibagué"
-            className="h-24 object-contain drop-shadow-lg"
+            className="h-14 md:h-24 object-contain drop-shadow-lg"
           />
         </div>
       </div>
@@ -484,7 +484,7 @@ export default function ExamAccessPage() {
 
       {/* Tarjeta principal */}
       <div
-        className={`rounded-2xl shadow-2xl p-6 w-full max-w-2xl z-10 transition-colors duration-300 ${
+        className={`rounded-2xl shadow-2xl p-4 sm:p-6 w-full max-w-2xl z-10 transition-colors duration-300 ${
           darkMode ? "bg-slate-900" : "bg-white"
         }`}
       >
@@ -500,10 +500,10 @@ export default function ExamAccessPage() {
 
         {/* Tabs: Iniciar examen / Reanudar intento / Revisar calificación */}
         {!showForm && (
-          <div className={`flex rounded-xl p-1 mb-5 gap-1 ${darkMode ? "bg-slate-800" : "bg-gray-100"}`}>
+          <div className={`grid grid-cols-3 rounded-xl p-1 mb-5 gap-1 ${darkMode ? "bg-slate-800" : "bg-gray-100"}`}>
             <button
               onClick={() => { setMode("exam"); setError(""); setResumeError(""); setRevisionError(""); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+              className={`py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 leading-tight ${
                 mode === "exam"
                   ? darkMode ? "bg-slate-700 text-white shadow" : "bg-white text-[#003876] shadow"
                   : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"
@@ -513,18 +513,18 @@ export default function ExamAccessPage() {
             </button>
             <button
               onClick={() => { setMode("resume"); setError(""); setResumeError(""); setRevisionError(""); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 ${
+              className={`py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-center gap-1 leading-tight ${
                 mode === "resume"
                   ? darkMode ? "bg-slate-700 text-white shadow" : "bg-white text-[#003876] shadow"
                   : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Reanudar intento
+              <RotateCcw className="w-3 h-3 sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+              <span>Reanudar</span>
             </button>
             <button
               onClick={() => { setMode("revision"); setError(""); setResumeError(""); setRevisionError(""); }}
-              className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all duration-200 ${
+              className={`py-2 text-xs sm:text-sm font-semibold rounded-lg transition-all duration-200 leading-tight ${
                 mode === "revision"
                   ? darkMode ? "bg-slate-700 text-white shadow" : "bg-white text-[#003876] shadow"
                   : darkMode ? "text-gray-400 hover:text-gray-200" : "text-gray-500 hover:text-gray-700"
@@ -542,16 +542,16 @@ export default function ExamAccessPage() {
               {loading ? "Verificando código..." : "Ingresa el código de 8 caracteres de tu examen"}
             </p>
             <div className="mb-3">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={examCode}
                   onChange={(e) => setExamCode(e.target.value)}
-                  onKeyPress={handleKeyPress}
+                  onKeyDown={(e) => e.key === "Enter" && !loading && handleSearchCode()}
                   placeholder="CÓDIGO"
                   maxLength={8}
                   disabled={loading}
-                  className={`flex-1 px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
                              outline-none transition-all ${
                                darkMode
                                  ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20"
@@ -562,7 +562,7 @@ export default function ExamAccessPage() {
                   type="button"
                   onClick={handleSearchCode}
                   disabled={loading}
-                  className={`px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     darkMode ? "bg-blue-600 text-white hover:bg-blue-700" : "bg-[#4a7ba7] text-white hover:bg-[#3d6a93]"
                   }`}
                 >
@@ -580,7 +580,7 @@ export default function ExamAccessPage() {
               Ingresa el código de acceso que te proporcionó el profesor
             </p>
             <div className="mb-3">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={resumeCode}
@@ -589,7 +589,7 @@ export default function ExamAccessPage() {
                   placeholder="CÓDIGO DE ACCESO"
                   maxLength={10}
                   disabled={loading}
-                  className={`flex-1 px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
                              outline-none transition-all ${
                                darkMode
                                  ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20"
@@ -600,7 +600,7 @@ export default function ExamAccessPage() {
                   type="button"
                   onClick={handleResume}
                   disabled={loading}
-                  className={`px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     darkMode ? "bg-amber-600 text-white hover:bg-amber-700" : "bg-amber-600 text-white hover:bg-amber-700"
                   }`}
                 >
@@ -626,7 +626,7 @@ export default function ExamAccessPage() {
               Ingresa el código de revisión para ver tu calificación y retroalimentación
             </p>
             <div className="mb-3">
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <input
                   type="text"
                   value={revisionCode}
@@ -635,7 +635,7 @@ export default function ExamAccessPage() {
                   placeholder="CÓDIGO DE REVISIÓN"
                   maxLength={10}
                   disabled={loading}
-                  className={`flex-1 px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
+                  className={`w-full px-5 py-3 border rounded-lg text-base text-center font-mono text-lg
                              outline-none transition-all ${
                                darkMode
                                  ? "bg-slate-800 border-slate-700 text-white placeholder-gray-400 focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
@@ -646,7 +646,7 @@ export default function ExamAccessPage() {
                   type="button"
                   onClick={handleRevision}
                   disabled={loading}
-                  className={`px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                  className={`w-full sm:w-auto px-8 py-3 rounded-lg text-base font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     darkMode ? "bg-teal-600 text-white hover:bg-teal-700" : "bg-teal-600 text-white hover:bg-teal-700"
                   }`}
                 >

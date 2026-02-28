@@ -75,7 +75,7 @@ export default function HomeContent({ darkMode }: HomeContentProps) {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Tarjetas de Estadísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mb-5 md:mb-8">
         <ScrollReveal delay={0}><StatCard title="Total Exámenes" value="12" icon={FileEdit} color="bg-blue-500" darkMode={darkMode} /></ScrollReveal>
         <ScrollReveal delay={60}><StatCard title="Estudiantes Activos" value="245" icon={User} color="bg-green-500" darkMode={darkMode} /></ScrollReveal>
         <ScrollReveal delay={120}><StatCard title="Pendientes" value="5" icon={Bell} color="bg-orange-500" darkMode={darkMode} /></ScrollReveal>

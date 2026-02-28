@@ -41,6 +41,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   
   const navigate = useNavigate();
 
@@ -128,6 +129,7 @@ export default function LoginPage() {
    * LOGIN CON GOOGLE
    */
   const handleGoogleLogin = async () => {
+    setLoadingGoogle(true);
     setLoading(true);
     setError('');
 
@@ -139,6 +141,7 @@ export default function LoginPage() {
         setError(error.message || 'Error al iniciar sesión con Google.');
       }
     } finally {
+      setLoadingGoogle(false);
       setLoading(false);
     }
   };
@@ -173,15 +176,15 @@ export default function LoginPage() {
       </button>
       
       {/* Contenedor principal */}
-      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface">
+      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface anim-scaleIn">
         <div className="grid md:grid-cols-2">
           
           {/* ============================================ */}
           {/* SECCIÓN IZQUIERDA - FORMULARIO */}
           {/* ============================================ */}
-          <div className="px-10 py-12 border-r transition-colors duration-300 border-ui">
+          <div className="px-4 sm:px-8 md:px-10 py-8 md:py-12 border-b md:border-b-0 md:border-r transition-colors duration-300 border-ui">
             {/* Logo */}
-            <div className="mb-8 flex items-center justify-center px-6" style={{ height: '160px' }}>
+            <div className="mb-6 md:mb-8 flex items-center justify-center px-4 md:px-6" style={{ height: '110px' }}>
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Universidad de Ibagué"
@@ -304,7 +307,7 @@ export default function LoginPage() {
           {/* ============================================ */}
           {/* SECCIÓN DERECHA - LOGIN CON GOOGLE */}
           {/* ============================================ */}
-          <div className="px-10 py-12 flex flex-col justify-center items-center">
+          <div className="px-4 sm:px-8 md:px-10 py-8 md:py-12 flex flex-col justify-center items-center">
             <div className="text-center mb-8">
               <span className="text-lg font-medium transition-colors duration-300 text-secondary">
                 Ingresar con
@@ -322,8 +325,14 @@ export default function LoginPage() {
                   : 'text-gray-700 hover:bg-gray-50 hover:shadow-xl'
               }`}
             >
-              {loading ? (
-                <span>Cargando...</span>
+              {loadingGoogle ? (
+                <>
+                  <svg className="anim-spin-slow w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Abriendo Google...
+                </>
               ) : (
                 <>
                   <svg width="24" height="24" viewBox="0 0 18 18">

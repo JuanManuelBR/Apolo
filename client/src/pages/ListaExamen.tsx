@@ -482,7 +482,7 @@ export default function ListaExamenes({
           }}
         >
           <div
-            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl p-8 max-w-lg w-full relative shadow-2xl`}
+            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl p-4 sm:p-8 max-w-lg w-full relative shadow-2xl`}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -611,7 +611,7 @@ export default function ListaExamenes({
           onClick={() => setCodigoGrande(null)}
         >
           <div
-            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-3xl p-12 max-w-4xl w-full relative shadow-2xl overflow-hidden scale-100`}
+            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-3xl p-5 sm:p-12 max-w-4xl w-full relative shadow-2xl overflow-hidden scale-100`}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -632,7 +632,7 @@ export default function ListaExamenes({
               >
                 {codigoGrande.nombre}
               </h2>
-              <code className="text-8xl font-bold font-mono text-teal-500 mt-8 block">
+              <code className="text-5xl sm:text-8xl font-bold font-mono text-teal-500 mt-4 sm:mt-8 block">
                 {codigoGrande.codigo}
               </code>
             </div>
@@ -680,14 +680,14 @@ export default function ListaExamenes({
                       : "bg-white border-gray-200 shadow-sm hover:shadow-md"
                 }`}
               >
-                <div className="flex items-center gap-5">
+                <div className="flex items-center gap-2 md:gap-5">
                   <div
-                    className={`flex-1 flex items-center gap-5 transition-opacity duration-300 ${
+                    className={`flex-1 flex items-center gap-2 md:gap-5 min-w-0 transition-opacity duration-300 ${
                       isInactive ? "opacity-50" : "opacity-100"
                     }`}
                   >
                     <div
-                      className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
+                      className={`w-10 h-10 md:w-14 md:h-14 rounded-xl flex items-center justify-center flex-shrink-0 transition-all duration-300 ${
                         isInactive
                           ? darkMode
                             ? "bg-slate-700/50"
@@ -925,7 +925,7 @@ export default function ListaExamenes({
                   </div>
 
                   <div
-                    className={`flex items-center gap-3 pl-3 border-l ${darkMode ? "border-slate-700" : "border-gray-200"}`}
+                    className={`flex items-center gap-1 md:gap-3 pl-2 md:pl-3 border-l flex-shrink-0 ${darkMode ? "border-slate-700" : "border-gray-200"}`}
                   >
                     {!examen.archivado && (
                       <button

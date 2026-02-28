@@ -181,7 +181,7 @@ export default function SecureExamPlatform() {
   const [isStarting, setIsStarting] = useState(false);
   const [blockReason, setBlockReason] = useState("");
   const [showUnlockScreen, setShowUnlockScreen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(window.innerWidth < 768);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
   const [wasForced, setWasForced] = useState<"" | "individual" | "todos">("");
@@ -1778,19 +1778,19 @@ export default function SecureExamPlatform() {
 
         {/* --- SIDEBAR REFACTORIZADO (Estilo Dashboard) --- */}
         <div className={`relative z-30 flex flex-col transition-all duration-300 ease-in-out border-r ${
-            sidebarCollapsed ? "w-20" : "w-64"
+            sidebarCollapsed ? "w-14 md:w-20" : "w-14 md:w-64"
           } ${
-            darkMode 
-              ? "bg-slate-900/80 backdrop-blur-md border-slate-800" 
+            darkMode
+              ? "bg-slate-900/80 backdrop-blur-md border-slate-800"
               : "bg-white border-gray-200"
           }`}>
           
           {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
-              darkMode 
-                ? "bg-slate-800 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-700" 
+            className={`hidden md:flex absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
+              darkMode
+                ? "bg-slate-800 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-700"
                 : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
             }`}
             title={sidebarCollapsed ? "Expandir menú" : "Contraer menú"}

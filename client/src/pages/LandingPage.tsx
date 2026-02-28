@@ -122,7 +122,7 @@ export default function LandingPage() {
             }
           `}</style>
 
-          <h1 className="text-white text-4xl md:text-6xl font-black tracking-tighter mb-3 [text-shadow:0_4px_20px_rgba(0,0,0,0.8)]">
+          <h1 className="text-white text-2xl sm:text-4xl md:text-6xl font-black tracking-tighter mb-3 [text-shadow:0_4px_20px_rgba(0,0,0,0.8)]">
             Portal de{" "}
             <span
               className="text-transparent bg-clip-text"

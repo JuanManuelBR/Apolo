@@ -835,12 +835,12 @@ export default function VigilanciaExamenesLista({
     <>
       <style>{`.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; } .scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
-      <div className="flex h-[calc(100vh-140px)] gap-6 px-12 overflow-hidden">
+      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-6 px-2 md:px-12 overflow-auto md:overflow-hidden">
         
         {/* =======================================================
             PANEL IZQUIERDO
            ======================================================= */}
-        <div className="w-80 flex flex-col gap-4 flex-shrink-0 overflow-hidden">
+        <div className="w-full md:w-80 flex flex-col gap-3 md:gap-4 flex-shrink-0 overflow-hidden max-h-52 md:max-h-none">
           
           <div className={`p-4 rounded-2xl shadow-sm flex-shrink-0 border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
             <div className="flex items-start justify-between mb-4">
@@ -928,7 +928,7 @@ export default function VigilanciaExamenesLista({
           
           {/* Stats Cards */}
           {examenActual && (
-            <div className="grid grid-cols-4 gap-4 flex-shrink-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 flex-shrink-0">
               {[
                 { label: "Han empezado", val: contadores.hanEmpezado, icon: Activity, colorClass: "bg-blue-500 shadow-blue-200" },
                 { label: "Han enviado", val: contadores.hanEnviado, icon: Send, colorClass: "bg-emerald-500 shadow-emerald-200" },
@@ -973,7 +973,7 @@ export default function VigilanciaExamenesLista({
               // ================= VISTA LISTA DE ESTUDIANTES =================
               <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
                 
-                <div className="p-6 pb-4 flex-shrink-0">
+                <div className="p-3 sm:p-6 pb-3 sm:pb-4 flex-shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div>
                             <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
