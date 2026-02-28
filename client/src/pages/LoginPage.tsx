@@ -41,6 +41,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   
   const navigate = useNavigate();
 
@@ -128,6 +129,7 @@ export default function LoginPage() {
    * LOGIN CON GOOGLE
    */
   const handleGoogleLogin = async () => {
+    setLoadingGoogle(true);
     setLoading(true);
     setError('');
 
@@ -139,6 +141,7 @@ export default function LoginPage() {
         setError(error.message || 'Error al iniciar sesión con Google.');
       }
     } finally {
+      setLoadingGoogle(false);
       setLoading(false);
     }
   };
@@ -152,34 +155,36 @@ export default function LoginPage() {
       className="min-h-screen flex items-center justify-center p-6 md:p-8 bg-cover bg-center relative transition-all duration-300"
       style={{ backgroundImage: `url(${fondoImagen})` }}
     >
-      {/* Overlay oscuro ajustable según el tema */}
-      <div className={`absolute inset-0 z-0 transition-all duration-300 ${
-        darkMode ? 'bg-black/75' : 'bg-black/45'
-      }`}></div>
+      {/* Overlay — mismo estilo que LandingPage */}
+      <div className={`absolute inset-0 z-0 transition-all duration-500 ${
+        darkMode
+          ? 'bg-gradient-to-b from-slate-950/90 via-slate-900/80 to-slate-950/90 backdrop-blur-[3px]'
+          : 'bg-gradient-to-b from-sky-950/55 via-sky-900/30 to-sky-950/55 backdrop-blur-[5px]'
+      }`} />
 
-      {/* Botón de tema en la esquina inferior derecha */}
+      {/* Botón de tema */}
       <button
         onClick={toggleTheme}
-        className={`fixed bottom-6 right-6 z-20 p-3 rounded-full shadow-lg transition-all duration-300 ${
-          darkMode 
-            ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' 
-            : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`fixed bottom-6 right-6 z-20 p-4 rounded-full shadow-2xl border transition-all duration-300 hover:scale-110 hover:rotate-12 ${
+          darkMode
+            ? 'bg-slate-800/80 backdrop-blur-xl border-slate-600 text-yellow-400 hover:bg-slate-700'
+            : 'bg-white/90 backdrop-blur-sm border-slate-200 text-slate-600 shadow-slate-300/60 hover:bg-white'
         }`}
         title={darkMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
       >
-        {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
       </button>
       
       {/* Contenedor principal */}
-      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface">
+      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface anim-scaleIn">
         <div className="grid md:grid-cols-2">
           
           {/* ============================================ */}
           {/* SECCIÓN IZQUIERDA - FORMULARIO */}
           {/* ============================================ */}
-          <div className="px-10 py-12 border-r transition-colors duration-300 border-ui">
+          <div className="px-4 sm:px-8 md:px-10 py-8 md:py-12 border-b md:border-b-0 md:border-r transition-colors duration-300 border-ui">
             {/* Logo */}
-            <div className="mb-8 flex items-center justify-center px-6" style={{ height: '160px' }}>
+            <div className="mb-6 md:mb-8 flex items-center justify-center px-4 md:px-6" style={{ height: '110px' }}>
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Universidad de Ibagué"
@@ -302,7 +307,7 @@ export default function LoginPage() {
           {/* ============================================ */}
           {/* SECCIÓN DERECHA - LOGIN CON GOOGLE */}
           {/* ============================================ */}
-          <div className="px-10 py-12 flex flex-col justify-center items-center">
+          <div className="px-4 sm:px-8 md:px-10 py-8 md:py-12 flex flex-col justify-center items-center">
             <div className="text-center mb-8">
               <span className="text-lg font-medium transition-colors duration-300 text-secondary">
                 Ingresar con
@@ -320,8 +325,14 @@ export default function LoginPage() {
                   : 'text-gray-700 hover:bg-gray-50 hover:shadow-xl'
               }`}
             >
-              {loading ? (
-                <span>Cargando...</span>
+              {loadingGoogle ? (
+                <>
+                  <svg className="anim-spin-slow w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Abriendo Google...
+                </>
               ) : (
                 <>
                   <svg width="24" height="24" viewBox="0 0 18 18">

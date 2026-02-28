@@ -25,6 +25,7 @@ interface EditorJavaScriptProps {
   onSave?: (data: any) => void;
   initialCells?: Cell[];
   zoomLevel?: number;
+  viewMode?: boolean; // Oculta controles de gestión de celdas (solo ejecutar)
 }
 
 type CellType = 'code' | 'markdown' | 'html';
@@ -41,7 +42,7 @@ interface Cell {
   hasActiveTimers?: boolean;
 }
 
-export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomLevel = 100 }: EditorJavaScriptProps) {
+export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomLevel = 100, viewMode = false }: EditorJavaScriptProps) {
   const [cells, setCells] = useState<Cell[]>(initialCells || []);
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -684,15 +685,15 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
         </div>
 
         <div className="flex gap-2">
-          <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`} title="Agregar código">
+          {!viewMode && <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`} title="Agregar código">
             <Plus className="w-4 h-4" /> <Code className="w-4 h-4" />
-          </button>
-          <button onClick={() => addCell('html')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} title="Agregar HTML">
+          </button>}
+          {!viewMode && <button onClick={() => addCell('html')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-orange-600 hover:bg-orange-500 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`} title="Agregar HTML">
             <Plus className="w-4 h-4" /> <LayoutTemplate className="w-4 h-4" />
-          </button>
-          <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`} title="Agregar texto">
+          </button>}
+          {!viewMode && <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`} title="Agregar texto">
             <Plus className="w-4 h-4" /> <Type className="w-4 h-4" />
-          </button>
+          </button>}
           <button onClick={runAllCells} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-emerald-500 hover:bg-emerald-600 text-white'}`} title="Ejecutar todo">
             <Play className="w-4 h-4" /> Ejecutar Todo
           </button>
@@ -702,9 +703,9 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
           <button onClick={resetEnvironment} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Entorno">
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button onClick={deleteAllCells} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white hover:text-red-400' : 'bg-gray-200 hover:bg-red-100 text-gray-800 hover:text-red-600'}`} title="Borrar todo">
+          {!viewMode && <button onClick={deleteAllCells} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white hover:text-red-400' : 'bg-gray-200 hover:bg-red-100 text-gray-800 hover:text-red-600'}`} title="Borrar todo">
             <Trash2 className="w-4 h-4" />
-          </button>
+          </button>}
         </div>
       </div>
 
@@ -741,8 +742,8 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
                 {cell.status === 'error' && <XCircle className="w-4 h-4 text-red-500" />}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => { e.stopPropagation(); moveCellUp(cell.id); }} disabled={index === 0} className={`p-1 rounded transition-colors disabled:opacity-30 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><ChevronUp className="w-4 h-4" /></button>
-                <button onClick={(e) => { e.stopPropagation(); moveCellDown(cell.id); }} disabled={index === cells.length - 1} className={`p-1 rounded transition-colors disabled:opacity-30 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><ChevronDown className="w-4 h-4" /></button>
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); moveCellUp(cell.id); }} disabled={index === 0} className={`p-1 rounded transition-colors disabled:opacity-30 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><ChevronUp className="w-4 h-4" /></button>}
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); moveCellDown(cell.id); }} disabled={index === cells.length - 1} className={`p-1 rounded transition-colors disabled:opacity-30 ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><ChevronDown className="w-4 h-4" /></button>}
                 {cell.type !== 'markdown' && (
                   cell.status === 'running' || cell.hasActiveTimers ? (
                     <button onClick={(e) => { e.stopPropagation(); stopCell(cell.id); }} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-red-900/30 text-red-400' : 'hover:bg-red-100 text-red-600'}`} title="Detener">
@@ -754,8 +755,8 @@ export default function EditorJavaScript({ darkMode, onSave, initialCells, zoomL
                     </button>
                   )
                 )}
-                <button onClick={(e) => { e.stopPropagation(); addCell('code', cell.id); }} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><Plus className="w-4 h-4" /></button>
-                <button onClick={(e) => { e.stopPropagation(); deleteCell(cell.id); }} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-red-900/30 text-red-400' : 'hover:bg-red-100 text-red-600'}`}><X className="w-4 h-4" /></button>
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); addCell('code', cell.id); }} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-gray-200'}`}><Plus className="w-4 h-4" /></button>}
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); deleteCell(cell.id); }} className={`p-1 rounded transition-colors ${darkMode ? 'hover:bg-red-900/30 text-red-400' : 'hover:bg-red-100 text-red-600'}`}><X className="w-4 h-4" /></button>}
               </div>
             </div>
 

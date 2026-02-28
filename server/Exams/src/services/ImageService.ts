@@ -61,12 +61,14 @@ export class ImageService {
 
   async duplicateImage(urlOrPublicId: string): Promise<string | null> {
     try {
-      const originalPublicId = extractPublicId(urlOrPublicId);
+      const sourceUrl = urlOrPublicId.startsWith("http")
+        ? urlOrPublicId
+        : cloudinary.url(urlOrPublicId, { secure: true });
       const newPublicId = `exams/images/${uuidv4()}`;
-      const result = await cloudinary.uploader.upload(
-        cloudinary.url(originalPublicId, { secure: true }),
-        { public_id: newPublicId, resource_type: "image" }
-      );
+      const result = await cloudinary.uploader.upload(sourceUrl, {
+        public_id: newPublicId,
+        resource_type: "image",
+      });
       return result.secure_url;
     } catch (error) {
       console.error(`Error duplicando imagen: ${urlOrPublicId}`, error);

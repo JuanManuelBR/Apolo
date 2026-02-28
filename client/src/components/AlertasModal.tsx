@@ -80,11 +80,11 @@ export default function AlertasModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 anim-fadeIn"
       onClick={onCerrar}
     >
       <div
-        className={`${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-gray-200'} rounded-xl border shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col`}
+        className={`${darkMode ? 'bg-slate-900 border-slate-700' : 'bg-white border-gray-200'} rounded-xl border shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col anim-slideUp`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

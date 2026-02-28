@@ -20,6 +20,7 @@ import ModalExamenCreado from "../components/ModalExamenCreado";
 import { examsService, obtenerUsuarioActual } from "../services/examsService";
 import { examsApi } from "../services/examsApi";
 import ModalConfirmacion from "../components/ModalConfirmacion";
+import Collapsible from "../components/Collapsible";
 
 // Convierte una pregunta del formato backend al formato Pregunta del editor
 function mapearPreguntaBackendAFrontend(p: any): any {
@@ -142,6 +143,7 @@ export default function CrearExamen({
     mostrarModalPreguntasAutomaticas,
     setMostrarModalPreguntasAutomaticas,
   ] = useState(false);
+  const [cerrandoModalPreguntas, setCerrandoModalPreguntas] = useState(false);
   const [mostrarVistaPreviaPDF, setMostrarVistaPreviaPDF] = useState(false);
   const [pdfCargando, setPdfCargando] = useState(false);
   const [pdfURL, setPdfURL] = useState<string | null>(null);
@@ -480,15 +482,27 @@ export default function CrearExamen({
     setMostrarModalPreguntasAutomaticas(true);
   };
 
+  const cerrarModalConAnimacion = (callback: () => void) => {
+    setCerrandoModalPreguntas(true);
+    setTimeout(() => {
+      setCerrandoModalPreguntas(false);
+      callback();
+    }, 200);
+  };
+
   const guardarPreguntasAutomaticas = () => {
-    setPreguntasAutomaticas([...preguntasAutomaticasTemp]);
-    setTienePreguntasAutomaticas(preguntasAutomaticasTemp.length > 0);
-    setMostrarModalPreguntasAutomaticas(false);
+    cerrarModalConAnimacion(() => {
+      setPreguntasAutomaticas([...preguntasAutomaticasTemp]);
+      setTienePreguntasAutomaticas(preguntasAutomaticasTemp.length > 0);
+      setMostrarModalPreguntasAutomaticas(false);
+    });
   };
 
   const cancelarPreguntasAutomaticas = () => {
-    setPreguntasAutomaticasTemp([...preguntasAutomaticas]);
-    setMostrarModalPreguntasAutomaticas(false);
+    cerrarModalConAnimacion(() => {
+      setPreguntasAutomaticasTemp([...preguntasAutomaticas]);
+      setMostrarModalPreguntasAutomaticas(false);
+    });
   };
 
   const handlePreguntasChange = (nuevasPreguntas: Pregunta[]) => {
@@ -773,8 +787,7 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion1Abierta && (
-          <div className="px-6 pb-6 space-y-4">
+        <Collapsible open={seccion1Abierta} className="px-6 pb-6 space-y-4">
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label
@@ -816,8 +829,7 @@ export default function CrearExamen({
                 maxLength={1000}
               />
             </div>
-          </div>
-        )}
+        </Collapsible>
       </div>
 
       {/* Sección 2 */}
@@ -873,8 +885,7 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion2Abierta && (
-          <div className="px-6 pb-6 space-y-4">
+        <Collapsible open={seccion2Abierta} className="px-6 pb-6 space-y-4">
             {[
               {
                 tipo: "pdf",
@@ -966,8 +977,7 @@ export default function CrearExamen({
                 </div>
               </div>
             ))}
-          </div>
-        )}
+        </Collapsible>
       </div>
 
       {/* Sección 3 */}
@@ -1017,8 +1027,7 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion3Abierta && (
-          <div className="px-6 pb-6 space-y-3">
+        <Collapsible open={seccion3Abierta} className="px-6 pb-6 space-y-3">
             <p
               className="text-base text-action mb-4"
             >
@@ -1043,8 +1052,7 @@ export default function CrearExamen({
                 </div>
               </div>
             ))}
-          </div>
-        )}
+        </Collapsible>
       </div>
 
       {/* Sección 4 */}
@@ -1099,8 +1107,7 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion4Abierta && (
-          <div className="px-6 pb-6 space-y-6">
+        <Collapsible open={seccion4Abierta} className="px-6 pb-6 space-y-6">
             <div className="space-y-3">
               <div className="flex items-center gap-3">
                 <label
@@ -1278,8 +1285,7 @@ export default function CrearExamen({
                 </select>
               </div>
             )}
-          </div>
-        )}
+        </Collapsible>
       </div>
 
       {/* Sección 5 */}
@@ -1332,14 +1338,14 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion5Abierta && (
+        <Collapsible open={seccion5Abierta}>
           <SeccionHerramientas
             darkMode={darkMode}
             tipoPregunta={tipoPregunta}
             herramientasActivas={herramientasActivas}
             onToggleHerramienta={toggleHerramienta}
           />
-        )}
+        </Collapsible>
       </div>
 
       {/* Sección 6 */}
@@ -1391,7 +1397,7 @@ export default function CrearExamen({
             />
           )}
         </button>
-        {seccion6Abierta && (
+        <Collapsible open={seccion6Abierta}>
           <SeccionSeguridad
             darkMode={darkMode}
             onContraseñaChange={setContraseñaExamen}
@@ -1407,7 +1413,7 @@ export default function CrearExamen({
             permitirVolverPreguntas={permitirVolverPreguntas}
             onPermitirVolverPreguntasChange={setPermitirVolverPreguntas}
           />
-        )}
+        </Collapsible>
       </div>
 
       {/* Botones Finales */}
@@ -1472,9 +1478,9 @@ export default function CrearExamen({
 
       {/* Modal Preguntas Automáticas - ⭐ MODIFICADO */}
       {mostrarModalPreguntasAutomaticas && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 ${cerrandoModalPreguntas ? "anim-fadeOut" : "anim-fadeIn"}`}>
           <div
-            className="bg-surface border-ui rounded-lg border shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col"
+            className={`bg-surface border-ui rounded-lg border shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col ${cerrandoModalPreguntas ? "anim-scaleOut" : "anim-scaleIn"}`}
           >
             <div
               className="flex items-center justify-between p-6 border-b border-ui"

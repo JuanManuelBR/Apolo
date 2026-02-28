@@ -21,6 +21,7 @@ import { getAuth } from "firebase/auth";
 import { usersService } from "../services/Authservice";
 import { getAuthToken } from "../services/authToken";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
+import AnimatedPage from "../components/AnimatedPage";
 import {
   Home,
   Bell,
@@ -34,6 +35,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Menu,
 } from "lucide-react";
 
 export default function LMSDashboard() {
@@ -41,6 +43,7 @@ export default function LMSDashboard() {
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [tokenListo, setTokenListo] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
@@ -213,6 +216,11 @@ export default function LMSDashboard() {
     };
   }, []);
 
+  // Cerrar sidebar mobile al cambiar de ruta
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   // Cerrar menú al hacer clic fuera
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -338,14 +346,22 @@ export default function LMSDashboard() {
           : "bg-gradient-to-br from-white/88 via-gray-50/85 to-white/88"
       }`}></div>
 
+      {/* Backdrop mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-30 md:hidden"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
-        className={`relative z-10 ${darkMode ? "bg-slate-900/80 backdrop-blur-md" : "bg-white border-r border-gray-200"} flex flex-col transition-all duration-300 ease-in-out ${sidebarCollapsed ? "w-16" : "w-64"}`}
+        className={`fixed md:relative inset-y-0 left-0 z-40 flex flex-col transition-transform md:transition-all duration-300 ease-in-out w-64 ${sidebarCollapsed ? "md:w-16" : ""} ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} ${darkMode ? "bg-slate-900/80 backdrop-blur-md" : "bg-white border-r border-gray-200"}`}
       >
-        {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) */}
+        {/* Botón de contraer/expandir flotante en el borde — oculto en mobile */}
         <button
           onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-          className={`absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 flex items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
+          className={`hidden md:flex absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
             darkMode 
               ? "bg-slate-800 border-slate-700 text-gray-400 hover:text-white hover:bg-slate-700" 
               : "bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50"
@@ -403,7 +419,7 @@ export default function LMSDashboard() {
 
           {showProfileMenu && !sidebarCollapsed && (
             <div
-              className={`absolute left-4 top-16 right-4 ${darkMode ? "bg-slate-800/95 backdrop-blur-md border-slate-700/50" : "bg-white/95 backdrop-blur-md border-gray-200/50"} border rounded-lg shadow-2xl z-50 py-1`}
+              className={`absolute left-4 top-16 right-4 anim-slideDown ${darkMode ? "bg-slate-800/95 backdrop-blur-md border-slate-700/50" : "bg-white/95 backdrop-blur-md border-gray-200/50"} border rounded-lg shadow-2xl z-50 py-1`}
             >
               <button
                 onClick={() => handleMenuItemClick("/mi-perfil")}
@@ -514,10 +530,18 @@ export default function LMSDashboard() {
       {/* Main Content - SCROLL CONDICIONAL */}
       <div className="flex-1 flex flex-col relative z-10" style={{ overflow: location.pathname === '/vigilancia' ? 'hidden' : 'auto' }}>
         <header
-          className="bg-transparent px-8 py-2 transition-colors duration-300 flex-shrink-0"
+          className="bg-transparent px-4 md:px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
-          <div className="flex items-center justify-end">
-            <div className="flex items-center">
+          <div className="flex items-center justify-between md:justify-end">
+            {/* Hamburguesa — solo mobile */}
+            <button
+              className={`md:hidden p-2 rounded-lg transition-colors ${darkMode ? "text-gray-300 hover:bg-slate-800/50" : "text-gray-600 hover:bg-gray-100"}`}
+              onClick={() => setIsMobileMenuOpen(v => !v)}
+              aria-label="Abrir menú"
+            >
+              <Menu className="w-6 h-6" />
+            </button>
+            <div className="flex items-center mt-3">
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Logo Universidad"
@@ -527,40 +551,46 @@ export default function LMSDashboard() {
           </div>
         </header>
 
-        <main className={`flex-1 px-8 py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'overflow-hidden' : 'overflow-auto'}`}>
+        <main className={`flex-1 px-3 sm:px-5 md:px-8 py-4 md:py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'overflow-hidden' : 'overflow-auto'}`}>
           {!tokenListo ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
             </div>
           ) : <Routes>
             <Route index element={<Navigate to="/home" replace />} />
-            <Route path="home" element={<HomeContent darkMode={darkMode} />} />
+            <Route path="home" element={<AnimatedPage key="home"><HomeContent darkMode={darkMode} /></AnimatedPage>} />
             <Route path="notificaciones" element={
-              <NotificationsContent
-                darkMode={darkMode}
-                notificaciones={notificaciones}
-                onMarkAsRead={handleMarkAsRead}
-                onDelete={handleDeleteNotification}
-                onClearAll={handleClearAllNotifications}
-                onAcceptExam={handleAcceptExam}
-              />
+              <AnimatedPage key="notificaciones">
+                <NotificationsContent
+                  darkMode={darkMode}
+                  notificaciones={notificaciones}
+                  onMarkAsRead={handleMarkAsRead}
+                  onDelete={handleDeleteNotification}
+                  onClearAll={handleClearAllNotifications}
+                  onAcceptExam={handleAcceptExam}
+                />
+              </AnimatedPage>
             } />
             <Route path="nuevo-examen" element={
-              <CrearExamen
-                darkMode={darkMode}
-                onExamenCreado={() => navigate("/lista-examenes")}
-              />
+              <AnimatedPage key="nuevo-examen">
+                <CrearExamen
+                  darkMode={darkMode}
+                  onExamenCreado={() => navigate("/lista-examenes")}
+                />
+              </AnimatedPage>
             } />
             <Route path="editar-examen" element={
-              <CrearExamen
-                darkMode={darkMode}
-                onExamenCreado={() => navigate("/lista-examenes")}
-              />
+              <AnimatedPage key="editar-examen">
+                <CrearExamen
+                  darkMode={darkMode}
+                  onExamenCreado={() => navigate("/lista-examenes")}
+                />
+              </AnimatedPage>
             } />
-            <Route path="ver-examen" element={<VerExamen darkMode={darkMode} />} />
-            <Route path="lista-examenes" element={<ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} />} />
-            <Route path="vigilancia" element={<VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} />} />
-            <Route path="mi-perfil" element={<MiPerfil darkMode={darkMode} />} />
+            <Route path="ver-examen" element={<AnimatedPage key="ver-examen"><VerExamen darkMode={darkMode} /></AnimatedPage>} />
+            <Route path="lista-examenes" element={<AnimatedPage key="lista-examenes"><ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} /></AnimatedPage>} />
+            <Route path="vigilancia" element={<AnimatedPage key="vigilancia"><VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} /></AnimatedPage>} />
+            <Route path="mi-perfil" element={<AnimatedPage key="mi-perfil"><MiPerfil darkMode={darkMode} /></AnimatedPage>} />
           </Routes>}
         </main>
       </div>

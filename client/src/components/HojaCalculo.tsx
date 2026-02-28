@@ -4,6 +4,14 @@ import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 
 interface HojaCalculoProps {
   darkMode: boolean;
+  readOnly?: boolean;
+  initialData?: {
+    allCells: Record<number, Record<string, Cell>>;
+    allCharts: Record<number, ChartConfig[]>;
+    sheets: SheetMeta[];
+    activeSheet: number;
+    colWidths: Record<string, number>;
+  };
   onSave?: (data: any) => void;
 }
 
@@ -42,6 +50,7 @@ interface ChartConfig {
   rangeX: string;
   rangeY: string;
   hasHeader: boolean;
+  showTrendline?: boolean;
   pos: { x: number; y: number };
   size: { w: number; h: number };
 }
@@ -64,6 +73,7 @@ const COLS = 26;
 const DEFAULT_COL_W = 100;
 const ROW_H = 24;
 const HEADER_W = 46;
+const VISIBLE_BUFFER = 8; // extra rows rendered above/below the visible viewport
 const CHART_COLORS = ['#4285F4', '#EA4335', '#FBBC04', '#34A853', '#FF6D00', '#46BDC6', '#7B61FF', '#E91E63'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -101,82 +111,202 @@ const formatNumber = (val: string, decimals?: number): string => {
 
 // ─── Formula Engine ───────────────────────────────────────────────────────────
 
-const formulaCache = new Map<string, string>();
+// Per-render evaluation cache — invalidated when the cells reference changes
+let _cellsRef: Record<string, Cell> | null = null;
+let _evalCache = new Map<string, string>();
+const _evaluating = new Set<string>();
+
+// Numeric aggregate/math functions — defined once at module level for performance
+const FN_MAP: Record<string, (nums: number[]) => number> = {
+  SUM:     (v) => v.reduce((a, b) => a + b, 0),
+  AVERAGE: (v) => v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0,
+  COUNT:   (v) => v.filter((x) => !isNaN(x)).length,
+  MIN:     (v) => v.length ? Math.min(...v) : 0,
+  MAX:     (v) => v.length ? Math.max(...v) : 0,
+  PRODUCT: (v) => v.reduce((a, b) => a * b, 1),
+  ABS:     (v) => Math.abs(v[0] ?? 0),
+  SQRT:    (v) => Math.sqrt(v[0] ?? 0),
+  ROUND:   (v) => Math.round((v[0] ?? 0) * Math.pow(10, v[1] ?? 0)) / Math.pow(10, v[1] ?? 0),
+  POWER:   (v) => Math.pow(v[0] ?? 0, v[1] ?? 2),
+  INT:     (v) => Math.floor(v[0] ?? 0),
+  TRUNC:   (v) => Math.trunc(v[0] ?? 0),
+  MOD:     (v) => (v[1] ?? 0) !== 0 ? (v[0] ?? 0) % (v[1] ?? 1) : 0,
+  CEILING: (v) => v[1] !== undefined && v[1] !== 0 ? Math.ceil((v[0] ?? 0) / v[1]) * v[1] : Math.ceil(v[0] ?? 0),
+  FLOOR:   (v) => v[1] !== undefined && v[1] !== 0 ? Math.floor((v[0] ?? 0) / v[1]) * v[1] : Math.floor(v[0] ?? 0),
+  LN:      (v) => Math.log(v[0] ?? 0),
+  LOG10:   (v) => Math.log10(v[0] ?? 0),
+  LOG:     (v) => v.length > 1 ? Math.log(v[0] ?? 0) / Math.log(v[1] ?? 10) : Math.log10(v[0] ?? 0),
+  EXP:     (v) => Math.exp(v[0] ?? 0),
+  SIGN:    (v) => Math.sign(v[0] ?? 0),
+  PI:      () => Math.PI,
+  RAND:    () => Math.random(),
+};
+
+// Special functions that need access to raw string values (not just parsed numbers)
+const SPECIAL_FNS: Record<string, (raws: string[], nums: number[]) => number> = {
+  COUNTA: (raws) => raws.filter((r) => r !== '').length,
+  MEDIAN: (_, nums) => {
+    if (!nums.length) return 0;
+    const sorted = [...nums].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+  },
+  STDEV: (_, nums) => {
+    if (nums.length < 2) return 0;
+    const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+    return Math.sqrt(nums.reduce((a, b) => a + (b - mean) ** 2, 0) / (nums.length - 1));
+  },
+  VAR: (_, nums) => {
+    if (nums.length < 2) return 0;
+    const mean = nums.reduce((a, b) => a + b, 0) / nums.length;
+    return nums.reduce((a, b) => a + (b - mean) ** 2, 0) / (nums.length - 1);
+  },
+};
+
+// Collect cell values from a comma-separated argument string.
+// Handles ranges (A1:B5), individual refs (A1), and numeric literals.
+// Reversed ranges (A10:A1) are automatically normalized.
+function collectArgs(argStr: string, cells: Record<string, Cell>): { raws: string[]; nums: number[] } {
+  const raws: string[] = [];
+  const nums: number[] = [];
+  for (const part of argStr.split(',')) {
+    const trimmed = part.trim();
+    const colonIdx = trimmed.indexOf(':');
+    if (colonIdx !== -1) {
+      const sc = parseRef(trimmed.slice(0, colonIdx).trim());
+      const ec = parseRef(trimmed.slice(colonIdx + 1).trim());
+      if (!sc || !ec) continue;
+      // Normalize reversed ranges (e.g. A10:A1 → A1:A10)
+      const r1 = Math.min(sc.row, ec.row), r2 = Math.max(sc.row, ec.row);
+      const c1 = Math.min(sc.col, ec.col), c2 = Math.max(sc.col, ec.col);
+      for (let r = r1; r <= r2; r++) {
+        for (let c = c1; c <= c2; c++) {
+          const raw = getRaw(getCellId(r, c), cells);
+          raws.push(raw);
+          const v = parseFloat(raw);
+          if (!isNaN(v)) nums.push(v);
+        }
+      }
+    } else {
+      const ref = parseRef(trimmed);
+      if (ref) {
+        const raw = getRaw(getCellId(ref.row, ref.col), cells);
+        raws.push(raw);
+        const v = parseFloat(raw);
+        if (!isNaN(v)) nums.push(v);
+      } else {
+        const v = parseFloat(trimmed);
+        if (!isNaN(v)) { raws.push(trimmed); nums.push(v); }
+      }
+    }
+  }
+  return { raws, nums };
+}
 
 function getRaw(id: string, cells: Record<string, Cell>): string {
+  // Invalidate cache whenever we get a new cells object (i.e. on every state update)
+  if (cells !== _cellsRef) {
+    _cellsRef = cells;
+    _evalCache = new Map();
+    _evaluating.clear();
+  }
+  if (_evalCache.has(id)) return _evalCache.get(id)!;
+  // Circular reference guard
+  if (_evaluating.has(id)) return '#CIRC!';
   const c = cells[id];
-  if (!c) return '';
-  return c.formula ? evaluateFormula(c.formula, cells) : (c.value ?? '');
+  if (!c) { _evalCache.set(id, ''); return ''; }
+  _evaluating.add(id);
+  const result = c.formula ? evaluateFormula(c.formula, cells) : (c.value ?? '');
+  _evaluating.delete(id);
+  _evalCache.set(id, result);
+  return result;
 }
 
 function evaluateFormula(formula: string, cells: Record<string, Cell>): string {
   if (!formula.startsWith('=')) return formula;
-  
+
   let expr = formula.slice(1).toUpperCase();
 
-  const fnMap: Record<string, (v: number[]) => number> = {
-    SUM:     (v) => v.reduce((a, b) => a + b, 0),
-    AVERAGE: (v) => v.length ? v.reduce((a, b) => a + b, 0) / v.length : 0,
-    COUNT:   (v) => v.filter((x) => !isNaN(x) && x !== null).length,
-    COUNTA:  (v) => v.length,
-    MIN:     (v) => v.length ? Math.min(...v) : 0,
-    MAX:     (v) => v.length ? Math.max(...v) : 0,
-    ABS:     (v) => Math.abs(v[0] ?? 0),
-    SQRT:    (v) => Math.sqrt(v[0] ?? 0),
-    ROUND:   (v) => Math.round((v[0] ?? 0) * Math.pow(10, v[1] ?? 0)) / Math.pow(10, v[1] ?? 0),
-    POWER:   (v) => Math.pow(v[0] ?? 0, v[1] ?? 2),
-    INT:     (v) => Math.floor(v[0] ?? 0),
-  };
+  // Multi-pass: resolve nested function calls (e.g. ROUND(SUM(A1:A5),2)).
+  // Each pass reduces complexity; [^()]* prevents matching across unresolved parens.
+  let prev = '';
+  let passes = 0;
+  while (expr !== prev && passes < 10) {
+    prev = expr;
+    passes++;
 
-  // Process range functions: FN(A1:B5)
-  for (const [fn, op] of Object.entries(fnMap)) {
-    const re = new RegExp(`${fn}\\(([^)]+)\\)`, 'g');
-    expr = expr.replace(re, (_: string, args: string) => {
-      const rangeParts = args.split(',');
-      const vals: number[] = [];
-      
-      for (const part of rangeParts) {
-        const trimmed = part.trim();
-        if (trimmed.includes(':')) {
-          const [s, e] = trimmed.split(':');
-          const sc = parseRef(s.trim()), ec = parseRef(e.trim());
-          if (!sc || !ec) return '#REF!';
-          for (let r = sc.row; r <= ec.row; r++) {
-            for (let c = sc.col; c <= ec.col; c++) {
-              const raw = getRaw(getCellId(r, c), cells);
-              const v = parseFloat(raw);
-              if (!isNaN(v)) vals.push(v);
-            }
-          }
-        } else {
-          const ref = parseRef(trimmed);
-          if (ref) {
-            const raw = getRaw(getCellId(ref.row, ref.col), cells);
-            const v = parseFloat(raw);
-            if (!isNaN(v)) vals.push(v);
-          } else {
-            const v = parseFloat(trimmed);
-            if (!isNaN(v)) vals.push(v);
-          }
-        }
+    // Special functions (need raw string access for COUNTA, MEDIAN, STDEV, VAR)
+    for (const [fn, op] of Object.entries(SPECIAL_FNS)) {
+      const re = new RegExp(`\\b${fn}\\(([^()]*)\\)`, 'g');
+      expr = expr.replace(re, (_: string, args: string) => {
+        const { raws, nums } = collectArgs(args, cells);
+        return String(op(raws, nums));
+      });
+    }
+
+    // Numeric aggregate and math functions
+    for (const [fn, op] of Object.entries(FN_MAP)) {
+      const re = new RegExp(`\\b${fn}\\(([^()]*)\\)`, 'g');
+      expr = expr.replace(re, (_: string, args: string) => {
+        const { nums } = collectArgs(args, cells);
+        const r = op(nums);
+        if (typeof r === 'number' && !isFinite(r)) return '#DIV/0!';
+        return String(r);
+      });
+    }
+
+    // IF(condition, true_val, false_val) — resolved once inner functions are done
+    expr = expr.replace(/\bIF\(([^()]+)\)/g, (_: string, args: string) => {
+      // Split args by comma at depth 0 (safe for nested parens in condition)
+      const parts: string[] = [];
+      let buf = '', depth = 0;
+      for (const ch of args) {
+        if (ch === '(') depth++;
+        else if (ch === ')') depth--;
+        else if (ch === ',' && depth === 0) { parts.push(buf); buf = ''; continue; }
+        buf += ch;
       }
-      
-      if (!vals.length && fn !== 'COUNT' && fn !== 'COUNTA') return '0';
-      return String(op(vals));
+      parts.push(buf);
+      if (parts.length < 3) return '#ERROR!';
+      // Resolve cell refs in condition
+      let cond = parts[0].trim().replace(/\b([A-Z]+\d+)\b/g, (ref: string) => {
+        const raw = getRaw(ref, cells);
+        const v = parseFloat(raw);
+        return isNaN(v) ? (raw === '' ? '0' : JSON.stringify(raw)) : String(v);
+      });
+      // Normalize spreadsheet operators: <> → !=, = → == (skip <=, >=, !=)
+      cond = cond.replace(/<>/g, '!=').replace(/([^<>!=])=([^=])/g, '$1==$2');
+      try {
+        // eslint-disable-next-line no-new-func
+        const condResult = new Function(`"use strict"; return !!(${cond})`)();
+        return condResult ? parts[1].trim() : parts[2].trim();
+      } catch {
+        return '#ERROR!';
+      }
     });
   }
 
-  // Replace remaining cell references with values
-  expr = expr.replace(/([A-Z]+\d+)/g, (ref: string) => {
-    const v = parseFloat(getRaw(ref, cells));
-    return isNaN(v) ? '0' : String(v);
+  // Replace remaining cell references with their values
+  expr = expr.replace(/\b([A-Z]+\d+)\b/g, (ref: string) => {
+    const raw = getRaw(ref, cells);
+    const v = parseFloat(raw);
+    // Text cells are returned as quoted strings so string ops work in eval
+    if (isNaN(v)) return raw === '' ? '0' : JSON.stringify(raw);
+    return String(v);
   });
+
+  // Normalize operators before eval
+  expr = expr.replace(/\^/g, '**');              // ^ → ** (exponentiation)
+  expr = expr.replace(/<>/g, '!=');              // <> → != (not equal)
+  expr = expr.replace(/([^<>!=])=([^=])/g, '$1==$2'); // lone = → ==
 
   try {
     // eslint-disable-next-line no-new-func
     const result = new Function(`"use strict"; return (${expr})`)();
     if (result === null || result === undefined) return '';
     if (typeof result === 'number' && !isFinite(result)) return '#DIV/0!';
+    if (typeof result === 'boolean') return result ? 'TRUE' : 'FALSE';
+    if (typeof result === 'string') return result;
     return String(parseFloat(result.toPrecision(12)));
   } catch {
     return '#ERROR!';
@@ -244,9 +374,42 @@ function buildChartData(
   return { labels, series };
 }
 
+// ─── Analysis helpers ─────────────────────────────────────────────────────────
+
+function linearRegression(xs: number[], ys: number[]): { slope: number; intercept: number; r2: number } | null {
+  const n = xs.length;
+  if (n < 2) return null;
+  const sx = xs.reduce((a, b) => a + b, 0), sy = ys.reduce((a, b) => a + b, 0);
+  const sxy = xs.reduce((a, x, i) => a + x * ys[i], 0);
+  const sx2 = xs.reduce((a, x) => a + x * x, 0);
+  const d = n * sx2 - sx * sx;
+  if (Math.abs(d) < 1e-10) return null;
+  const slope = (n * sxy - sx * sy) / d;
+  const intercept = (sy - slope * sx) / n;
+  const my = sy / n;
+  const ssTot = ys.reduce((a, y) => a + (y - my) ** 2, 0);
+  const ssRes = ys.reduce((a, y, i) => a + (y - (slope * xs[i] + intercept)) ** 2, 0);
+  const r2 = ssTot < 1e-10 ? 1 : Math.max(0, 1 - ssRes / ssTot);
+  return { slope, intercept, r2: +r2.toPrecision(4) };
+}
+
+function zeroCrossings(xs: number[], ys: number[]): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < ys.length - 1; i++) {
+    const y1 = ys[i], y2 = ys[i + 1];
+    if (y1 === 0) { out.push(xs[i]); continue; }
+    if (y1 * y2 < 0) {
+      const t = -y1 / (y2 - y1);
+      out.push(+(xs[i] + t * (xs[i + 1] - xs[i])).toPrecision(5));
+    }
+  }
+  if (ys[ys.length - 1] === 0) out.push(xs[xs.length - 1]);
+  return [...new Set(out)];
+}
+
 // ─── SVG Charts ───────────────────────────────────────────────────────────────
 
-interface SVGChartProps { data: ChartData; width: number; height: number; darkMode: boolean; }
+interface SVGChartProps { data: ChartData; width: number; height: number; darkMode: boolean; showTrendline?: boolean; }
 
 function EmptyChart({ width, height, darkMode }: { width: number; height: number; darkMode: boolean }) {
   return (
@@ -362,7 +525,7 @@ function BarChartSVG({ data, width, height, darkMode }: SVGChartProps) {
   );
 }
 
-function LineChartSVG({ data, width, height, darkMode }: SVGChartProps) {
+function LineChartSVG({ data, width, height, darkMode, showTrendline }: SVGChartProps) {
   const { labels, series } = data;
   if (!labels.length || !series.length) return <EmptyChart width={width} height={height} darkMode={darkMode} />;
 
@@ -444,6 +607,41 @@ function LineChartSVG({ data, width, height, darkMode }: SVGChartProps) {
         );
       })}
       <Legend series={series} pad={pad} width={width} height={height} textC={textC} />
+      {/* ── Trendline + equation + zero crossings ── */}
+      {showTrendline && series.map((s, si) => {
+        const txs = labels.map((_, i) => isNumericX ? xValues[i] : i);
+        const xMin2 = isNumericX ? Math.min(...xValues) : 0;
+        const xRng2 = (isNumericX ? (Math.max(...xValues) - xMin2) : (labels.length - 1)) || 1;
+        const toPx2 = (x: number) => pad.left + ((x - xMin2) / xRng2) * W;
+        const reg = linearRegression(txs, s.values);
+        const crosses = zeroCrossings(txs, s.values);
+        const regEl = reg ? (() => {
+          const px0 = toPx2(txs[0]), px1 = toPx2(txs[txs.length - 1]);
+          const py0 = getY(reg.slope * txs[0] + reg.intercept);
+          const py1 = getY(reg.slope * txs[txs.length - 1] + reg.intercept);
+          const fmt = (n: number) => Math.abs(n) >= 100 ? n.toFixed(1) : Math.abs(n) >= 1 ? n.toFixed(3) : n.toPrecision(3);
+          const eq = `y=${fmt(reg.slope)}x${reg.intercept >= 0 ? '+' : ''}${fmt(reg.intercept)}  R²=${reg.r2.toFixed(2)}`;
+          const eqX = px0 + 4; const eqY = Math.min(py0, py1) - 8;
+          return (<g key="reg">
+            <line x1={px0} y1={py0} x2={px1} y2={py1} stroke={s.color} strokeWidth={1.5} strokeDasharray="5,3" opacity={0.7}/>
+            <rect x={eqX - 2} y={eqY - 11} width={eq.length * 5.5} height={13} rx={2} fill={darkMode ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.9)'}/>
+            <text x={eqX} y={eqY} fontSize={8} fill={s.color}>{eq}</text>
+          </g>);
+        })() : null;
+        return (
+          <g key={`an-${si}`}>
+            {regEl}
+            {crosses.map((cx, ci) => {
+              const cpx = toPx2(cx); const cpy = getY(0);
+              const lbl = isNumericX ? (+cx.toPrecision(4)).toString() : (labels[Math.round(Math.max(0, Math.min(cx, labels.length - 1)))] ?? cx.toFixed(2));
+              return (<g key={ci}>
+                <circle cx={cpx} cy={cpy} r={5} fill={s.color} stroke={darkMode ? '#1a202c' : '#fff'} strokeWidth={1.5} opacity={0.95}><title>{`Corte X: (${lbl}, 0)`}</title></circle>
+                <text x={cpx} y={cpy - 8} textAnchor="middle" fontSize={8} fill={s.color} fontWeight="bold">{lbl}</text>
+              </g>);
+            })}
+          </g>
+        );
+      })}
     </svg>
   );
 }
@@ -578,7 +776,7 @@ function PieChartSVG({ data, width, height, darkMode }: SVGChartProps) {
   );
 }
 
-function ScatterChartSVG({ data, width, height, darkMode }: SVGChartProps) {
+function ScatterChartSVG({ data, width, height, darkMode, showTrendline }: SVGChartProps) {
   const { labels, series } = data;
   if (!labels.length || !series.length) return <EmptyChart width={width} height={height} darkMode={darkMode} />;
 
@@ -651,16 +849,50 @@ function ScatterChartSVG({ data, width, height, darkMode }: SVGChartProps) {
         </circle>
       )))}
       <Legend series={series} pad={pad} width={width} height={height} textC={textC} />
+      {showTrendline && series.map((s, si) => {
+        const txs = isNumericX ? xValues : labels.map((_, i) => i);
+        const xMin2 = isNumericX ? Math.min(...xValues) : 0;
+        const xRng2 = (isNumericX ? (Math.max(...xValues) - xMin2) : (labels.length - 1)) || 1;
+        const toPx2 = (x: number) => pad.left + ((x - xMin2) / xRng2) * W;
+        const reg = linearRegression(txs, s.values);
+        const crosses = zeroCrossings(txs, s.values);
+        const regEl = reg ? (() => {
+          const px0 = toPx2(txs[0]), px1 = toPx2(txs[txs.length - 1]);
+          const py0 = getY(reg.slope * txs[0] + reg.intercept);
+          const py1 = getY(reg.slope * txs[txs.length - 1] + reg.intercept);
+          const fmt = (n: number) => Math.abs(n) >= 100 ? n.toFixed(1) : Math.abs(n) >= 1 ? n.toFixed(3) : n.toPrecision(3);
+          const eq = `y=${fmt(reg.slope)}x${reg.intercept >= 0 ? '+' : ''}${fmt(reg.intercept)}  R²=${reg.r2.toFixed(2)}`;
+          const eqX = px0 + 4; const eqY = Math.min(py0, py1) - 8;
+          return (<g key="reg">
+            <line x1={px0} y1={py0} x2={px1} y2={py1} stroke={s.color} strokeWidth={1.5} strokeDasharray="5,3" opacity={0.7}/>
+            <rect x={eqX - 2} y={eqY - 11} width={eq.length * 5.5} height={13} rx={2} fill={darkMode ? 'rgba(15,23,42,0.85)' : 'rgba(255,255,255,0.9)'}/>
+            <text x={eqX} y={eqY} fontSize={8} fill={s.color}>{eq}</text>
+          </g>);
+        })() : null;
+        return (
+          <g key={`an-${si}`}>
+            {regEl}
+            {crosses.map((cx, ci) => {
+              const cpx = toPx2(cx); const cpy = getY(0);
+              const lbl = isNumericX ? (+cx.toPrecision(4)).toString() : (labels[Math.round(Math.max(0, Math.min(cx, labels.length - 1)))] ?? cx.toFixed(2));
+              return (<g key={ci}>
+                <circle cx={cpx} cy={cpy} r={5} fill={s.color} stroke={darkMode ? '#1a202c' : '#fff'} strokeWidth={1.5} opacity={0.95}><title>{`Corte X: (${lbl}, 0)`}</title></circle>
+                <text x={cpx} y={cpy - 8} textAnchor="middle" fontSize={8} fill={s.color} fontWeight="bold">{lbl}</text>
+              </g>);
+            })}
+          </g>
+        );
+      })}
     </svg>
   );
 }
 
-function ChartPreview({ type, data, width, height, darkMode }: SVGChartProps & { type: ChartConfig['type'] }) {
+function ChartPreview({ type, data, width, height, darkMode, showTrendline }: SVGChartProps & { type: ChartConfig['type'] }) {
   if (type === 'bar')     return <BarChartSVG     data={data} width={width} height={height} darkMode={darkMode} />;
-  if (type === 'line')    return <LineChartSVG    data={data} width={width} height={height} darkMode={darkMode} />;
+  if (type === 'line')    return <LineChartSVG    data={data} width={width} height={height} darkMode={darkMode} showTrendline={showTrendline} />;
   if (type === 'area')    return <AreaChartSVG    data={data} width={width} height={height} darkMode={darkMode} />;
   if (type === 'pie')     return <PieChartSVG     data={data} width={width} height={height} darkMode={darkMode} />;
-  if (type === 'scatter') return <ScatterChartSVG data={data} width={width} height={height} darkMode={darkMode} />;
+  if (type === 'scatter') return <ScatterChartSVG data={data} width={width} height={height} darkMode={darkMode} showTrendline={showTrendline} />;
   return null;
 }
 
@@ -670,14 +902,23 @@ interface ChartModalProps {
   darkMode: boolean;
   cells: Record<string, Cell>;
   selRange: SelRange | null;
+  initialConfig?: ChartConfig;
+  hidden?: boolean;
   onClose: () => void;
   onInsert: (cfg: Omit<ChartConfig, 'id' | 'pos' | 'size'>) => void;
+  onUpdate?: (id: number, cfg: Omit<ChartConfig, 'id' | 'pos' | 'size'>) => void;
+  onStartPick: (field: 'X' | 'Y', cb: (range: string) => void) => void;
 }
 
-function ChartModal({ darkMode, cells, selRange, onClose, onInsert }: ChartModalProps) {
-  const [type, setType] = useState<ChartConfig['type']>('bar');
+function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose, onInsert, onUpdate, onStartPick }: ChartModalProps) {
+  const isEdit = !!initialConfig;
+  const [type, setType] = useState<ChartConfig['type']>(initialConfig?.type ?? 'bar');
+  const [title, setTitle] = useState(initialConfig?.title ?? '');
+  const [hasHeader, setHasHeader] = useState(initialConfig?.hasHeader ?? true);
+  const [showTrendline, setShowTrendline] = useState(initialConfig?.showTrendline ?? false);
 
   const [rangeX, setRangeX] = useState<string>(() => {
+    if (initialConfig) return initialConfig.rangeX;
     if (!selRange) return '';
     if (selRange.c1 !== selRange.c2) {
       const r1 = Math.min(selRange.r1, selRange.r2), r2 = Math.max(selRange.r1, selRange.r2);
@@ -688,6 +929,7 @@ function ChartModal({ darkMode, cells, selRange, onClose, onInsert }: ChartModal
   });
 
   const [rangeY, setRangeY] = useState<string>(() => {
+    if (initialConfig) return initialConfig.rangeY;
     if (!selRange) return '';
     const r1 = Math.min(selRange.r1, selRange.r2), r2 = Math.max(selRange.r1, selRange.r2);
     const c1 = Math.min(selRange.c1, selRange.c2), c2 = Math.max(selRange.c1, selRange.c2);
@@ -695,11 +937,9 @@ function ChartModal({ darkMode, cells, selRange, onClose, onInsert }: ChartModal
     return `${getCellId(r1, c1)}:${getCellId(r2, c2)}`;
   });
 
-  const [title, setTitle] = useState('');
-  const [hasHeader, setHasHeader] = useState(true);
-
   const chartData = useMemo(() => buildChartData(rangeX, rangeY, hasHeader, cells), [rangeX, rangeY, hasHeader, cells]);
   const dm = darkMode;
+  const canTrend = type === 'line' || type === 'scatter';
 
   const chartTypes: { id: ChartConfig['type']; label: string }[] = [
     { id: 'bar',     label: 'Barras' },
@@ -709,14 +949,26 @@ function ChartModal({ darkMode, cells, selRange, onClose, onInsert }: ChartModal
     { id: 'scatter', label: 'Dispersión' },
   ];
 
+  const handleConfirm = () => {
+    const cfg = { type, title, rangeX, rangeY, hasHeader, showTrendline };
+    if (isEdit && onUpdate && initialConfig) {
+      onUpdate(initialConfig.id, cfg);
+    } else {
+      onInsert(cfg);
+    }
+  };
+
+  const inputCls = `flex-1 px-2 py-1.5 rounded border text-[13px] font-mono outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`;
+  const pickBtnCls = `shrink-0 px-2 py-1 rounded text-[11px] font-medium border cursor-pointer transition-colors ${dm ? 'bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500' : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'}`;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${hidden ? 'hidden' : ''}`} onClick={onClose}>
       <div
-        className={`flex flex-col overflow-hidden rounded-xl shadow-2xl w-[680px] max-w-[96vw] ${dm ? 'bg-slate-800' : 'bg-white'}`}
+        className={`flex flex-col overflow-hidden rounded-xl shadow-2xl w-[700px] max-w-[96vw] ${dm ? 'bg-slate-800' : 'bg-white'}`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-3 bg-[#188038]">
-          <span className="text-white font-semibold text-sm">Insertar gráfica</span>
+          <span className="text-white font-semibold text-sm">{isEdit ? '✎ Editar gráfica' : 'Insertar gráfica'}</span>
           <button onClick={onClose} className="text-white/80 hover:text-white text-xl bg-transparent border-none cursor-pointer">&times;</button>
         </div>
 
@@ -738,58 +990,57 @@ function ChartModal({ darkMode, cells, selRange, onClose, onInsert }: ChartModal
             ))}
           </div>
 
-          <div className="flex-1 p-4">
+          <div className="flex-1 p-4 overflow-y-auto">
             <div className={`rounded-lg border mb-4 p-2 ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
               <p className={`text-[11px] font-medium text-center mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>{title || 'Vista previa'}</p>
-              <ChartPreview type={type} data={chartData} width={470} height={200} darkMode={dm} />
+              <ChartPreview type={type} data={chartData} width={490} height={190} darkMode={dm} showTrendline={showTrendline} />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 mb-3">
               <div className="col-span-2">
                 <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Título</label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Título de la gráfica"
+                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título de la gráfica"
                   className={`w-full px-2 py-1.5 rounded border text-[13px] outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`}
                 />
               </div>
               <div>
                 <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Rango Eje X (etiquetas)</label>
-                <input
-                  value={rangeX}
-                  onChange={(e) => setRangeX(e.target.value.toUpperCase())}
-                  placeholder="ej. A1:A10"
-                  className={`w-full px-2 py-1.5 rounded border text-[13px] font-mono outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`}
-                />
+                <div className="flex gap-1">
+                  <input value={rangeX} onChange={(e) => setRangeX(e.target.value.toUpperCase())} placeholder="ej. A1:A10" className={inputCls} />
+                  <button className={pickBtnCls} title="Seleccionar del grid" onClick={() => onStartPick('X', (r) => setRangeX(r))}>← Grid</button>
+                </div>
               </div>
               <div>
                 <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Rango Eje Y (valores)</label>
-                <input
-                  value={rangeY}
-                  onChange={(e) => setRangeY(e.target.value.toUpperCase())}
-                  placeholder="ej. B1:D10"
-                  className={`w-full px-2 py-1.5 rounded border text-[13px] font-mono outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`}
-                />
+                <div className="flex gap-1">
+                  <input value={rangeY} onChange={(e) => setRangeY(e.target.value.toUpperCase())} placeholder="ej. B1:D10" className={inputCls} />
+                  <button className={pickBtnCls} title="Seleccionar del grid" onClick={() => onStartPick('Y', (r) => setRangeY(r))}>← Grid</button>
+                </div>
               </div>
             </div>
 
-            <label className={`flex items-center gap-2 mt-3 text-[13px] cursor-pointer ${dm ? 'text-slate-300' : 'text-gray-700'}`}>
-              <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-[#188038]" />
-              Primera fila como encabezados de serie
-            </label>
+            <div className="flex items-center gap-4 flex-wrap">
+              <label className={`flex items-center gap-2 text-[13px] cursor-pointer ${dm ? 'text-slate-300' : 'text-gray-700'}`}>
+                <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-[#188038]" />
+                Primera fila como encabezados
+              </label>
+              {canTrend && (
+                <label className={`flex items-center gap-2 text-[13px] cursor-pointer ${dm ? 'text-slate-300' : 'text-gray-700'}`}>
+                  <input type="checkbox" checked={showTrendline} onChange={(e) => setShowTrendline(e.target.checked)} className="accent-[#188038]" />
+                  Mostrar ecuación y puntos de corte
+                </label>
+              )}
+            </div>
           </div>
         </div>
 
         <div className={`flex justify-end gap-2 px-4 py-3 border-t ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
-          <button
-            onClick={onClose}
+          <button onClick={onClose}
             className={`px-5 py-1.5 rounded text-[13px] font-medium border cursor-pointer ${dm ? 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'}`}
           >Cancelar</button>
-          <button
-            onClick={() => onInsert({ type, title, rangeX, rangeY, hasHeader })}
+          <button onClick={handleConfirm}
             className="px-5 py-1.5 rounded text-[13px] font-medium bg-[#188038] text-white border-none cursor-pointer hover:bg-[#137033]"
-          >Insertar</button>
+          >{isEdit ? 'Guardar cambios' : 'Insertar'}</button>
         </div>
       </div>
     </div>
@@ -805,10 +1056,11 @@ interface FloatingChartProps {
   selected: boolean;
   onSelect: () => void;
   onRemove: () => void;
+  onEdit: () => void;
   onPositionChange: (id: number, pos: { x: number; y: number }, size: { w: number; h: number }) => void;
 }
 
-function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, onPositionChange }: FloatingChartProps) {
+function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, onEdit, onPositionChange }: FloatingChartProps) {
   const [pos, setPos] = useState(chart.pos);
   const [size, setSize] = useState(chart.size);
   const chartData = useMemo(() => buildChartData(chart.rangeX || '', chart.rangeY || '', chart.hasHeader, cells), [chart, cells]);
@@ -818,8 +1070,15 @@ function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, o
     e.preventDefault();
     onSelect();
     const ox = e.clientX - pos.x, oy = e.clientY - pos.y;
-    const onMove = (mv: MouseEvent) => setPos({ x: mv.clientX - ox, y: mv.clientY - oy });
+    let latestPos = pos;
+    let rafId: number | null = null;
+    const onMove = (mv: MouseEvent) => {
+      latestPos = { x: mv.clientX - ox, y: mv.clientY - oy };
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => { setPos(latestPos); rafId = null; });
+    };
     const onUp = (mv: MouseEvent) => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       const newPos = { x: mv.clientX - ox, y: mv.clientY - oy };
       setPos(newPos);
       onPositionChange(chart.id, newPos, size);
@@ -833,8 +1092,15 @@ function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, o
   const startResize = (e: React.MouseEvent) => {
     e.stopPropagation(); e.preventDefault();
     const sx = e.clientX, sy = e.clientY, sw = size.w, sh = size.h;
-    const onMove = (mv: MouseEvent) => setSize({ w: Math.max(250, sw + mv.clientX - sx), h: Math.max(180, sh + mv.clientY - sy) });
+    let latestSize = size;
+    let rafId: number | null = null;
+    const onMove = (mv: MouseEvent) => {
+      latestSize = { w: Math.max(250, sw + mv.clientX - sx), h: Math.max(180, sh + mv.clientY - sy) };
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => { setSize(latestSize); rafId = null; });
+    };
     const onUp = (mv: MouseEvent) => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       const newSize = { w: Math.max(250, sw + mv.clientX - sx), h: Math.max(180, sh + mv.clientY - sy) };
       setSize(newSize);
       onPositionChange(chart.id, pos, newSize);
@@ -860,15 +1126,22 @@ function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, o
           {chart.title || `Gráfica (${chart.type})`}
         </span>
         <button
+          onClick={(e) => { e.stopPropagation(); onEdit(); }}
+          title="Editar gráfica"
+          className={`bg-transparent border-none cursor-pointer text-[13px] leading-none ml-1 px-1 transition-colors ${dm ? 'text-slate-500 hover:text-slate-200' : 'text-gray-400 hover:text-gray-700'}`}
+        >
+          ✎
+        </button>
+        <button
           onClick={(e) => { e.stopPropagation(); onRemove(); }}
-          className={`bg-transparent border-none cursor-pointer text-lg leading-none ml-2 transition-colors ${dm ? 'text-slate-500 hover:text-slate-200' : 'text-gray-400 hover:text-gray-700'}`}
+          className={`bg-transparent border-none cursor-pointer text-lg leading-none ml-1 transition-colors ${dm ? 'text-slate-500 hover:text-slate-200' : 'text-gray-400 hover:text-gray-700'}`}
         >
           &times;
         </button>
       </div>
 
       <div className="flex-1 min-h-0 p-2">
-        <ChartPreview type={chart.type} data={chartData} width={size.w - 16} height={size.h - 52} darkMode={dm} />
+        <ChartPreview type={chart.type} data={chartData} width={size.w - 16} height={size.h - 52} darkMode={dm} showTrendline={chart.showTrendline} />
       </div>
 
       <div
@@ -897,37 +1170,45 @@ function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, o
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
+export default function HojaCalculo({ darkMode, readOnly = false, initialData, onSave }: HojaCalculoProps) {
   // ── State ──
-  const [sheets, setSheets] = useState<SheetMeta[]>([
-    { id: 1, name: 'Hoja 1' },
-    { id: 2, name: 'Hoja 2' },
-  ]);
-  const [activeSheet, setActiveSheet] = useState<number>(1);
-  const [allCells, setAllCells] = useState<Record<number, Record<string, Cell>>>({});
-  const [allCharts, setAllCharts] = useState<Record<number, ChartConfig[]>>({});
+  const [sheets, setSheets] = useState<SheetMeta[]>(() =>
+    initialData?.sheets ?? [{ id: 1, name: 'Hoja 1' }, { id: 2, name: 'Hoja 2' }]
+  );
+  const [activeSheet, setActiveSheet] = useState<number>(() => initialData?.activeSheet ?? 1);
+  const [allCells, setAllCells] = useState<Record<number, Record<string, Cell>>>(() => initialData?.allCells ?? {});
+  const [allCharts, setAllCharts] = useState<Record<number, ChartConfig[]>>(() => initialData?.allCharts ?? {});
   const [sel, setSel] = useState<{ r: number; c: number }>({ r: 0, c: 0 });
   const [selRange, setSelRange] = useState<SelRange | null>(null);
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>('');
-  const [isSelectingFromHeader, setIsSelectingFromHeader] = useState(false);
   const [showChartModal, setShowChartModal] = useState(false);
   const [selectedChart, setSelectedChart] = useState<number | null>(null);
   const [renamingSheet, setRenamingSheet] = useState<number | null>(null);
-  const [colWidths, setColWidths] = useState<Record<string, number>>({});
+  const [colWidths, setColWidths] = useState<Record<string, number>>(() => initialData?.colWidths ?? {});
+  // Virtual scroll: only rows in this range are rendered
+  const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
+  // Chart editing
+  const [editingChartId, setEditingChartId] = useState<number | null>(null);
+  // Range picking for chart modal
+  const [pickingFor, setPickingFor] = useState<'X' | 'Y' | null>(null);
+  const chartPickCallbackRef = useRef<((range: string) => void) | null>(null);
 
-  // Drag-to-fill state
-  const [fillHandleActive, setFillHandleActive] = useState(false);
   const fillStartRef = useRef<{ r: number; c: number } | null>(null);
-
   const gridRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const isMouseDownRef = useRef(false);
 
   const cells: Record<string, Cell> = useMemo(() => allCells[activeSheet] || {}, [allCells, activeSheet]);
   const charts: ChartConfig[] = useMemo(() => allCharts[activeSheet] || [], [allCharts, activeSheet]);
   const dm = darkMode;
+
+  // ── Auto-save: propagate full state to parent whenever anything changes ──
+  const onSaveRef = useRef(onSave);
+  useEffect(() => { onSaveRef.current = onSave; });
+  useEffect(() => {
+    onSaveRef.current?.({ allCells, allCharts, sheets, activeSheet, colWidths });
+  }, [allCells, allCharts, sheets, activeSheet, colWidths]);
 
   const getColW = (sheetId: number, col: number): number => {
     return colWidths[`${sheetId}-${col}`] ?? DEFAULT_COL_W;
@@ -938,18 +1219,14 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
 
   // ── Cell helpers ──
   const setCell = useCallback((id: string, data: Partial<Cell>) => {
-    setAllCells((prev) => {
-      const updated = {
-        ...prev,
-        [activeSheet]: {
-          ...(prev[activeSheet] || {}),
-          [id]: { ...(prev[activeSheet]?.[id] || {}), ...data } as Cell,
-        },
-      };
-      onSave?.({ cells: updated[activeSheet], rows: ROWS, cols: COLS });
-      return updated;
-    });
-  }, [activeSheet, onSave]);
+    setAllCells((prev) => ({
+      ...prev,
+      [activeSheet]: {
+        ...(prev[activeSheet] || {}),
+        [id]: { ...(prev[activeSheet]?.[id] || {}), ...data } as Cell,
+      },
+    }));
+  }, [activeSheet]);
 
   const getCell = useCallback((id: string): Cell => cells[id] || ({ value: '' } as Cell), [cells]);
   const curId = getCellId(sel.r, sel.c);
@@ -957,11 +1234,12 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
 
   // ── Edit ──
   const startEdit = useCallback((id: string, initVal?: string) => {
+    if (readOnly) return;
     const c = getCell(id);
     setEditingCell(id);
     setEditVal(initVal !== undefined ? initVal : (c.formula || c.value || ''));
     setTimeout(() => { inputRef.current?.focus(); inputRef.current?.select(); }, 0);
-  }, [getCell]);
+  }, [getCell, readOnly]);
 
   const commitEdit = useCallback((id: string | null, val: string) => {
     if (!id) return;
@@ -969,21 +1247,17 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     const data: Partial<Cell> = trimmed.startsWith('=')
       ? { formula: trimmed, value: '' }
       : { formula: null, value: trimmed };
-    setAllCells((prev) => {
-      const updated = {
-        ...prev,
-        [activeSheet]: {
-          ...(prev[activeSheet] || {}),
-          [id]: { ...(prev[activeSheet]?.[id] || {}), ...data } as Cell,
-        },
-      };
-      onSave?.({ cells: updated[activeSheet], rows: ROWS, cols: COLS });
-      return updated;
-    });
+    setAllCells((prev) => ({
+      ...prev,
+      [activeSheet]: {
+        ...(prev[activeSheet] || {}),
+        [id]: { ...(prev[activeSheet]?.[id] || {}), ...data } as Cell,
+      },
+    }));
     setEditingCell(null);
     setEditVal('');
     gridRef.current?.focus();
-  }, [activeSheet, onSave]);
+  }, [activeSheet]);
 
   const cancelEdit = useCallback(() => {
     setEditingCell(null);
@@ -1008,7 +1282,6 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
 
   const clickCell = useCallback((r: number, c: number, shift: boolean, e?: React.MouseEvent) => {
     if (e && (e.target as HTMLElement).tagName === 'INPUT') return;
-    if (e && isSelectingFromHeader) return;
 
     // Formula cell ref insertion
     if (editingCell && editVal.startsWith('=')) {
@@ -1034,7 +1307,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     }
     setSelectedChart(null);
     gridRef.current?.focus();
-  }, [editingCell, editVal, sel.r, sel.c, commitEdit, isSelectingFromHeader]);
+  }, [editingCell, editVal, sel.r, sel.c, commitEdit]);
 
   const isInRange = useCallback((r: number, c: number): boolean => {
     if (!selRange) return false;
@@ -1060,6 +1333,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     }
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
+      if (readOnly) return;
       e.preventDefault();
       const ids = selRange ? getRangeIds(selRange) : [curId];
       setAllCells((prev) => {
@@ -1072,11 +1346,11 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
       return;
     }
 
-    if (e.key === 'F2') { startEdit(curId); return; }
+    if (e.key === 'F2') { if (!readOnly) startEdit(curId); return; }
     if (e.key === 'Escape') { setSelRange(null); return; }
 
     // Start typing to edit
-    if (e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!readOnly && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       startEdit(curId, e.key);
     }
   }, [editingCell, selRange, curId, activeSheet, moveSel, startEdit]);
@@ -1121,8 +1395,16 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     e.stopPropagation();
     const sx = e.clientX;
     const sw = getColW(activeSheet, c);
-    const onMove = (mv: MouseEvent) => setColW(activeSheet, c, Math.max(40, sw + mv.clientX - sx));
+    let latestW = sw;
+    let rafId: number | null = null;
+    const onMove = (mv: MouseEvent) => {
+      latestW = Math.max(40, sw + mv.clientX - sx);
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => { setColW(activeSheet, c, latestW); rafId = null; });
+    };
     const onUp = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      setColW(activeSheet, c, latestW);
       window.removeEventListener('mousemove', onMove);
       window.removeEventListener('mouseup', onUp);
     };
@@ -1303,6 +1585,14 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     setShowChartModal(false);
   };
 
+  const updateChart = (id: number, cfg: Omit<ChartConfig, 'id' | 'pos' | 'size'>) => {
+    setAllCharts((p) => ({
+      ...p,
+      [activeSheet]: (p[activeSheet] || []).map((c) => c.id === id ? { ...c, ...cfg } : c),
+    }));
+    setEditingChartId(null);
+  };
+
   const removeChart = (id: number) =>
     setAllCharts((p) => ({ ...p, [activeSheet]: (p[activeSheet] || []).filter((c) => c.id !== id) }));
 
@@ -1313,9 +1603,24 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     }));
   };
 
+  const handleStartPick = useCallback((field: 'X' | 'Y', cb: (range: string) => void) => {
+    chartPickCallbackRef.current = cb;
+    setPickingFor(field);
+  }, []);
+
+  const confirmPick = () => {
+    if (selRange && chartPickCallbackRef.current) {
+      const r1 = Math.min(selRange.r1, selRange.r2), r2 = Math.max(selRange.r1, selRange.r2);
+      const c1 = Math.min(selRange.c1, selRange.c2), c2 = Math.max(selRange.c1, selRange.c2);
+      chartPickCallbackRef.current(`${getCellId(r1, c1)}:${getCellId(r2, c2)}`);
+    }
+    chartPickCallbackRef.current = null;
+    setPickingFor(null);
+  };
+
   // ── Sheets ──
   const addSheet = () => {
-    if (sheets.length >= 5) return;
+    if (sheets.length >= 3) return;
     const id = Date.now();
     setSheets((s) => [...s, { id, name: `Hoja ${s.length + 1}` }]);
     setActiveSheet(id);
@@ -1335,11 +1640,36 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
     setAllCharts((p) => { const n = { ...p }; delete n[id]; return n; });
   };
 
-  // ── Scroll to current cell ──
+  // ── Virtual scroll handler ──
+  const handleGridScroll = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    const { scrollTop, clientHeight } = container;
+    const start = Math.max(0, Math.floor(scrollTop / ROW_H) - VISIBLE_BUFFER);
+    const end = Math.min(ROWS - 1, Math.ceil((scrollTop + clientHeight) / ROW_H) + VISIBLE_BUFFER);
+    setVisibleRange({ start, end });
+  }, []);
+
+  // ── Scroll to current cell (keyboard nav) ──
   useEffect(() => {
-    const el = document.getElementById(`cell-${curId}`);
-    el?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-  }, [sel, curId]);
+    const container = scrollContainerRef.current;
+    if (!container) return;
+    // Vertical
+    const rowTop = sel.r * ROW_H;
+    const { scrollTop, clientHeight } = container;
+    if (rowTop < scrollTop) {
+      container.scrollTop = rowTop;
+    } else if (rowTop + ROW_H > scrollTop + clientHeight) {
+      container.scrollTop = rowTop + ROW_H - clientHeight;
+    }
+    // Horizontal — compute column x position
+    let colX = HEADER_W;
+    for (let i = 0; i < sel.c; i++) colX += (colWidths[`${activeSheet}-${i}`] ?? DEFAULT_COL_W);
+    const colW = colWidths[`${activeSheet}-${sel.c}`] ?? DEFAULT_COL_W;
+    const { scrollLeft, clientWidth } = container;
+    if (colX - HEADER_W < scrollLeft) container.scrollLeft = Math.max(0, colX - HEADER_W);
+    else if (colX + colW > scrollLeft + clientWidth) container.scrollLeft = colX + colW - clientWidth;
+  }, [sel, activeSheet, colWidths]);
 
   // ── Computed values ──
   const refName = selRange
@@ -1385,7 +1715,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
       style={{ fontFamily: "'Segoe UI', Arial, sans-serif" }}
     >
       {/* ── Toolbar ── */}
-      <div className={`flex items-center gap-0.5 px-2 py-1 border-b flex-wrap shrink-0 ${borderCls} ${surfaceCls}`}>
+      {!readOnly && <div className={`flex items-center gap-0.5 px-2 py-1 border-b flex-wrap shrink-0 ${borderCls} ${surfaceCls}`}>
         {/* Font size */}
         <select
           value={curCell.fontSize || 13}
@@ -1493,7 +1823,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
         <div className="relative group">
           <button className={`${tbBtnBase} px-2 font-bold text-[#188038] text-base`} title="Insertar función">∑</button>
           <div className={`absolute left-0 top-full mt-0.5 w-36 py-1 rounded shadow-xl hidden group-hover:block z-50 border ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-200'}`}>
-            {['SUM', 'AVERAGE', 'COUNT', 'MAX', 'MIN', 'ROUND', 'ABS', 'SQRT'].map((fn) => (
+            {['SUM', 'AVERAGE', 'COUNT', 'COUNTA', 'MAX', 'MIN', 'PRODUCT', 'MEDIAN', 'ROUND', 'ABS', 'SQRT', 'POWER', 'MOD', 'IF', 'STDEV', 'VAR', 'LN', 'LOG', 'EXP', 'INT'].map((fn) => (
               <button
                 key={fn}
                 onClick={() => insertFunction(fn)}
@@ -1504,7 +1834,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
             ))}
           </div>
         </div>
-      </div>
+      </div>}
 
       {/* ── Formula bar ── */}
       <div className={`flex items-center border-b h-7 shrink-0 ${borderCls} ${surfaceCls}`}>
@@ -1516,15 +1846,17 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
         </div>
         <input
           type="text"
+          readOnly={readOnly}
           value={formulaBarVal}
           onChange={(e) => {
+            if (readOnly) return;
             if (editingCell === curId) setEditVal(e.target.value);
             else startEdit(curId, e.target.value);
           }}
           onKeyDown={editingCell === curId ? onEditKeyDown : undefined}
-          onFocus={() => { if (!editingCell) startEdit(curId); }}
-          placeholder="Escribe un valor o =FORMULA"
-          className={`flex-1 border-none outline-none px-2 font-mono text-[12px] h-full bg-transparent ${textCls}`}
+          onFocus={() => { if (!editingCell && !readOnly) startEdit(curId); }}
+          placeholder={readOnly ? '' : 'Escribe un valor o =FORMULA'}
+          className={`flex-1 border-none outline-none px-2 font-mono text-[12px] h-full bg-transparent ${textCls} ${readOnly ? 'cursor-default' : ''}`}
         />
       </div>
 
@@ -1533,6 +1865,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
         <div
           ref={scrollContainerRef}
           className="flex-1 overflow-auto relative"
+          onScroll={handleGridScroll}
           onClick={(e) => {
             if ((e.target as HTMLElement) === scrollContainerRef.current) setSelectedChart(null);
           }}
@@ -1547,6 +1880,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
               selected={selectedChart === chart.id}
               onSelect={() => setSelectedChart(chart.id)}
               onRemove={() => removeChart(chart.id)}
+              onEdit={() => setEditingChartId(chart.id)}
               onPositionChange={updateChartPosSize}
             />
           ))}
@@ -1582,16 +1916,15 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                     }}
                   />
                   {Array.from({ length: COLS }).map((_, c) => {
-                    const isColSelected = selRange
-                      ? Math.min(selRange.c1, selRange.c2) <= c && c <= Math.max(selRange.c1, selRange.c2)
-                      : sel.c === c;
+                    const isColInRange = !!selRange &&
+                      Math.min(selRange.c1, selRange.c2) <= c && c <= Math.max(selRange.c1, selRange.c2);
                     return (
                       <th
                         key={c}
                         className={`sticky top-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r relative cursor-pointer transition-colors
                           ${dm
-                            ? isColSelected ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-                            : isColSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                            ? isColInRange ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+                            : isColInRange ? 'bg-blue-500 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
                           }`}
                         style={{ width: getColW(activeSheet, c), height: ROW_H }}
                         onMouseDown={(e) => selectColumn(c, e)}
@@ -1609,18 +1942,24 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
               </thead>
 
               <tbody>
-                {Array.from({ length: ROWS }).map((_, r) => {
-                  const isRowSelected = selRange
-                    ? Math.min(selRange.r1, selRange.r2) <= r && r <= Math.max(selRange.r1, selRange.r2)
-                    : sel.r === r;
+                {/* Top spacer — maintains scroll height above visible rows */}
+                {visibleRange.start > 0 && (
+                  <tr style={{ height: visibleRange.start * ROW_H }}>
+                    <td colSpan={COLS + 1} />
+                  </tr>
+                )}
+                {Array.from({ length: visibleRange.end - visibleRange.start + 1 }, (_, i) => {
+                  const r = visibleRange.start + i;
+                  const isRowInRange = !!selRange &&
+                    Math.min(selRange.r1, selRange.r2) <= r && r <= Math.max(selRange.r1, selRange.r2);
                   return (
                     <tr key={r} style={{ height: ROW_H }}>
                       {/* Row header */}
                       <td
                         className={`sticky left-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r cursor-pointer transition-colors
                           ${dm
-                            ? isRowSelected ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-                            : isRowSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                            ? isRowInRange ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
+                            : isRowInRange ? 'bg-blue-500 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
                           }`}
                         style={{ width: HEADER_W, height: ROW_H }}
                         onMouseDown={(e) => selectRow(r, e)}
@@ -1677,7 +2016,6 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                             }}
                             onMouseDown={(e) => {
                               if ((e.target as HTMLElement).classList.contains('fill-handle')) return;
-                              isMouseDownRef.current = true;
                               if (e.detail === 2) {
                                 startEdit(id);
                               } else {
@@ -1685,16 +2023,15 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                               }
                             }}
                             onMouseEnter={(e) => {
-                              if (isMouseDownRef.current && e.buttons === 1) {
-                                setSelRange((rng) =>
-                                  rng
-                                    ? { ...rng, r2: r, c2: c }
-                                    : { r1: sel.r, c1: sel.c, r2: r, c2: c }
-                                );
-                                setSel({ r, c });
-                              }
+                              // Only extend selection when left button is genuinely held down
+                              if (e.buttons !== 1) return;
+                              setSelRange((rng) =>
+                                rng
+                                  ? { ...rng, r2: r, c2: c }
+                                  : { r1: sel.r, c1: sel.c, r2: r, c2: c }
+                              );
+                              setSel({ r, c });
                             }}
-                            onMouseUp={() => { isMouseDownRef.current = false; }}
                           >
                             {editing ? (
                               <input
@@ -1704,7 +2041,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                                 onChange={(e) => setEditVal(e.target.value)}
                                 onKeyDown={onEditKeyDown}
                                 onBlur={() => commitEdit(id, editVal)}
-                                className={`absolute inset-0 w-full border-none outline-none px-1 bg-white dark:bg-slate-800 z-10`}
+                                className="absolute inset-0 w-full border-none outline-none px-1 z-10"
                                 style={{
                                   height: ROW_H,
                                   fontWeight: cell.bold ? 700 : 400,
@@ -1712,6 +2049,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                                   textAlign: cell.align || 'left',
                                   fontSize: `${fontSize}px`,
                                   color: cell.color || (dm ? '#e2e8f0' : '#1a202c'),
+                                  backgroundColor: dm ? '#1e293b' : '#ffffff',
                                   fontFamily: 'inherit',
                                   boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
                                 }}
@@ -1744,23 +2082,46 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                                   e.stopPropagation();
                                   e.preventDefault();
                                   fillStartRef.current = { r, c };
+                                  // Track fill target in local variable to avoid stale closure
+                                  let fillEnd: { row: number; col: number } | null = null;
                                   const onMove = (mv: MouseEvent) => {
-                                    const target = document.elementFromPoint(mv.clientX, mv.clientY);
-                                    if (target) {
-                                      const cellEl = target.closest('[id^="cell-"]');
+                                    const el = document.elementFromPoint(mv.clientX, mv.clientY);
+                                    if (el) {
+                                      const cellEl = el.closest('[id^="cell-"]');
                                       if (cellEl) {
                                         const cid = cellEl.id.replace('cell-', '');
                                         const ref = parseRef(cid);
-                                        if (ref) {
+                                        if (ref && ref.row > r) {
+                                          fillEnd = ref;
                                           setSelRange({ r1: r, c1: c, r2: ref.row, c2: ref.col });
                                         }
                                       }
                                     }
                                   };
                                   const onUp = () => {
-                                    fillDown();
                                     window.removeEventListener('mousemove', onMove);
                                     window.removeEventListener('mouseup', onUp);
+                                    if (!fillEnd) return;
+                                    // Inline fill — avoids stale selRange closure from fillDown()
+                                    setAllCells((prev) => {
+                                      const s = { ...(prev[activeSheet] || {}) };
+                                      const endCol = Math.max(c, fillEnd!.col);
+                                      for (let col = c; col <= endCol; col++) {
+                                        const srcId = getCellId(r, col);
+                                        const srcCell = s[srcId] || { value: '' };
+                                        for (let row = r + 1; row <= fillEnd!.row; row++) {
+                                          const destId = getCellId(row, col);
+                                          if (srcCell.formula) {
+                                            const offset = row - r;
+                                            const newFormula = srcCell.formula.replace(/([A-Z]+)(\d+)/g, (_: string, cs: string, rs: string) => `${cs}${parseInt(rs) + offset}`);
+                                            s[destId] = { ...srcCell, formula: newFormula, value: '' };
+                                          } else {
+                                            s[destId] = { ...srcCell };
+                                          }
+                                        }
+                                      }
+                                      return { ...prev, [activeSheet]: s };
+                                    });
                                   };
                                   window.addEventListener('mousemove', onMove);
                                   window.addEventListener('mouseup', onUp);
@@ -1773,6 +2134,12 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                     </tr>
                   );
                 })}
+                {/* Bottom spacer — maintains scroll height below visible rows */}
+                {visibleRange.end < ROWS - 1 && (
+                  <tr style={{ height: (ROWS - 1 - visibleRange.end) * ROW_H }}>
+                    <td colSpan={COLS + 1} />
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -1796,16 +2163,18 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
 
         {/* ── Sheet tabs ── */}
         <div className={`h-8 border-t flex items-stretch overflow-hidden shrink-0 ${borderCls} ${headerBgCls}`}>
-          <button
-            onClick={addSheet}
-            title="Nueva hoja"
-            className={`w-8 flex items-center justify-center border-none border-r shrink-0 cursor-pointer bg-transparent ${borderCls} ${subTextCls} ${hoverBtnCls}`}
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
-          </button>
+          {!readOnly && (
+            <button
+              onClick={addSheet}
+              title="Nueva hoja"
+              className={`w-8 flex items-center justify-center border-none border-r shrink-0 cursor-pointer bg-transparent ${borderCls} ${subTextCls} ${hoverBtnCls}`}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+            </button>
+          )}
 
           <div className="flex items-stretch flex-1 overflow-x-auto overflow-y-hidden">
             {sheets.map((sheet) => (
@@ -1824,7 +2193,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                 ) : (
                   <button
                     onClick={() => setActiveSheet(sheet.id)}
-                    onDoubleClick={() => setRenamingSheet(sheet.id)}
+                    onDoubleClick={() => !readOnly && setRenamingSheet(sheet.id)}
                     className={`flex items-center h-full text-[12px] font-medium border-none cursor-pointer border-r transition-colors px-4 pr-8
                       ${activeSheet === sheet.id
                         ? `${surfaceCls} text-[#1a73e8] border-t-2 border-t-[#1a73e8]`
@@ -1834,7 +2203,7 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
                     {sheet.name}
                   </button>
                 )}
-                {sheets.length > 1 && activeSheet === sheet.id && renamingSheet !== sheet.id && (
+                {!readOnly && sheets.length > 1 && activeSheet === sheet.id && renamingSheet !== sheet.id && (
                   <button
                     onClick={() => deleteSheet(sheet.id)}
                     className="absolute right-1.5 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-gray-400 hover:text-red-500 text-sm leading-none p-0.5 transition-colors"
@@ -1849,14 +2218,43 @@ export default function HojaCalculo({ darkMode, onSave }: HojaCalculoProps) {
         </div>
       </div>
 
-      {/* ── Chart modal ── */}
-      {showChartModal && (
+      {/* ── Range picking banner ── */}
+      {pickingFor && (
+        <div className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2.5 bg-[#1a73e8] text-white shadow-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-[13px] font-semibold">Seleccionando Rango {pickingFor}:</span>
+            <span className="text-[12px] opacity-90">Arrastra sobre las celdas y luego haz clic en Confirmar</span>
+            {selRange && (
+              <span className="font-mono text-[12px] bg-white/20 px-2 py-0.5 rounded">
+                {getCellId(Math.min(selRange.r1, selRange.r2), Math.min(selRange.c1, selRange.c2))}:{getCellId(Math.max(selRange.r1, selRange.r2), Math.max(selRange.c1, selRange.c2))}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={confirmPick}
+              className="px-4 py-1 rounded text-[13px] font-semibold bg-white text-[#1a73e8] border-none cursor-pointer hover:bg-blue-50"
+            >✓ Confirmar selección</button>
+            <button
+              onClick={() => { chartPickCallbackRef.current = null; setPickingFor(null); }}
+              className="px-3 py-1 rounded text-[13px] bg-white/20 border-none cursor-pointer hover:bg-white/30"
+            >✕ Cancelar</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Chart modal (insert or edit) ── */}
+      {(showChartModal || editingChartId !== null) && (
         <ChartModal
           darkMode={dm}
           cells={cells}
           selRange={selRange}
-          onClose={() => setShowChartModal(false)}
+          initialConfig={editingChartId !== null ? charts.find(c => c.id === editingChartId) : undefined}
+          hidden={pickingFor !== null}
+          onClose={() => { setShowChartModal(false); setEditingChartId(null); }}
           onInsert={insertChart}
+          onUpdate={updateChart}
+          onStartPick={handleStartPick}
         />
       )}
     </div>

@@ -171,7 +171,7 @@ export default function ExamPanel({
           <div className="flex-1 overflow-auto">
             <div className="max-w-5xl mx-auto p-6 md:p-10">
               <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-                <h1 className={`text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-3 tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
+                <h1 className={`text-2xl sm:text-3xl md:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r mb-3 tracking-tight ${darkMode ? "from-blue-400 to-teal-400" : "from-blue-500 to-teal-500"}`}>
                   {examData.nombre}
                 </h1>
                 <div className="flex flex-wrap items-center gap-6 text-sm md:text-base">
@@ -215,7 +215,7 @@ export default function ExamPanel({
           <div className="flex-1 flex flex-col overflow-hidden">
 
             {/* Barra de progreso superior */}
-            <div className={`px-6 pt-5 pb-4 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+            <div className={`px-3 sm:px-6 pt-4 pb-3 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
                   {examData.nombre}
@@ -270,7 +270,7 @@ export default function ExamPanel({
             </div>
 
             {/* Botón de navegación */}
-            <div className={`px-6 py-4 border-t flex-shrink-0 flex items-center justify-between ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+            <div className={`px-3 sm:px-6 py-3 border-t flex-shrink-0 flex items-center justify-between ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
               {/* Botón anterior (solo si permitirVolverPreguntas está activo y hay pregunta anterior o estamos en allDone) */}
               {examData.permitirVolverPreguntas && (currentIndex > 0 || allDone) ? (
                 <button
@@ -337,7 +337,7 @@ export default function ExamPanel({
           <div className="flex-1 flex flex-col overflow-hidden">
 
             {/* Barra de progreso superior */}
-            <div className={`px-6 pt-5 pb-4 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
+            <div className={`px-3 sm:px-6 pt-4 pb-3 border-b flex-shrink-0 ${darkMode ? "border-slate-700/50" : "border-gray-200"}`}>
               <div className="flex items-center justify-between mb-3">
                 <h2 className={`font-bold text-base truncate ${darkMode ? "text-white" : "text-gray-900"}`}>
                   {examData.nombre}

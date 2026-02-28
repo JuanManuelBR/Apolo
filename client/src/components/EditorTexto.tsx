@@ -113,12 +113,13 @@ const BackgroundColor = Extension.create({
 
 interface EditorTextoProps {
   value: string;
-  onChange: (html: string) => void;
+  onChange?: (html: string) => void;
   darkMode?: boolean;
   placeholder?: string;
   minHeight?: string;
   maxLength?: number;
   fullHeight?: boolean;
+  readOnly?: boolean;
 }
 
 export default function EditorTexto({
@@ -129,6 +130,7 @@ export default function EditorTexto({
   minHeight = '200px',
   maxLength,
   fullHeight = false,
+  readOnly = false,
 }: EditorTextoProps) {
   const [characterCount, setCharacterCount] = useState(0);
 
@@ -153,23 +155,25 @@ export default function EditorTexto({
       }),
     ],
     content: value,
+    editable: !readOnly,
     onUpdate: ({ editor }) => {
+      if (readOnly) return;
       const html = editor.getHTML();
-      
+
       // Calcular caracteres del texto plano
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = html;
       const textLength = (tempDiv.textContent || tempDiv.innerText || '').length;
       setCharacterCount(textLength);
-      
+
       // Si hay límite y se excede, revertir al contenido anterior
       if (maxLength && textLength > maxLength) {
         editor.commands.setContent(value);
         setCharacterCount(getTextLength(value));
         return;
       }
-      
-      onChange(html);
+
+      onChange?.(html);
     },
     editorProps: {
       attributes: {
@@ -277,8 +281,8 @@ export default function EditorTexto({
 
   return (
     <div className={`w-full ${fullHeight ? "h-full flex flex-col" : ""}`}>
-      {/* Barra de herramientas */}
-      <div
+      {/* Barra de herramientas (oculta en modo lectura) */}
+      {!readOnly && <div
         className={`flex flex-wrap items-center gap-1 p-2 rounded-t-lg border ${
           darkMode ? 'bg-slate-800 border-slate-700' : 'bg-gray-100 border-gray-300'
         }`}
@@ -455,25 +459,25 @@ export default function EditorTexto({
           <>
             <div className={`w-px h-6 ${darkMode ? 'bg-slate-600' : 'bg-gray-400'}`} />
             <div className={`text-xs px-2 font-medium ${
-              isLimitReached 
-                ? 'text-red-500' 
-                : isNearLimit 
-                ? 'text-yellow-500' 
-                : darkMode 
-                ? 'text-gray-400' 
+              isLimitReached
+                ? 'text-red-500'
+                : isNearLimit
+                ? 'text-yellow-500'
+                : darkMode
+                ? 'text-gray-400'
                 : 'text-gray-600'
             }`}>
               {characterCount}/{maxLength}
             </div>
           </>
         )}
-      </div>
+      </div>}
 
       {/* Editor */}
       <div
-        className={`rounded-b-lg border border-t-0 ${
+        className={`${readOnly ? "rounded-lg border" : "rounded-b-lg border border-t-0"} ${
           darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-300'
-        } ${isLimitReached ? 'ring-2 ring-red-500' : ''} ${fullHeight ? "flex-1 overflow-y-auto" : ""}`}
+        } ${!readOnly && isLimitReached ? 'ring-2 ring-red-500' : ''} ${fullHeight ? "flex-1 overflow-y-auto" : ""}`}
       >
         <EditorContent editor={editor} />
       </div>

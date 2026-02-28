@@ -22,6 +22,7 @@ interface EditorPythonProps {
   onSave?: (data: any) => void;
   initialCells?: Cell[];
   zoomLevel?: number;
+  viewMode?: boolean; // Oculta controles de gestión de celdas (solo ejecutar)
 }
 
 type CellType = 'code' | 'markdown';
@@ -45,12 +46,14 @@ declare global {
   }
 }
 
-export default function EditorPython({ darkMode, onSave, initialCells, zoomLevel = 100 }: EditorPythonProps) {
+export default function EditorPython({ darkMode, onSave, initialCells, zoomLevel = 100, viewMode = false }: EditorPythonProps) {
   const [cells, setCells] = useState<Cell[]>(initialCells || []);
   const [pyodideReady, setPyodideReady] = useState(false);
   const [pyodideLoading, setPyodideLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState('');
   const [selectedCell, setSelectedCell] = useState<string | null>(null);
+  const [pendingInputRun, setPendingInputRun] = useState<{ cellId: string; collectedValues: string[]; currentInput: string } | null>(null);
+  const [reinitTrigger, setReinitTrigger] = useState(0);
   
   const pyodideRef = useRef<any>(null);
   const lineNumbersRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -87,10 +90,43 @@ export default function EditorPython({ darkMode, onSave, initialCells, zoomLevel
       });
     };
 
+    // Código Python que siempre se aplica (tanto en init nuevo como en reutilización)
+    const PYTHON_ENV_SETUP = `
+import sys
+import js
+import builtins
+
+# Redirigir stdout y stderr a JS
+class JSPrinter:
+    def write(self, text):
+        if hasattr(js, 'handlePythonPrint'):
+            js.handlePythonPrint(text)
+    def flush(self):
+        pass
+
+if not isinstance(sys.stdout, JSPrinter):
+    sys.stdout = JSPrinter()
+    sys.stderr = JSPrinter()
+
+# Sobreescribir input() — lanza excepción especial cuando no hay más valores en cola
+def _custom_input(prompt=""):
+    if prompt:
+        js.handlePythonPrint(str(prompt))
+    queue = getattr(js, 'pythonInputQueue', None)
+    if queue is not None and queue.length > 0:
+        value = str(queue.shift())
+        js.handlePythonPrint(value)
+        return value
+    raise Exception("__PYODIDE_NEEDS_INPUT__")
+
+builtins.input = _custom_input
+`;
+
     const initPyodide = async () => {
-      // Si ya está cargado globalmente (al volver de otra pestaña), lo reusamos
+      // Si ya está cargado globalmente, lo reusamos PERO re-aplicamos el override de input()
       if (window.pyodide) {
         pyodideRef.current = window.pyodide;
+        await window.pyodide.runPythonAsync(PYTHON_ENV_SETUP);
         setPyodideReady(true);
         return;
       }
@@ -121,28 +157,7 @@ export default function EditorPython({ darkMode, onSave, initialCells, zoomLevel
         });
 
         // 3. Configuración Base (Input y Salida)
-        await pyodide.runPythonAsync(`
-import sys
-import js
-
-# Redirigir stdout y stderr a JS
-class JSPrinter:
-    def write(self, text):
-        if hasattr(js, 'handlePythonPrint'):
-            js.handlePythonPrint(text)
-    def flush(self):
-        pass
-
-if not isinstance(sys.stdout, JSPrinter):
-    sys.stdout = JSPrinter()
-    sys.stderr = JSPrinter()
-
-# Sobreescribir input() para usar prompt del navegador
-def input(p=""):
-    return js.prompt(p) or ""
-
-__builtins__.input = input
-        `);
+        await pyodide.runPythonAsync(PYTHON_ENV_SETUP);
 
         // 4. Guardar referencia
         window.pyodide = pyodide;
@@ -168,7 +183,7 @@ __builtins__.input = input
     return () => {
       isMounted.current = false;
     };
-  }, []); // Se ejecuta una vez al montar
+  }, [reinitTrigger]); // reinitTrigger permite reiniciar sin recargar la página
 
   // Auto-guardado
   useEffect(() => {
@@ -201,12 +216,25 @@ __builtins__.input = input
     };
   }, [resizingCellId]);
 
-  // --- 2. EJECUCIÓN DE CÓDIGO (Solución al "se queda pensando") ---
-  const runCell = async (cellId: string) => {
+  // --- 2. EJECUCIÓN DE CÓDIGO ---
+
+  const runCell = (cellId: string) => {
     if (!pyodideReady || !pyodideRef.current) {
       alert('Python aún se está iniciando. Por favor espera.');
       return;
     }
+    const cell = cells.find(c => c.id === cellId);
+    if (!cell || cell.type !== 'code') return;
+    setPendingInputRun(null);
+    runCellWithInputs(cellId, []);
+  };
+
+  const runCellWithInputs = async (cellId: string, inputValues: string[]) => {
+    if (!pyodideReady || !pyodideRef.current) return;
+
+    // Cargar la cola de inputs en la ventana para que Python la consuma
+    (window as any).pythonInputQueue = [...inputValues];
+    setPendingInputRun(null);
 
     const cellIndex = cells.findIndex(c => c.id === cellId);
     if (cellIndex === -1) return;
@@ -309,21 +337,37 @@ plt.show = show_custom
 
     } catch (error: any) {
       const executionTime = Date.now() - startTime;
+
+      // Pausa interactiva: Python necesita el siguiente valor de input()
+      if (String(error.message || error).includes('__PYODIDE_NEEDS_INPUT__')) {
+        if (isMounted.current && executionRefs.current.get(cellId) === runId) {
+          // Mantener el output parcial visible y mostrar cursor de entrada
+          setCells(prev => {
+            const idx = prev.findIndex(c => c.id === cellId);
+            if (idx === -1) return prev;
+            const nextState = [...prev];
+            nextState[idx] = { ...prev[idx], status: 'idle' };
+            return nextState;
+          });
+          setPendingInputRun({ cellId, collectedValues: inputValues, currentInput: '' });
+        }
+        return;
+      }
+
       console.error(error);
-      
       if (isMounted.current && executionRefs.current.get(cellId) === runId) {
           setCells(prev => {
             const idx = prev.findIndex(c => c.id === cellId);
             if (idx === -1) return prev;
             const current = prev[idx];
             const finalOutput = [...(current.output || []), `❌ Error: ${error.message || String(error)}`];
-            
+
             const nextState = [...prev];
-            nextState[idx] = { 
-                ...current, 
-                status: 'error', 
-                output: finalOutput, 
-                executionTime 
+            nextState[idx] = {
+                ...current,
+                status: 'error',
+                output: finalOutput,
+                executionTime
             };
             return nextState;
           });
@@ -332,14 +376,14 @@ plt.show = show_custom
   };
 
   const restartPython = () => {
-     if (window.confirm("¿Reiniciar el entorno Python? Se perderán las variables definidas.")) {
-         window.pyodide = null;
-         pyodideRef.current = null;
-         loadedPackages.current.clear();
-         setPyodideReady(false);
-         // Forzar recarga
-         window.location.reload(); // En un entorno real, intentaríamos reinicializar sin reload, pero para Pyodide global reload es más seguro.
-     }
+    window.pyodide = null;
+    pyodideRef.current = null;
+    loadedPackages.current.clear();
+    setPyodideReady(false);
+    setPyodideLoading(false);
+    setPendingInputRun(null);
+    setCells(prev => prev.map(c => ({ ...c, status: 'idle' as const })));
+    setReinitTrigger(t => t + 1);
   };
 
   // --- RESTO DE FUNCIONES DE UI ---
@@ -354,7 +398,7 @@ plt.show = show_custom
   const runAllCells = async () => {
     for (const cell of cells) {
       if (cell.type === 'code') {
-        await runCell(cell.id);
+        await runCellWithInputs(cell.id, []);
         await new Promise(r => setTimeout(r, 100));
       }
     }
@@ -416,34 +460,33 @@ plt.show = show_custom
       
       {/* Toolbar */}
       <div className={`flex items-center justify-between px-4 py-3 border-b ${darkMode ? 'border-slate-700 bg-slate-800' : 'border-gray-200 bg-gray-50'}`}>
-        <div className="flex items-center gap-2">
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${
-                pyodideReady 
+        <div className="flex items-center gap-2 min-w-0">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold shrink-0 ${
+                pyodideReady
                 ? darkMode ? 'bg-emerald-900/30 text-emerald-400' : 'bg-emerald-100 text-emerald-700'
                 : darkMode ? 'bg-blue-900/30 text-blue-400' : 'bg-blue-100 text-blue-700'
             }`}>
                 {pyodideReady ? <CheckCircle2 className="w-3 h-3"/> : <Loader2 className="w-3 h-3 animate-spin"/>}
-                <span>{pyodideReady ? 'Python Listo' : 'Cargando Motor...'}</span>
+                <span>{pyodideReady ? 'Python Listo' : (loadingProgress || 'Cargando...')}</span>
             </div>
-            {loadingProgress && <span className="text-xs opacity-70">{loadingProgress}</span>}
         </div>
 
-        <div className="flex gap-2">
-           <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
+        <div className="flex gap-2 shrink-0">
+           {!viewMode && <button onClick={() => addCell('code')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-blue-500 hover:bg-blue-600 text-white'}`}>
              <Plus className="w-4 h-4"/> <Code className="w-4 h-4"/>
-           </button>
-           <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
+           </button>}
+           {!viewMode && <button onClick={() => addCell('markdown')} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${darkMode ? 'bg-purple-600 hover:bg-purple-500 text-white' : 'bg-purple-500 hover:bg-purple-600 text-white'}`}>
              <Plus className="w-4 h-4"/> <Type className="w-4 h-4"/>
-           </button>
+           </button>}
            <button onClick={runAllCells} disabled={!pyodideReady} className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${darkMode ? 'bg-emerald-600 hover:bg-emerald-500 text-white disabled:opacity-50' : 'bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50'}`}>
              <Play className="w-4 h-4"/> Ejecutar Todo
            </button>
-           <button onClick={restartPython} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Python (Recarga página)">
+           <button onClick={restartPython} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-slate-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-800'}`} title="Reiniciar Python">
              <RefreshCw className="w-4 h-4"/>
            </button>
-           <button onClick={() => setCells([])} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white' : 'bg-gray-200 hover:bg-red-100 text-gray-800'}`}>
+           {!viewMode && <button onClick={() => setCells([])} className={`p-2 rounded-lg transition-colors ${darkMode ? 'bg-slate-700 hover:bg-red-900/50 text-white' : 'bg-gray-200 hover:bg-red-100 text-gray-800'}`}>
              <Trash2 className="w-4 h-4"/>
-           </button>
+           </button>}
         </div>
       </div>
 
@@ -471,15 +514,15 @@ plt.show = show_custom
                 {cell.status === 'error' && <XCircle className="w-4 h-4 text-red-500"/>}
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={(e) => { e.stopPropagation(); moveCell(cell.id, 'up'); }} disabled={index===0} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><ChevronUp className="w-4 h-4"/></button>
-                <button onClick={(e) => { e.stopPropagation(); moveCell(cell.id, 'down'); }} disabled={index===cells.length-1} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><ChevronDown className="w-4 h-4"/></button>
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); moveCell(cell.id, 'up'); }} disabled={index===0} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><ChevronUp className="w-4 h-4"/></button>}
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); moveCell(cell.id, 'down'); }} disabled={index===cells.length-1} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><ChevronDown className="w-4 h-4"/></button>}
                 {cell.type === 'code' && (
-                  cell.status === 'running' 
+                  cell.status === 'running'
                   ? <button onClick={(e) => { e.stopPropagation(); stopCell(cell.id); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 rounded"><Square className="w-4 h-4 fill-current"/></button>
                   : <button onClick={(e) => { e.stopPropagation(); runCell(cell.id); }} className="p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-emerald-500 rounded"><Play className="w-4 h-4"/></button>
                 )}
-                <button onClick={(e) => { e.stopPropagation(); addCell('code', cell.id); }} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><Plus className="w-4 h-4"/></button>
-                <button onClick={(e) => { e.stopPropagation(); deleteCell(cell.id); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 rounded"><X className="w-4 h-4"/></button>
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); addCell('code', cell.id); }} className="p-1 hover:bg-gray-200 dark:hover:bg-slate-700 rounded"><Plus className="w-4 h-4"/></button>}
+                {!viewMode && <button onClick={(e) => { e.stopPropagation(); deleteCell(cell.id); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 text-red-500 rounded"><X className="w-4 h-4"/></button>}
               </div>
             </div>
 
@@ -517,19 +560,47 @@ plt.show = show_custom
                     </div>
                  </div>
                  
-                 {/* Output Area */}
-                 {cell.output && cell.output.length > 0 && (
-                     <div className={`border-t px-4 py-3 overflow-x-auto ${darkMode ? 'border-slate-700 bg-slate-950' : 'border-gray-200 bg-gray-50'}`}>
-                         <div className="font-mono space-y-1" style={{ fontSize: '13px' }}>
-                             {cell.output.map((line, i) => (
-                                 <div key={i} className={line.startsWith('❌') ? 'text-red-500' : line.startsWith('✓') ? 'text-emerald-500' : darkMode ? 'text-slate-300' : 'text-gray-700'}>
-                                     {line.startsWith('data:image') 
-                                        ? <img src={line} alt="Gráfico" className="bg-white p-2 rounded max-w-full"/> 
-                                        : line}
-                                 </div>
-                             ))}
+                 {/* Terminal: output + cursor de entrada en un solo bloque continuo */}
+                 {(cell.output && cell.output.length > 0 || pendingInputRun?.cellId === cell.id) && (
+                   <div className={`border-t font-mono ${darkMode ? 'border-slate-700 bg-slate-950' : 'border-gray-200 bg-gray-50'}`}>
+                     {/* Output parcial o completo */}
+                     {cell.output && cell.output.length > 0 && (
+                       <div className="px-4 pt-3 pb-1 overflow-x-auto">
+                         <div className="space-y-0.5" style={{ fontSize: '13px' }}>
+                           {cell.output.map((line, i) => (
+                             <div key={i} className={line.startsWith('❌') ? 'text-red-500' : line.startsWith('✓') ? 'text-emerald-500' : darkMode ? 'text-slate-300' : 'text-gray-700'}>
+                               {line.startsWith('data:image')
+                                 ? <img src={line} alt="Gráfico" className="bg-white p-2 rounded max-w-full"/>
+                                 : line}
+                             </div>
+                           ))}
                          </div>
-                     </div>
+                       </div>
+                     )}
+                     {/* Cursor interactivo — aparece justo después del último output */}
+                     {pendingInputRun?.cellId === cell.id && (
+                       <div className="px-4 pb-3 pt-1 flex items-center gap-1" style={{ fontSize: '13px' }}>
+                         <input
+                           type="text"
+                           autoFocus
+                           value={pendingInputRun.currentInput}
+                           onChange={(e) => setPendingInputRun(prev => prev ? { ...prev, currentInput: e.target.value } : null)}
+                           onKeyDown={(e) => {
+                             if (e.key === 'Enter') {
+                               e.preventDefault();
+                               const newValues = [...pendingInputRun.collectedValues, pendingInputRun.currentInput];
+                               runCellWithInputs(pendingInputRun.cellId, newValues);
+                             }
+                             if (e.key === 'Escape') setPendingInputRun(null);
+                           }}
+                           spellCheck={false}
+                           className={`flex-1 bg-transparent border-none outline-none caret-white ${darkMode ? 'text-white placeholder-slate-600' : 'text-gray-900 placeholder-gray-400'}`}
+                           style={{ fontFamily: 'inherit', fontSize: 'inherit' }}
+                           placeholder="Escribe y presiona Enter..."
+                         />
+                       </div>
+                     )}
+                   </div>
                  )}
               </>
             ) : (
@@ -548,6 +619,7 @@ plt.show = show_custom
             <div className="text-center p-10 opacity-50">Inicializando Python...</div>
         )}
       </div>
+
     </div>
   );
 }

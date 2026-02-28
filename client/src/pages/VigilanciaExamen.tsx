@@ -28,6 +28,7 @@ import { examsService } from "../services/examsService";
 import { examsAttemptsService } from "../services/examsAttempts";
 import ModalConfirmacion from "../components/ModalConfirmacion";
 import RevisarCalificacion from "../components/RevisarCalificacion";
+import PageLoader from "../components/PageLoader";
 
 // ============================================
 // INTERFACES
@@ -82,6 +83,15 @@ interface Alerta {
 type EstadoDisplay = "Activo" | "Bloqueado" | "Pausado" | "Terminado" | "Abandonado" | "Calificado";
 type FiltroEstado = "todos" | "activos" | "bloqueados" | "pausados" | "terminados" | "abandonados" | "calificados";
 
+const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
+
+function buildPdfViewUrl(archivoPDF: string): string {
+  if (archivoPDF.startsWith("http")) {
+    return `${EXAMS_API_URL}/api/pdfs/proxy?url=${encodeURIComponent(archivoPDF)}`;
+  }
+  return `${EXAMS_API_URL}/api/pdfs/${archivoPDF}`;
+}
+
 const obtenerColoresExamen = (tipo: string): { borde: string; fondo: string } => {
   if (tipo === "pdf") return { borde: "border-rose-500", fondo: "bg-rose-600" };
   return { borde: "border-indigo-500", fondo: "bg-indigo-600" };
@@ -108,6 +118,7 @@ export default function VigilanciaExamenesLista({
   // Estados
   const [examAttempts, setExamAttempts] = useState<{ [key: number]: ExamAttempt[] }>({});
   const [estudianteSeleccionado, setEstudianteSeleccionado] = useState<ExamAttempt | null>(null);
+  const [vistaTransicionando, setVistaTransicionando] = useState(false);
   const [examenActual, setExamenActual] = useState<Examen | null>(null);
   const [alertasEstudiante, setAlertasEstudiante] = useState<Alerta[]>([]);
   const [mostrarModalAlertas, setMostrarModalAlertas] = useState(false);
@@ -120,6 +131,7 @@ export default function VigilanciaExamenesLista({
   const [modoPrivacidad, setModoPrivacidad] = useState(false);
   const [estudiantesRevelados, setEstudiantesRevelados] = useState<Set<number>>(new Set());
   const [modoRevision, setModoRevision] = useState(false);
+  const [mostrarPDFRevision, setMostrarPDFRevision] = useState(true);
 
   const [modal, setModal] = useState<{ visible: boolean; tipo: "exito" | "error" | "advertencia" | "info" | "confirmar"; titulo: string; mensaje: string; onConfirmar: () => void; onCancelar?: () => void }>({ visible: false, tipo: "info", titulo: "", mensaje: "", onConfirmar: () => {} });
   const mostrarModal = (tipo: "exito" | "error" | "advertencia" | "info" | "confirmar", titulo: string, mensaje: string, onConfirmar: () => void, onCancelar?: () => void) => setModal({ visible: true, tipo, titulo, mensaje, onConfirmar, onCancelar });
@@ -489,6 +501,24 @@ export default function VigilanciaExamenesLista({
     } catch (e) { console.error(e); }
   };
 
+  const handleSeleccionarEstudiante = (estudiante: ExamAttempt) => {
+    setVistaTransicionando(true);
+    setTimeout(async () => {
+      setVistaTransicionando(false);
+      await seleccionarEstudiante(estudiante);
+    }, 180);
+  };
+
+  const handleVolverLista = () => {
+    setVistaTransicionando(true);
+    setTimeout(() => {
+      setVistaTransicionando(false);
+      setEstudianteSeleccionado(null);
+      setModoRevision(false);
+      sessionStorage.removeItem("vigilancia_estudianteId");
+    }, 180);
+  };
+
   const seleccionarEstudiante = async (estudiante: ExamAttempt) => {
     setEstudianteSeleccionado({ ...estudiante, alertasNoLeidas: 0 });
     sessionStorage.setItem("vigilancia_estudianteId", estudiante.id.toString());
@@ -799,18 +829,18 @@ export default function VigilanciaExamenesLista({
       .join(" ");
   };
 
-  if (loadingExamenes) return <div className="flex justify-center h-screen items-center"><div className="animate-spin rounded-full h-10 w-10 border-4 border-teal-500 border-t-transparent"></div></div>;
+  if (loadingExamenes) return <PageLoader darkMode={darkMode} mensaje="Cargando vigilancia..." />;
 
   return (
     <>
       <style>{`.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; } .scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
-      <div className="flex h-[calc(100vh-140px)] gap-6 px-12 overflow-hidden">
+      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-6 px-2 md:px-12 overflow-auto md:overflow-hidden">
         
         {/* =======================================================
             PANEL IZQUIERDO
            ======================================================= */}
-        <div className="w-80 flex flex-col gap-4 flex-shrink-0 overflow-hidden">
+        <div className="w-full md:w-80 flex flex-col gap-3 md:gap-4 flex-shrink-0 overflow-hidden max-h-52 md:max-h-none">
           
           <div className={`p-4 rounded-2xl shadow-sm flex-shrink-0 border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
             <div className="flex items-start justify-between mb-4">
@@ -898,7 +928,7 @@ export default function VigilanciaExamenesLista({
           
           {/* Stats Cards */}
           {examenActual && (
-            <div className="grid grid-cols-4 gap-4 flex-shrink-0">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4 flex-shrink-0">
               {[
                 { label: "Han empezado", val: contadores.hanEmpezado, icon: Activity, colorClass: "bg-blue-500 shadow-blue-200" },
                 { label: "Han enviado", val: contadores.hanEnviado, icon: Send, colorClass: "bg-emerald-500 shadow-emerald-200" },
@@ -941,9 +971,9 @@ export default function VigilanciaExamenesLista({
               </div>
             ) : !estudianteSeleccionado ? (
               // ================= VISTA LISTA DE ESTUDIANTES =================
-              <div className="flex flex-col h-full">
+              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
                 
-                <div className="p-6 pb-4 flex-shrink-0">
+                <div className="p-3 sm:p-6 pb-3 sm:pb-4 flex-shrink-0">
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div>
                             <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
@@ -1082,7 +1112,7 @@ export default function VigilanciaExamenesLista({
                            return (
                              <button
                                key={estudiante.id}
-                               onClick={() => seleccionarEstudiante(estudiante)}
+                               onClick={() => handleSeleccionarEstudiante(estudiante)}
                                className={`w-full text-left p-4 rounded-xl border transition-all group relative ${
                                   darkMode 
                                   ? "bg-slate-800/40 border-slate-700 hover:bg-slate-800 hover:border-slate-600" 
@@ -1177,9 +1207,9 @@ export default function VigilanciaExamenesLista({
 
             ) : (
               // ================= VISTA DETALLE ESTUDIANTE =================
-              <div className={`flex flex-col h-full ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
+              <div className={`flex flex-col h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-slideUp"} ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
                  <div className={`px-6 py-4 border-b flex items-center justify-between ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
-                    <button onClick={() => { setEstudianteSeleccionado(null); setModoRevision(false); sessionStorage.removeItem("vigilancia_estudianteId"); }} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
+                    <button onClick={handleVolverLista} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
                        </div>
@@ -1395,29 +1425,79 @@ export default function VigilanciaExamenesLista({
       {/* Modal de revisión de calificación */}
       {modoRevision && estudianteSeleccionado && (
         <div
-          className="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-8 overflow-hidden animate-in fade-in duration-200"
+          className="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-hidden animate-in fade-in duration-200"
           onClick={() => setModoRevision(false)}
         >
           <div
-            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl w-[85vw] h-[85vh] relative shadow-2xl flex flex-col overflow-hidden`}
+            className={`${darkMode ? "bg-slate-900" : "bg-white"} rounded-2xl w-[95vw] h-[95vh] relative shadow-2xl flex flex-row overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
-            <RevisarCalificacion
-              intentoId={estudianteSeleccionado.id}
-              darkMode={darkMode}
-              onVolver={() => setModoRevision(false)}
-              onGradeUpdated={(intentoId, notaFinal) => {
-                setEstudianteSeleccionado(prev => prev ? { ...prev, calificacion: notaFinal, notaFinal } : prev);
-                if (examenActual) {
-                  setExamAttempts(prev => ({
-                    ...prev,
-                    [examenActual.id]: (prev[examenActual.id] || []).map(a =>
-                      a.id === intentoId ? { ...a, calificacion: notaFinal, notaFinal } : a
-                    ),
-                  }));
-                }
-              }}
-            />
+            {/* Panel izquierdo: PDF del examen */}
+            {examenActual?.archivoPDF && mostrarPDFRevision && (
+              <div className={`flex-shrink-0 w-[42%] flex flex-col border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                <div className={`flex items-center justify-between px-4 py-2 border-b text-xs font-semibold ${darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-slate-50 border-gray-200 text-slate-500"}`}>
+                  <span className="flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    Examen PDF
+                  </span>
+                  <button
+                    onClick={() => setMostrarPDFRevision(false)}
+                    className={`p-1 rounded hover:bg-red-100 hover:text-red-500 transition-colors ${darkMode ? "text-slate-400 hover:bg-red-900/30" : "text-slate-400"}`}
+                    title="Ocultar PDF"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <iframe
+                    src={`${buildPdfViewUrl(examenActual.archivoPDF)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                    className="w-full h-full border-0"
+                    title="Examen PDF"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Botón para mostrar PDF si está oculto */}
+            {examenActual?.archivoPDF && !mostrarPDFRevision && (
+              <div className={`flex-shrink-0 flex items-start pt-4 px-2 border-r ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                <button
+                  onClick={() => setMostrarPDFRevision(true)}
+                  className={`flex flex-col items-center gap-1 px-2 py-3 rounded-xl text-[10px] font-semibold border transition-colors ${darkMode ? "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700" : "bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100"}`}
+                  title="Mostrar PDF del examen"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span style={{ writingMode: "vertical-rl" }}>Ver PDF</span>
+                </button>
+              </div>
+            )}
+
+            {/* Panel derecho: RevisarCalificacion */}
+            <div className="flex-1 min-w-0 overflow-hidden">
+              <RevisarCalificacion
+                intentoId={estudianteSeleccionado.id}
+                darkMode={darkMode}
+                onVolver={() => setModoRevision(false)}
+                onGradeUpdated={(intentoId, notaFinal) => {
+                  setEstudianteSeleccionado(prev => prev ? { ...prev, calificacion: notaFinal, notaFinal } : prev);
+                  if (examenActual) {
+                    setExamAttempts(prev => ({
+                      ...prev,
+                      [examenActual.id]: (prev[examenActual.id] || []).map(a =>
+                        a.id === intentoId ? { ...a, calificacion: notaFinal, notaFinal } : a
+                      ),
+                    }));
+                  }
+                  setModoRevision(false);
+                  mostrarModal(
+                    "exito",
+                    "Calificación guardada",
+                    `La nota ${notaFinal} ha sido registrada exitosamente.`,
+                    cerrarModal
+                  );
+                }}
+              />
+            </div>
           </div>
         </div>
       )}

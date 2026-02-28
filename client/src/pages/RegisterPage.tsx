@@ -55,6 +55,7 @@ export default function RegisterPage() {
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [loadingGoogle, setLoadingGoogle] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>({
     score: 0,
     label: '',
@@ -235,6 +236,7 @@ export default function RegisterPage() {
    * REGISTRO CON GOOGLE
    */
   const handleGoogleRegister = async () => {
+    setLoadingGoogle(true);
     setLoading(true);
     setError('');
 
@@ -246,6 +248,7 @@ export default function RegisterPage() {
         setError(error.message || 'Error al registrarse con Google.');
       }
     } finally {
+      setLoadingGoogle(false);
       setLoading(false);
     }
   };
@@ -259,34 +262,36 @@ export default function RegisterPage() {
       className="min-h-screen flex items-center justify-center p-6 md:p-8 bg-cover bg-center relative transition-all duration-300"
       style={{ backgroundImage: `url(${fondoImagen})` }}
     >
-      {/* Overlay oscuro ajustable según el tema */}
-      <div className={`absolute inset-0 z-0 transition-all duration-300 ${
-        darkMode ? 'bg-black/75' : 'bg-black/45'
-      }`}></div>
+      {/* Overlay — mismo estilo que LandingPage */}
+      <div className={`absolute inset-0 backdrop-blur-sm transition-all duration-300 ${
+        darkMode
+          ? 'bg-gradient-to-br from-gray-900/95 via-slate-900/90 to-gray-900/95'
+          : 'bg-gradient-to-br from-white/88 via-gray-50/85 to-white/88'
+      }`} />
 
-      {/* Botón de tema en la esquina inferior derecha */}
+      {/* Botón de tema */}
       <button
         onClick={toggleTheme}
-        className={`fixed bottom-6 right-6 z-20 p-3 rounded-full shadow-lg transition-all duration-300 ${
-          darkMode 
-            ? 'bg-slate-800 text-yellow-400 hover:bg-slate-700' 
-            : 'bg-white text-gray-700 hover:bg-gray-100'
+        className={`fixed bottom-6 right-6 z-20 p-4 rounded-full shadow-2xl border transition-all duration-300 hover:scale-110 hover:rotate-12 ${
+          darkMode
+            ? 'bg-slate-800/80 backdrop-blur-xl border-slate-600 text-yellow-400 hover:bg-slate-700'
+            : 'bg-white/90 backdrop-blur-sm border-slate-200 text-slate-600 shadow-slate-300/60 hover:bg-white'
         }`}
         title={darkMode ? "Cambiar a modo día" : "Cambiar a modo noche"}
       >
-        {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+        {darkMode ? <Sun className="w-6 h-6" /> : <Moon className="w-6 h-6" />}
       </button>
       
       {/* Contenedor principal */}
-      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface">
+      <div className="rounded-xl shadow-2xl w-full max-w-6xl z-10 relative overflow-hidden transition-colors duration-300 bg-surface anim-scaleIn">
         <div className="grid md:grid-cols-2">
           
           {/* ============================================ */}
           {/* SECCIÓN IZQUIERDA - FORMULARIO */}
           {/* ============================================ */}
-          <div className="px-10 py-12 border-r transition-colors duration-300 border-ui">
+          <div className="px-4 sm:px-8 md:px-10 py-6 md:py-12 border-b md:border-b-0 md:border-r transition-colors duration-300 border-ui">
             {/* Logo */}
-            <div className="mb-6 flex items-center justify-center px-6 transition-all duration-300" style={{ height: '140px' }}>
+            <div className="mb-4 md:mb-6 flex items-center justify-center px-4 md:px-6 transition-all duration-300" style={{ height: '90px' }}>
               <img
                 src={darkMode ? logoUniversidadNoche : logoUniversidad}
                 alt="Universidad de Ibagué"
@@ -304,7 +309,7 @@ export default function RegisterPage() {
             {/* Formulario */}
             <form onSubmit={handleRegister} className="max-w-md mx-auto">
               {/* Nombre y Apellido */}
-              <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
                 <div>
                   <input
                     type="text"
@@ -495,7 +500,7 @@ export default function RegisterPage() {
           {/* ============================================ */}
           {/* SECCIÓN DERECHA - REGISTRO CON GOOGLE */}
           {/* ============================================ */}
-          <div className="px-10 py-12 flex flex-col justify-center items-center">
+          <div className="px-4 sm:px-8 md:px-10 py-8 md:py-12 flex flex-col justify-center items-center">
             <div className="text-center mb-8">
               <h3 className="text-xl font-semibold mb-2 text-primary">
                 Registro Rápido
@@ -516,13 +521,25 @@ export default function RegisterPage() {
                   : 'text-gray-700 hover:bg-gray-50 hover:shadow-xl'
               }`}
             >
-              <svg width="24" height="24" viewBox="0 0 18 18" className="transition-transform duration-300">
-                <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
-                <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
-                <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
-                <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
-              </svg>
-              {loading ? 'Registrando...' : 'Registrarse con Google'}
+              {loadingGoogle ? (
+                <>
+                  <svg className="anim-spin-slow w-6 h-6" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Abriendo Google...
+                </>
+              ) : (
+                <>
+                  <svg width="24" height="24" viewBox="0 0 18 18">
+                    <path fill="#4285F4" d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.615z" />
+                    <path fill="#34A853" d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.258c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z" />
+                    <path fill="#FBBC05" d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.961H.957C.347 6.175 0 7.55 0 9s.348 2.825.957 4.039l3.007-2.332z" />
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.961L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" />
+                  </svg>
+                  Registrarse con Google
+                </>
+              )}
             </button>
 
             {/* Términos y condiciones */}

@@ -68,6 +68,10 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
   const [mostrarClaveRespuesta, setMostrarClaveRespuesta] = useState<string | null>(null);
   const [puntosTemp, setPuntosTemp] = useState<{[key: string]: string}>({});
   const [palabraClaveTemp, setPalabraClaveTemp] = useState<string>('');
+  // Animaciones de entrada/salida de preguntas
+  const [preguntasNuevas, setPreguntasNuevas] = useState<Set<string>>(new Set());
+  const [preguntasCerrando, setPreguntasCerrando] = useState<Set<string>>(new Set());
+  const [preguntasTransicionando, setPreguntasTransicionando] = useState<Set<string>>(new Set());
 
   // Notificar al padre cuando cambien las preguntas
   useEffect(() => {
@@ -107,15 +111,25 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
   }, [preguntas, onValidationChange]);
 
   const toggleEditarPregunta = (id: string) => {
-    setPreguntasEditando(prev => {
-      const nuevo = new Set(prev);
-      if (nuevo.has(id)) {
-        nuevo.delete(id);
-      } else {
-        nuevo.add(id);
-      }
-      return nuevo;
-    });
+    // Reproducir animación de salida primero, luego cambiar el contenido
+    setPreguntasTransicionando(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      setPreguntasEditando(prev => {
+        const nuevo = new Set(prev);
+        if (nuevo.has(id)) nuevo.delete(id);
+        else nuevo.add(id);
+        return nuevo;
+      });
+      setPreguntasTransicionando(prev => { const s = new Set(prev); s.delete(id); return s; });
+      marcarComoNueva(id); // animación de entrada para el nuevo contenido
+    }, 180); // coincide con la duración de anim-fadeOut
+  };
+
+  const marcarComoNueva = (id: string) => {
+    setPreguntasNuevas(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      setPreguntasNuevas(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }, 350);
   };
 
   const crearNuevaPregunta = () => {
@@ -128,25 +142,28 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
       calificacionParcial: false,
       opciones: [{ id: '1', texto: 'Opción 1', esCorrecta: false }]
     };
-    setPreguntas([...preguntas, nuevaPregunta]);
+    setPreguntas(prev => [...prev, nuevaPregunta]);
     setPreguntasEditando(prev => new Set(prev).add(nuevaPregunta.id));
+    marcarComoNueva(nuevaPregunta.id);
   };
 
   const duplicarPregunta = (id: string) => {
     const pregunta = preguntas.find(p => p.id === id);
     if (pregunta) {
       const nuevaPregunta = { ...pregunta, id: Date.now().toString() };
-      setPreguntas([...preguntas, nuevaPregunta]);
+      setPreguntas(prev => [...prev, nuevaPregunta]);
+      marcarComoNueva(nuevaPregunta.id);
     }
   };
 
   const eliminarPregunta = (id: string) => {
-    setPreguntas(preguntas.filter(p => p.id !== id));
-    setPreguntasEditando(prev => {
-      const nuevo = new Set(prev);
-      nuevo.delete(id);
-      return nuevo;
-    });
+    // Marcar como cerrando para activar animación de salida
+    setPreguntasCerrando(prev => new Set(prev).add(id));
+    setTimeout(() => {
+      setPreguntas(prev => prev.filter(p => p.id !== id));
+      setPreguntasEditando(prev => { const s = new Set(prev); s.delete(id); return s; });
+      setPreguntasCerrando(prev => { const s = new Set(prev); s.delete(id); return s; });
+    }, 220);
   };
 
   const actualizarPregunta = (id: string, cambios: Partial<Pregunta>) => {
@@ -1420,11 +1437,18 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
   return (
     <div className="space-y-6">
-      {preguntas.map((pregunta, index) => (
-        preguntasEditando.has(pregunta.id)
-          ? renderizarPreguntaEdicion(pregunta, index)
-          : renderizarPreguntaVista(pregunta, index)
-      ))}
+      {preguntas.map((pregunta, index) => {
+        const isNew = preguntasNuevas.has(pregunta.id);
+        const isClosing = preguntasCerrando.has(pregunta.id);
+        const isTransitioning = preguntasTransicionando.has(pregunta.id);
+        return (
+          <div key={pregunta.id} className={isClosing ? 'anim-collapseUp' : isTransitioning ? 'anim-fadeOut' : isNew ? 'anim-slideDown' : ''}>
+            {preguntasEditando.has(pregunta.id)
+              ? renderizarPreguntaEdicion(pregunta, index)
+              : renderizarPreguntaVista(pregunta, index)}
+          </div>
+        );
+      })}
 
       <button
         onClick={crearNuevaPregunta}

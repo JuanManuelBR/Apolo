@@ -1594,19 +1594,19 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
 
   const switchSheet = (index: number) => {
       if (index === activeSheetIndex) return;
-      
+
       const updatedSheets = getCurrentSheetsState();
       setSheets(updatedSheets);
-      
+
       const target = updatedSheets[index];
-      setNodes(target.nodes);
-      setConnections(target.connections);
-      setPaintActions(target.paintActions);
-      setHistory(target.history);
-      setHistoryIndex(target.historyIndex);
-      setPan(target.pan);
-      setScale(target.scale);
-      
+      setNodes(target.nodes || []);
+      setConnections(target.connections || []);
+      setPaintActions(target.paintActions || []);
+      setHistory(target.history || []);
+      setHistoryIndex(target.historyIndex ?? -1);
+      setPan(target.pan || { x: 0, y: 0 });
+      setScale(target.scale || 1);
+
       setActiveSheetIndex(index);
   };
 

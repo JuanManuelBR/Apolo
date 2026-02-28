@@ -280,7 +280,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
     <div className="max-w-5xl mx-auto">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Panel Izquierdo */}
-        <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-6`}>
+        <div className={`${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-4 md:p-6`}>
           <div className="text-center">
             <h3 className={`text-sm font-medium mb-4 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
               Mi Perfil
@@ -318,7 +318,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
         </div>
 
         {/* Panel Derecho */}
-        <div className={`lg:col-span-2 ${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-6`}>
+        <div className={`lg:col-span-2 ${darkMode ? 'bg-slate-900' : 'bg-white'} rounded-lg shadow-sm p-4 md:p-6`}>
           <div className="flex items-center justify-between mb-6">
             <div>
               <h2 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>

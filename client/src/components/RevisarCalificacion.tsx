@@ -14,10 +14,21 @@ import {
   Code2,
   PenLine,
   Maximize2,
+  Table2,
   X,
+  Clock,
+  User,
+  Hash,
 } from "lucide-react";
 import { examsAttemptsService } from "../services/examsAttempts";
+import PageLoader from "./PageLoader";
+import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
+import logoUniversidad from "../../assets/logo-universidad.webp";
 import Lienzo from "./Lienzo";
+import HojaCalculo from "./HojaCalculo";
+import EditorPython from "./EditorPython";
+import EditorJavaScript from "./EditorJavaScript";
+import EditorTexto from "./EditorTexto";
 
 // ============================================
 // INTERFACES
@@ -30,6 +41,7 @@ interface RevisarCalificacionProps {
   hideHeader?: boolean;
   readOnly?: boolean;
   codigoRevision?: string;
+  studentMode?: boolean;
 }
 
 interface RespuestaPDF {
@@ -150,6 +162,7 @@ export default function RevisarCalificacion({
   hideHeader = false,
   readOnly = false,
   codigoRevision,
+  studentMode = false,
 }: RevisarCalificacionProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -294,14 +307,7 @@ export default function RevisarCalificacion({
   // LOADING / ERROR
   // ============================================
   if (loading) {
-    return (
-      <div className="h-full flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 animate-pulse">
-          <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          <p className={`text-xl font-medium ${darkMode ? "text-slate-400" : "text-slate-500"}`}>Cargando revisión...</p>
-        </div>
-      </div>
-    );
+    return <PageLoader darkMode={darkMode} mensaje="Cargando revisión..." inline />;
   }
 
   if (error || !details) {
@@ -331,13 +337,162 @@ export default function RevisarCalificacion({
   // RENDER - Layout idéntico a ExamPanel / VerExamen
   // ============================================
   return (
-    <div className={`h-full flex flex-col transition-colors duration-300 ${darkMode ? "bg-slate-900 text-gray-100" : "bg-white text-gray-900"}`}>
+    <div className={`h-full flex flex-col transition-colors duration-300 ${darkMode ? "bg-slate-900 text-gray-100" : "bg-slate-50 text-gray-900"}`}>
       <style>{scrollbarStyles}</style>
       <div className="flex-1 overflow-auto revisar-scroll">
-        <div className="w-full px-6 md:px-12 py-8">
 
-          {/* === HEADER === */}
-          <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+        {/* ===== STUDENT HEADER ===== */}
+        {studentMode && (
+          <>
+            {/* Navbar */}
+            <div className={`sticky top-0 z-20 flex items-center px-5 py-3 border-b backdrop-blur-sm ${darkMode ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-gray-200"}`}>
+              {!hideHeader && (
+                <button onClick={onVolver} className={`flex items-center gap-1.5 text-sm font-medium transition-colors shrink-0 ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>
+                  <ArrowLeft className="w-4 h-4" />
+                  Salir
+                </button>
+              )}
+              <div className="flex-1 flex justify-center">
+                <img
+                  src={darkMode ? logoUniversidadNoche : logoUniversidad}
+                  alt="Universidad de Ibagué"
+                  className="h-16 object-contain"
+                />
+              </div>
+              {!hideHeader && <div className="shrink-0 w-14" />}
+            </div>
+
+            {/* Result card */}
+            {(() => {
+              const accentStripe = intento.calificacionPendiente
+                ? "from-amber-400 to-yellow-400"
+                : intento.notaFinal != null && intento.notaFinal >= 3
+                  ? "from-emerald-400 to-teal-500"
+                  : intento.notaFinal != null
+                    ? "from-rose-400 to-red-500"
+                    : "from-blue-400 to-indigo-500";
+              const gradeColor = intento.calificacionPendiente
+                ? (darkMode ? "text-amber-400" : "text-amber-500")
+                : intento.notaFinal != null && intento.notaFinal >= 3
+                  ? (darkMode ? "text-emerald-400" : "text-emerald-500")
+                  : intento.notaFinal != null
+                    ? (darkMode ? "text-rose-400" : "text-rose-500")
+                    : (darkMode ? "text-slate-400" : "text-slate-400");
+              return (
+                <div className="px-4 md:px-10 pt-6 pb-2">
+                  <div className={`rounded-2xl border overflow-hidden shadow-lg ${darkMode ? "bg-slate-800 border-slate-700" : "bg-white border-gray-200"}`}>
+                    {/* Accent top stripe */}
+                    <div className={`h-1.5 bg-gradient-to-r ${accentStripe}`} />
+
+                    {/* Main row */}
+                    <div className="flex items-center gap-4 px-5 py-4">
+                      {/* Left: exam info */}
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                          Resultados del examen
+                        </p>
+                        <h1 className={`text-lg md:text-xl font-extrabold leading-tight truncate ${darkMode ? "text-white" : "text-slate-900"}`}>
+                          {examen.nombre}
+                        </h1>
+                        <p className={`text-xs mt-0.5 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                          Profesor: {examen.nombreProfesor}
+                        </p>
+                        {/* Chips */}
+                        <div className="flex flex-wrap gap-1.5 mt-3">
+                          <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${darkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+                            <User className="w-3 h-3" />{intento.nombre_estudiante}
+                          </span>
+                          {(estadisticas.tiempoTotal ?? 0) > 0 && (
+                            <span className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-full ${darkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-600"}`}>
+                              <Clock className="w-3 h-3" />
+                              {Math.floor(estadisticas.tiempoTotal! / 60)}m {estadisticas.tiempoTotal! % 60}s
+                            </span>
+                          )}
+                          {intento.codigo_acceso && (
+                            <span className={`flex items-center gap-1 text-xs font-mono px-2.5 py-1 rounded-full ${darkMode ? "bg-amber-900/30 text-amber-400" : "bg-amber-50 text-amber-700 border border-amber-200"}`}>
+                              <Hash className="w-3 h-3" />{intento.codigo_acceso}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Divider */}
+                      <div className={`w-px self-stretch mx-1 ${darkMode ? "bg-slate-700" : "bg-gray-200"}`} />
+
+                      {/* Right: grade */}
+                      <div className="flex flex-col items-center gap-1.5 shrink-0 min-w-[90px]">
+                        <p className={`text-[10px] font-bold uppercase tracking-widest ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Nota Final</p>
+                        <p className={`text-5xl font-black leading-none ${gradeColor}`}>
+                          {intento.notaFinal != null ? intento.notaFinal : "--"}
+                        </p>
+                        <p className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ 5.0</p>
+                        {intento.calificacionPendiente ? (
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${darkMode ? "bg-amber-900/20 text-amber-400 border-amber-500/30" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
+                            Pendiente
+                          </span>
+                        ) : intento.notaFinal != null ? (
+                          <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${
+                            intento.notaFinal >= 3
+                              ? (darkMode ? "bg-emerald-900/30 text-emerald-400 border border-emerald-500/30" : "bg-emerald-50 text-emerald-700 border border-emerald-200")
+                              : (darkMode ? "bg-rose-900/30 text-rose-400 border border-rose-500/30" : "bg-rose-50 text-rose-700 border border-rose-200")
+                          }`}>
+                            {intento.notaFinal >= 3 ? "Aprobado" : "Reprobado"}
+                          </span>
+                        ) : null}
+                      </div>
+                    </div>
+
+                    {/* Stats strip */}
+                    <div className={`border-t grid divide-x ${darkMode ? "border-slate-700 divide-slate-700 bg-slate-800/40" : "border-gray-200 divide-gray-200 bg-slate-50"} ${isPDF ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
+                      {isPDF ? (
+                        <>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Respuestas</p>
+                            <p className={`text-xl font-black ${darkMode ? "text-white" : "text-slate-800"}`}>{estadisticas.totalRespuestas ?? 0}</p>
+                          </div>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Estado</p>
+                            <p className={`text-sm font-bold ${intento.calificacionPendiente ? (darkMode ? "text-amber-400" : "text-amber-600") : (darkMode ? "text-emerald-400" : "text-emerald-600")}`}>
+                              {intento.calificacionPendiente ? "Pendiente" : "Calificado"}
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Correctas</p>
+                            <p className={`text-xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+                              {estadisticas.preguntasCorrectas}<span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{estadisticas.totalPreguntas}</span>
+                            </p>
+                          </div>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Puntaje</p>
+                            <p className={`text-xl font-black ${darkMode ? "text-white" : "text-slate-800"}`}>
+                              {intento.puntaje}<span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{intento.puntajeMaximo}</span>
+                            </p>
+                          </div>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Respondidas</p>
+                            <p className={`text-xl font-black ${darkMode ? "text-white" : "text-slate-800"}`}>{estadisticas.preguntasRespondidas}</p>
+                          </div>
+                          <div className="px-4 py-3 text-center">
+                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Sin responder</p>
+                            <p className={`text-xl font-black ${darkMode ? "text-rose-400" : "text-rose-500"}`}>{estadisticas.preguntasSinResponder}</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </>
+        )}
+
+        <div className={studentMode ? "px-6 md:px-10 py-8" : "w-full px-6 md:px-12 py-8"}>
+
+          {/* === HEADER (modo profesor) === */}
+          {!studentMode && <header className={`mb-10 border-b pb-8 ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
             {!hideHeader && (
               <button
                 onClick={onVolver}
@@ -438,13 +593,14 @@ export default function RevisarCalificacion({
                 </div>
               </div>
             )}
-          </header>
+          </header>}
 
           {/* ===== PDF MODE ===== */}
           {isPDF && (
             <div className="space-y-8">
               {/* Panel de calificación */}
               {readOnly ? (
+                intento.retroalimentacion ? (
                 <div className={`rounded-2xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-700" : "bg-white border-gray-200"}`}>
                   <div className={`px-6 py-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-slate-50"}`}>
                     <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
@@ -455,15 +611,12 @@ export default function RevisarCalificacion({
                     </span>
                   </div>
                   <div className="p-6">
-                    {intento.retroalimentacion ? (
-                      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                        {intento.retroalimentacion}
-                      </p>
-                    ) : (
-                      <p className={`text-sm italic ${darkMode ? "text-slate-600" : "text-slate-400"}`}>Sin retroalimentación</p>
-                    )}
+                    <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                      {intento.retroalimentacion}
+                    </p>
                   </div>
                 </div>
+                ) : null
               ) : (
               <div className={`rounded-2xl border shadow-sm overflow-hidden ${darkMode ? "bg-slate-800/60 border-slate-700" : "bg-white border-gray-200"}`}>
                 <div className={`px-6 py-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/80" : "border-gray-200 bg-slate-50"}`}>
@@ -583,9 +736,32 @@ export default function RevisarCalificacion({
                   </div>
                 ) : (
                   <div className="space-y-6">
-                    {(respuestasPDF || []).map((resp, idx) => (
-                      <RenderPDFRespuesta key={resp.id} respuesta={resp} index={idx} darkMode={darkMode} />
-                    ))}
+                    {[...(respuestasPDF || [])]
+                      .filter(resp => {
+                        if (!["python", "javascript", "java"].includes(resp.tipo_respuesta)) return true;
+                        let content: any = resp.respuesta;
+                        if (typeof content === "string") { try { content = JSON.parse(content); } catch { return true; } }
+                        if (!Array.isArray(content) || content.length !== 1) return true;
+                        const cell = content[0];
+                        const defaults: Record<string, string> = { python: "# Editor Python", javascript: "# Editor JavaScript", java: "# Editor Java" };
+                        const cellContent = String(cell.content ?? "").trim();
+                        return !((cell.type === "markdown" || cell.type === "text") && (cellContent === defaults[resp.tipo_respuesta] || cellContent === ""));
+                      })
+                      .sort((a, b) => {
+                        const ORDER: Record<string, number> = {
+                          normal: 0, texto_plano: 0,
+                          hoja_calculo: 1,
+                          diagrama: 2,
+                          javascript: 3,
+                          python: 4,
+                          java: 5,
+                        };
+                        const oa = ORDER[a.tipo_respuesta] ?? 99;
+                        const ob = ORDER[b.tipo_respuesta] ?? 99;
+                        return oa - ob;
+                      }).map((resp, idx) => (
+                        <RenderPDFRespuesta key={resp.id} respuesta={resp} index={idx} darkMode={darkMode} disableRun={readOnly} tallContent={studentMode} />
+                      ))}
                   </div>
                 )}
               </div>
@@ -923,35 +1099,84 @@ const TIPO_LABELS: Record<string, string> = {
   javascript: "JavaScript",
   java: "Java",
   diagrama: "Diagrama / Lienzo",
+  hoja_calculo: "Hoja de Cálculo",
 };
 
-function RenderPDFRespuesta({ respuesta, index, darkMode }: { respuesta: RespuestaPDF; index: number; darkMode: boolean }) {
+function RenderPDFRespuesta({ respuesta, index, darkMode, disableRun = false, tallContent = false }: { respuesta: RespuestaPDF; index: number; darkMode: boolean; disableRun?: boolean; tallContent?: boolean }) {
   const tipo = respuesta.tipo_respuesta;
-  const content = respuesta.respuesta;
+  // Ensure structured types are always parsed objects/strings, not raw JSON-encoded values
+  const content = (() => {
+    const raw = respuesta.respuesta;
+    if (typeof raw === "string") {
+      try { return JSON.parse(raw); } catch { return raw; }
+    }
+    return raw;
+  })();
   const meta = respuesta.metadata_codigo;
   const label = TIPO_LABELS[tipo] || tipo;
   const [showDiagramModal, setShowDiagramModal] = useState(false);
+  const [showSpreadsheetModal, setShowSpreadsheetModal] = useState(false);
+
+  const [runMode, setRunMode] = useState(false);
 
   const borderColor = darkMode ? "border-slate-700" : "border-gray-200";
   const cardBg = darkMode ? "bg-slate-800/60" : "bg-white";
   const headerBg = darkMode ? "bg-slate-800/80" : "bg-slate-50";
 
+  // Color accent por tipo
+  const TIPO_ACCENT: Record<string, { stripe: string; badge: string; icon: string }> = {
+    normal:       { stripe: "from-blue-400 to-indigo-500",    badge: darkMode ? "bg-blue-900/40 text-blue-300"    : "bg-blue-50 text-blue-600 border border-blue-200",    icon: darkMode ? "text-blue-400"    : "text-blue-500" },
+    texto_plano:  { stripe: "from-blue-400 to-indigo-500",    badge: darkMode ? "bg-blue-900/40 text-blue-300"    : "bg-blue-50 text-blue-600 border border-blue-200",    icon: darkMode ? "text-blue-400"    : "text-blue-500" },
+    hoja_calculo: { stripe: "from-emerald-400 to-teal-500",   badge: darkMode ? "bg-emerald-900/40 text-emerald-300" : "bg-emerald-50 text-emerald-600 border border-emerald-200", icon: darkMode ? "text-emerald-400" : "text-emerald-600" },
+    diagrama:     { stripe: "from-violet-400 to-purple-500",  badge: darkMode ? "bg-violet-900/40 text-violet-300" : "bg-violet-50 text-violet-600 border border-violet-200", icon: darkMode ? "text-violet-400"  : "text-violet-500" },
+    javascript:   { stripe: "from-amber-400 to-yellow-500",   badge: darkMode ? "bg-amber-900/40 text-amber-300"  : "bg-amber-50 text-amber-600 border border-amber-200",   icon: darkMode ? "text-amber-400"   : "text-amber-600" },
+    python:       { stripe: "from-sky-400 to-blue-500",       badge: darkMode ? "bg-sky-900/40 text-sky-300"      : "bg-sky-50 text-sky-600 border border-sky-200",         icon: darkMode ? "text-sky-400"     : "text-sky-500" },
+    java:         { stripe: "from-orange-400 to-red-500",     badge: darkMode ? "bg-orange-900/40 text-orange-300": "bg-orange-50 text-orange-600 border border-orange-200", icon: darkMode ? "text-orange-400"  : "text-orange-600" },
+  };
+  const accent = TIPO_ACCENT[tipo] ?? { stripe: "from-slate-400 to-slate-500", badge: darkMode ? "bg-slate-700 text-slate-300" : "bg-slate-100 text-slate-500 border border-slate-200", icon: darkMode ? "text-slate-400" : "text-slate-500" };
+
+  // Normaliza el contenido a array de celdas para pasarlo a los editores
+  const editorCells = (() => {
+    if (Array.isArray(content)) return content;
+    return [{ id: "1", type: "code", content: String(content ?? ""), status: "idle", output: [] }];
+  })();
+
   const tipoIcon = () => {
     if (tipo === "diagrama") return <PenLine className="w-4 h-4" />;
+    if (tipo === "hoja_calculo") return <Table2 className="w-4 h-4" />;
     if (["python", "javascript", "java"].includes(tipo)) return <Code2 className="w-4 h-4" />;
     return <FileText className="w-4 h-4" />;
   };
 
   return (
-    <div className={`rounded-2xl border shadow-sm overflow-hidden ${cardBg} ${borderColor}`}>
+    <div className={`rounded-2xl border overflow-hidden ${darkMode ? "shadow-sm" : "shadow-md"} ${cardBg} ${borderColor}`}>
+      {/* Franja de color por tipo */}
+      <div className={`h-1.5 bg-gradient-to-r ${accent.stripe}`} />
+
       <div className={`px-5 py-3 border-b flex items-center gap-3 ${headerBg} ${borderColor}`}>
-        <span className={`p-1.5 rounded-md ${darkMode ? "bg-slate-700 text-slate-300" : "bg-white text-slate-500 border border-gray-200"}`}>
-          {tipoIcon()}
+        {/* Número */}
+        <span className={`w-7 h-7 flex items-center justify-center rounded-lg text-xs font-black shrink-0 ${accent.badge}`}>
+          {index + 1}
         </span>
-        <span className={`font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
-          Respuesta {index + 1}
+        {/* Icono + nombre del tipo */}
+        <span className={`flex items-center gap-1.5 flex-1 font-semibold text-sm ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+          <span className={accent.icon}>{tipoIcon()}</span>
+          {label}
         </span>
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {(tipo === "python" || tipo === "javascript") && !disableRun && (
+            <button
+              onClick={() => setRunMode(r => !r)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                runMode
+                  ? darkMode ? "bg-emerald-700 text-white border-emerald-600 hover:bg-emerald-600" : "bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700"
+                  : darkMode ? "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <Code2 className="w-3.5 h-3.5" />
+              {runMode ? "Ver código" : "Ejecutar"}
+            </button>
+          )}
           {tipo === "diagrama" && content?.sheets && (
             <button
               onClick={() => setShowDiagramModal(true)}
@@ -961,52 +1186,131 @@ function RenderPDFRespuesta({ respuesta, index, darkMode }: { respuesta: Respues
               Ampliar
             </button>
           )}
-          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${darkMode ? "bg-slate-700 text-slate-400 border-slate-600" : "bg-slate-100 text-slate-500 border-slate-200"}`}>
-            {label}
-          </span>
+          {tipo === "hoja_calculo" && content?.sheets && (
+            <button
+              onClick={() => setShowSpreadsheetModal(true)}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${darkMode ? "bg-slate-700 text-slate-300 border-slate-600 hover:bg-slate-600" : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50"}`}
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              Ampliar
+            </button>
+          )}
         </div>
       </div>
-      <div className="p-5">
+      <div className={tallContent ? "p-7" : "p-5"}>
         {(tipo === "normal" || tipo === "texto_plano") && (
-          <div className={`w-full min-h-[80px] p-4 rounded-xl border-2 whitespace-pre-wrap text-base ${darkMode ? "bg-slate-900/40 border-slate-700 text-slate-200" : "bg-gray-50 border-gray-200 text-slate-700"}`}>
-            {String(content || "") || <span className="italic opacity-40">Sin contenido</span>}
-          </div>
+          content
+            ? <EditorTexto readOnly value={String(content)} darkMode={darkMode} minHeight="80px" />
+            : <div className={`w-full min-h-[80px] p-4 rounded-xl border-2 text-sm italic opacity-50 ${darkMode ? "bg-slate-900/40 border-slate-700 text-slate-400" : "bg-gray-50 border-gray-200 text-slate-400"}`}>Sin contenido</div>
         )}
 
         {["python", "javascript", "java"].includes(tipo) && (
           <div className="space-y-3">
-            {/* Code cells */}
-            {Array.isArray(content) ? (
-              content.map((cell: any, ci: number) => (
-                <div key={ci} className="space-y-1">
-                  {cell.type === "code" || !cell.type ? (
-                    <pre className={`p-4 rounded-xl border-2 font-mono text-sm overflow-x-auto ${darkMode ? "bg-slate-900 border-slate-700 text-emerald-300" : "bg-slate-900 border-slate-700 text-emerald-400"}`}>
-                      <code>{String(cell.content ?? cell.code ?? cell ?? "")}</code>
-                    </pre>
-                  ) : (
-                    <div className={`p-3 rounded-lg border text-sm ${darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-white border-gray-200 text-slate-700"}`}>
-                      {String(cell.content ?? cell ?? "")}
-                    </div>
-                  )}
-                  {cell.output && (
-                    <pre className={`p-3 rounded-lg border text-xs font-mono overflow-x-auto ${darkMode ? "bg-black/40 border-slate-800 text-slate-400" : "bg-gray-100 border-gray-200 text-gray-600"}`}>
-                      {String(cell.output)}
-                    </pre>
-                  )}
-                </div>
-              ))
-            ) : (
-              <pre className={`p-4 rounded-xl border-2 font-mono text-sm overflow-x-auto ${darkMode ? "bg-slate-900 border-slate-700 text-emerald-300" : "bg-slate-900 border-slate-700 text-emerald-400"}`}>
-                <code>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</code>
-              </pre>
-            )}
-            {/* Metadata summary */}
-            {meta && (
-              <div className={`flex gap-4 text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
-                {meta.totalCells != null && <span>{meta.totalCells} celda(s)</span>}
-                {meta.codeCells != null && <span>{meta.codeCells} de código</span>}
-                {meta.textCells != null && <span>{meta.textCells} de texto</span>}
+            {/* Editor de ejecución (solo Python y JavaScript) */}
+            {runMode && tipo === "python" && (
+              <div style={{ minHeight: 400 }}>
+                <EditorPython darkMode={darkMode} initialCells={editorCells} viewMode />
               </div>
+            )}
+            {runMode && tipo === "javascript" && (
+              <div style={{ minHeight: 400 }}>
+                <EditorJavaScript darkMode={darkMode} initialCells={editorCells} viewMode />
+              </div>
+            )}
+
+            {/* Vista estática del código (cuando no está en runMode o es Java) */}
+            {(!runMode || tipo === "java") && (
+              <>
+                {Array.isArray(content) ? (
+                  content.map((cell: any, ci: number) => {
+                    const cellContent = String(cell.content ?? cell.code ?? cell ?? "");
+                    const rawOutput = cell.output;
+                    const cellOutput = Array.isArray(rawOutput)
+                      ? rawOutput.join("\n")
+                      : rawOutput ? String(rawOutput) : "";
+                    const isMarkdown = cell.type === "markdown";
+                    const isHtml = cell.type === "html";
+                    const isSuccess = cell.status === "success";
+                    const isError = cell.status === "error";
+                    const hasOutput = cellOutput.trim().length > 0;
+
+                    return (
+                      <div key={ci} className={`rounded-xl overflow-hidden border ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                        {/* Header de celda */}
+                        <div className={`flex items-center gap-2 px-3 py-1.5 border-b text-xs ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-gray-200"}`}>
+                          <span className={`font-mono font-bold text-[10px] ${darkMode ? "text-slate-500" : "text-slate-400"}`}>[{ci + 1}]</span>
+                          <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${
+                            isMarkdown
+                              ? darkMode ? "bg-blue-900/50 text-blue-300" : "bg-blue-50 text-blue-600"
+                              : isHtml
+                              ? darkMode ? "bg-orange-900/50 text-orange-300" : "bg-orange-50 text-orange-600"
+                              : tipo === "python"
+                              ? darkMode ? "bg-yellow-900/50 text-yellow-300" : "bg-yellow-50 text-yellow-700"
+                              : darkMode ? "bg-emerald-900/50 text-emerald-300" : "bg-emerald-50 text-emerald-700"
+                          }`}>
+                            {isMarkdown ? "texto" : isHtml ? "HTML" : tipo === "python" ? "Python" : tipo === "java" ? "Java" : "JavaScript"}
+                          </span>
+                          {(isSuccess || isError) && (
+                            <span className={`ml-auto flex items-center gap-1 font-medium ${isSuccess ? "text-emerald-400" : "text-red-400"}`}>
+                              <span>{isSuccess ? "✓" : "✗"}</span>
+                              {cell.executionTime != null && <span className="text-[10px] opacity-70">{cell.executionTime}ms</span>}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Contenido: markdown o código */}
+                        {isMarkdown ? (
+                          <div className={`px-4 py-3 text-sm leading-relaxed ${darkMode ? "bg-slate-800/40 text-slate-300" : "bg-slate-50/50 text-slate-700"}`}>
+                            {cellContent.split("\n").map((line, li) => {
+                              if (line.startsWith("### ")) return <h3 key={li} className="text-sm font-bold mt-1 mb-0.5">{line.slice(4)}</h3>;
+                              if (line.startsWith("## ")) return <h2 key={li} className="text-base font-bold mt-1 mb-0.5">{line.slice(3)}</h2>;
+                              if (line.startsWith("# ")) return <h1 key={li} className="text-lg font-bold mt-1 mb-0.5">{line.slice(2)}</h1>;
+                              return <p key={li} className={line.trim() ? "mb-0.5" : "h-2"}>{line || ""}</p>;
+                            })}
+                          </div>
+                        ) : (
+                          <pre className={`px-4 py-3 font-mono text-sm overflow-x-auto leading-relaxed whitespace-pre-wrap break-words ${darkMode ? "bg-[#0d1117] text-emerald-300" : "bg-gray-950 text-emerald-400"}`}>
+                            <code>{cellContent}</code>
+                          </pre>
+                        )}
+
+                        {/* Output */}
+                        {hasOutput && (
+                          <div className={`border-t px-4 py-2.5 ${
+                            isError
+                              ? darkMode ? "bg-red-900/20 border-red-800" : "bg-red-50 border-red-200"
+                              : darkMode ? "bg-slate-800/60 border-slate-700" : "bg-slate-50 border-slate-200"
+                          }`}>
+                            <div className={`flex items-center gap-1.5 mb-1 text-[10px] font-semibold uppercase tracking-wider ${isError ? "text-red-400" : darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                              <span>{isError ? "✗" : "▶"}</span>
+                              <span>Output</span>
+                            </div>
+                            <pre className={`text-xs font-mono whitespace-pre-wrap ${isError ? "text-red-300" : darkMode ? "text-slate-300" : "text-slate-600"}`}>{cellOutput}</pre>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                ) : (
+                  <div className={`rounded-xl overflow-hidden border ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
+                    <div className={`flex items-center gap-2 px-3 py-1.5 border-b text-xs ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-slate-100 border-gray-200 text-slate-500"}`}>
+                      <span className="font-mono font-bold text-[10px] opacity-50">[1]</span>
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wide ${darkMode ? "bg-emerald-900/50 text-emerald-300" : "bg-emerald-50 text-emerald-700"}`}>{tipo}</span>
+                    </div>
+                    <pre className={`px-4 py-3 font-mono text-sm overflow-x-auto leading-relaxed whitespace-pre-wrap break-words ${darkMode ? "bg-[#0d1117] text-emerald-300" : "bg-gray-950 text-emerald-400"}`}>
+                      <code>{typeof content === "string" ? content : JSON.stringify(content, null, 2)}</code>
+                    </pre>
+                  </div>
+                )}
+                {/* Metadata summary */}
+                {meta && (
+                  <div className={`flex gap-4 text-xs pt-1 ${darkMode ? "text-slate-600" : "text-slate-400"}`}>
+                    {meta.totalCells != null && <span>{meta.totalCells} celda(s)</span>}
+                    {meta.codeCells != null && <span>{meta.codeCells} de código</span>}
+                    {meta.textCells != null && <span>{meta.textCells} de texto</span>}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -1035,17 +1339,25 @@ function RenderPDFRespuesta({ respuesta, index, darkMode }: { respuesta: Respues
                       onClick={() => setShowDiagramModal(false)}
                     />
                     <div
-                      className={`relative w-full h-full max-w-[95vw] max-h-[90vh] rounded-2xl overflow-hidden shadow-2xl border ${darkMode ? "border-slate-700" : "border-slate-200"}`}
+                      className={`relative w-full h-full max-w-[95vw] max-h-[90vh] rounded-2xl shadow-2xl border flex flex-col overflow-hidden ${darkMode ? "border-slate-700" : "border-slate-200"}`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        onClick={() => setShowDiagramModal(false)}
-                        className="absolute top-3 right-3 z-10 p-2 rounded-xl bg-white/90 dark:bg-slate-800/90 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500 border border-slate-200 dark:border-slate-700 shadow transition-colors"
-                        title="Cerrar"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                      <Lienzo readOnly darkMode={darkMode} initialData={content} />
+                      {/* Barra de cierre */}
+                      <div className={`flex items-center justify-between px-4 py-2 flex-shrink-0 border-b ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-200"}`}>
+                        <span className={`text-xs font-semibold flex items-center gap-1.5 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                          <PenLine className="w-3.5 h-3.5" /> Diagrama
+                        </span>
+                        <button
+                          onClick={() => setShowDiagramModal(false)}
+                          className={`p-1.5 rounded-lg transition-colors ${darkMode ? "text-slate-400 hover:bg-red-900/30 hover:text-red-400" : "text-slate-500 hover:bg-red-50 hover:text-red-500"}`}
+                          title="Cerrar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-hidden">
+                        <Lienzo readOnly darkMode={darkMode} initialData={content} />
+                      </div>
                     </div>
                   </div>,
                   document.body
@@ -1055,6 +1367,72 @@ function RenderPDFRespuesta({ respuesta, index, darkMode }: { respuesta: Respues
               <div className={`p-5 rounded-xl border-2 border-dashed text-center text-sm ${darkMode ? "border-slate-600 text-slate-500" : "border-gray-300 text-gray-400"}`}>
                 <PenLine className="w-6 h-6 mx-auto mb-2 opacity-40" />
                 <p>Sin datos del diagrama.</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {tipo === "hoja_calculo" && (
+          <div className="space-y-3">
+            {content && content.sheets ? (
+              <>
+                {/* Preview clicable */}
+                <div
+                  className="rounded-xl overflow-hidden cursor-pointer border border-gray-200 dark:border-slate-700"
+                  style={{ height: 400 }}
+                  onClick={() => setShowSpreadsheetModal(true)}
+                  title="Hacer clic para ampliar"
+                >
+                  <div className="pointer-events-none w-full h-full">
+                    <HojaCalculo readOnly darkMode={darkMode} initialData={content} />
+                  </div>
+                </div>
+
+                {/* Metadata summary */}
+                {meta && (
+                  <div className={`flex gap-4 text-xs ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                    {meta.sheetsCount != null && <span>{meta.sheetsCount} hoja(s)</span>}
+                    {meta.totalCells != null && <span>{meta.totalCells} celda(s)</span>}
+                    {meta.chartsCount != null && meta.chartsCount > 0 && <span>{meta.chartsCount} gráfica(s)</span>}
+                  </div>
+                )}
+
+                {/* Modal pantalla completa */}
+                {showSpreadsheetModal && createPortal(
+                  <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+                    <div
+                      className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+                      onClick={() => setShowSpreadsheetModal(false)}
+                    />
+                    <div
+                      className={`relative w-full h-full max-w-[95vw] max-h-[90vh] rounded-2xl shadow-2xl border flex flex-col overflow-hidden ${darkMode ? "border-slate-700" : "border-slate-200"}`}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      {/* Barra de cierre */}
+                      <div className={`flex items-center justify-between px-4 py-2 flex-shrink-0 border-b ${darkMode ? "bg-slate-800 border-slate-700" : "bg-slate-100 border-slate-200"}`}>
+                        <span className={`text-xs font-semibold flex items-center gap-1.5 ${darkMode ? "text-slate-300" : "text-slate-600"}`}>
+                          <Table2 className="w-3.5 h-3.5" /> Hoja de Cálculo
+                        </span>
+                        <button
+                          onClick={() => setShowSpreadsheetModal(false)}
+                          className={`p-1.5 rounded-lg transition-colors ${darkMode ? "text-slate-400 hover:bg-red-900/30 hover:text-red-400" : "text-slate-500 hover:bg-red-50 hover:text-red-500"}`}
+                          title="Cerrar"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <div className="flex-1 min-h-0 overflow-hidden">
+                        <HojaCalculo readOnly darkMode={darkMode} initialData={content} />
+                      </div>
+                    </div>
+                  </div>,
+                  document.body
+                )}
+              </>
+            ) : (
+              <div className={`p-5 rounded-xl border-2 border-dashed text-center text-sm ${darkMode ? "border-slate-600 text-slate-500" : "border-gray-300 text-gray-400"}`}>
+                <Table2 className="w-6 h-6 mx-auto mb-2 opacity-40" />
+                <p>Sin datos de la hoja de cálculo.</p>
               </div>
             )}
           </div>
