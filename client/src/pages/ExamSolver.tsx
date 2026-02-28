@@ -1673,7 +1673,7 @@ export default function SecureExamPlatform() {
   return (
     <div 
       ref={fullscreenRef} 
-      className={`h-screen relative font-sans ${darkMode ? 'bg-slate-900' : 'bg-white'}`}
+      className={`h-screen relative font-sans anim-fadeIn ${darkMode ? 'bg-slate-900' : 'bg-white'}`}
     >
       {/* Estilos de Scrollbar personalizados (Sincronizados con CrearExamen) */}
       <style>{`

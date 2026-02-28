@@ -737,9 +737,9 @@ export default function ListaExamenes({
                           {estado}
                         </span>
                       </div>
-                      <div className="flex items-center gap-3 text-xs opacity-80">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs opacity-80">
                         <span
-                          className={`flex items-center gap-1.5 ${
+                          className={`flex items-center gap-1.5 whitespace-nowrap ${
                             darkMode ? "text-gray-400" : "text-gray-600"
                           }`}
                         >
@@ -874,7 +874,7 @@ export default function ListaExamenes({
                         </button>
                       </div>
 
-                      <div className="flex items-center">
+                      <div className="hidden sm:flex items-center">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -893,7 +893,7 @@ export default function ListaExamenes({
                         </button>
                       </div>
 
-                      <div className="flex items-center">
+                      <div className="hidden sm:flex items-center">
                         <button
                           onClick={async (e) => {
                             e.stopPropagation();

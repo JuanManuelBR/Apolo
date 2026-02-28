@@ -836,12 +836,12 @@ export default function VigilanciaExamenesLista({
     <>
       <style>{`.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; } .scrollbar-hide::-webkit-scrollbar { display: none; }`}</style>
       
-      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-6 px-2 md:px-12 md:overflow-hidden">
+      <div className="flex flex-col md:flex-row h-auto md:h-[calc(100vh-140px)] gap-3 md:gap-3 lg:gap-6 px-2 md:px-4 lg:px-12 md:overflow-hidden">
         
         {/* =======================================================
             PANEL IZQUIERDO
            ======================================================= */}
-        <div className="w-full md:w-80 flex flex-col gap-3 md:gap-4 flex-shrink-0 md:overflow-hidden">
+        <div className="w-full md:w-56 lg:w-80 flex flex-col gap-3 md:gap-3 lg:gap-4 flex-shrink-0 md:overflow-hidden">
           
           <div className={`p-4 rounded-2xl shadow-sm flex-shrink-0 border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-100"}`}>
             <div className="flex items-start justify-between mb-4">
@@ -927,28 +927,6 @@ export default function VigilanciaExamenesLista({
            ======================================================= */}
         <div className="flex-1 flex flex-col gap-5 min-w-0 md:overflow-hidden">
           
-          {/* Stats Cards */}
-          {examenActual && (
-            <div className="hidden md:grid md:grid-cols-4 gap-4 flex-shrink-0">
-              {[
-                { label: "Han empezado", val: contadores.hanEmpezado, icon: Activity, colorClass: "bg-blue-500 shadow-blue-200" },
-                { label: "Han enviado", val: contadores.hanEnviado, icon: Send, colorClass: "bg-emerald-500 shadow-emerald-200" },
-                { label: "En curso", val: contadores.enCurso, icon: Clock, colorClass: "bg-amber-500 shadow-amber-200" },
-                { label: "Bloqueados", val: contadores.bloqueados, icon: Ban, colorClass: "bg-rose-500 shadow-rose-200" },
-              ].map((stat, idx) => (
-                <div key={idx} className={`rounded-xl md:rounded-2xl p-2 md:p-4 flex flex-col md:flex-row items-center md:justify-between shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800 shadow-none" : "bg-white border-slate-100"}`}>
-                    <div className="text-center md:text-left w-full">
-                        <p className={`text-[7px] md:text-[11px] font-bold uppercase tracking-wider mb-0.5 md:mb-1 leading-tight ${darkMode ? "text-slate-500" : "text-slate-400"}`}>{stat.label}</p>
-                        <p className={`text-lg md:text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{stat.val}</p>
-                    </div>
-                    <div className={`w-6 h-6 md:w-10 md:h-10 rounded-lg md:rounded-xl flex items-center justify-center text-white mt-1 md:mt-0 flex-shrink-0 ${stat.colorClass} ${darkMode ? "shadow-none" : "shadow-lg"}`}>
-                        <stat.icon className="w-3 h-3 md:w-5 md:h-5" />
-                    </div>
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Contenido Principal */}
           <div className={`flex flex-col md:flex-1 md:overflow-hidden rounded-2xl shadow-sm border ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
             
@@ -974,14 +952,14 @@ export default function VigilanciaExamenesLista({
               // ================= VISTA LISTA DE ESTUDIANTES =================
               <div className={`flex flex-col md:h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-fadeIn"}`}>
                 
-                <div className="p-3 sm:p-6 pb-3 sm:pb-4 flex-shrink-0">
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div className="p-3 md:p-4 lg:p-6 pb-3 md:pb-3 lg:pb-4 flex-shrink-0">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                         <div>
-                            <h1 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
-                            <p className={`text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{estudiantesFiltrados.length} estudiantes mostrados</p>
+                            <h1 className={`text-lg lg:text-2xl font-bold ${darkMode ? "text-white" : "text-slate-800"}`}>{examenActual.nombre}</h1>
+                            <p className={`text-xs lg:text-sm ${darkMode ? "text-slate-400" : "text-slate-500"}`}>{estudiantesFiltrados.length} estudiantes mostrados</p>
                         </div>
-                        
-                        <div className="flex items-center gap-2">
+
+                        <div className="flex flex-wrap items-center gap-2">
                             {examenActual.estado === "open" && (
                                 <>
                                     <button
@@ -1038,7 +1016,7 @@ export default function VigilanciaExamenesLista({
                         </div>
                     </div>
 
-                    <div className="w-full">
+                    <div className="w-full mt-1">
                         <div className="flex gap-2">
                             <button
                                 onClick={() => setModoPrivacidad(!modoPrivacidad)}
@@ -1093,7 +1071,7 @@ export default function VigilanciaExamenesLista({
                 </div>
 
                 {/* Desktop: tabs */}
-                <div className={`hidden md:flex gap-1 px-6 flex-shrink-0 mb-4 border-b ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
+                <div className={`hidden md:flex gap-1 px-3 lg:px-6 flex-shrink-0 mb-4 border-b ${darkMode ? "border-slate-800" : "border-slate-100"}`}>
                    {[
                       { key: "todos" as FiltroEstado, label: "Todos", count: contadores.todos },
                       { key: "activos" as FiltroEstado, label: "En Curso", count: contadores.activos },
@@ -1116,7 +1094,7 @@ export default function VigilanciaExamenesLista({
                    ))}
                 </div>
 
-                <div className="md:flex-1 md:overflow-y-auto px-3 sm:px-6 pb-4 scrollbar-hide">
+                <div className="md:flex-1 md:overflow-y-auto px-3 md:px-4 lg:px-6 pb-4 scrollbar-hide">
                    {estudiantesFiltrados.length === 0 ? (
                       <div className={`h-64 flex flex-col items-center justify-center ${darkMode ? "text-slate-400" : "text-slate-400"}`}>
                          <p>No se encontraron estudiantes</p>
@@ -1230,7 +1208,7 @@ export default function VigilanciaExamenesLista({
             ) : (
               // ================= VISTA DETALLE ESTUDIANTE =================
               <div className={`flex flex-col md:h-full ${vistaTransicionando ? "anim-fadeOut" : "anim-slideUp"} ${darkMode ? "bg-slate-900/50" : "bg-white"}`}>
-                 <div className={`px-3 sm:px-6 py-3 sm:py-4 border-b flex flex-wrap items-center justify-between gap-2 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
+                 <div className={`px-3 md:px-4 lg:px-6 py-3 md:py-3 lg:py-4 border-b flex flex-wrap items-center justify-between gap-2 ${darkMode ? "bg-slate-900 border-slate-800" : "bg-white border-slate-200"}`}>
                     <button onClick={handleVolverLista} className={`flex items-center gap-2 text-sm font-medium transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>
                        <div className={`p-1.5 rounded-lg border ${darkMode ? "border-slate-700 bg-slate-800" : "border-slate-200 bg-slate-50"}`}>
                            <ArrowLeft className="w-4 h-4" />
@@ -1259,7 +1237,7 @@ export default function VigilanciaExamenesLista({
                  </div>
 
                  <div className="md:flex-1 flex flex-col md:min-h-0">
-                     <div className={`p-3 sm:p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
+                     <div className={`p-3 md:p-4 lg:p-6 pb-0 flex-shrink-0 ${darkMode ? "bg-transparent" : "bg-white"}`}>
 
                      <div className="flex items-center gap-4 mb-4 relative overflow-hidden">
                         {/* Stamp de nota - sello grande rotado semi-transparente */}
@@ -1384,7 +1362,7 @@ export default function VigilanciaExamenesLista({
                      </div>
                      </div>
 
-                     <div className={`md:flex-1 md:overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-6 scrollbar-hide ${darkMode ? "bg-transparent" : "bg-white"}`}>
+                     <div className={`md:flex-1 md:overflow-y-auto px-3 md:px-4 lg:px-6 pb-4 lg:pb-6 scrollbar-hide ${darkMode ? "bg-transparent" : "bg-white"}`}>
                         <h3 className={`text-sm font-bold mb-4 flex items-center gap-2 sticky top-0 py-2 z-10 backdrop-blur-sm ${darkMode ? "bg-slate-900/95 text-white" : "bg-white/95 text-slate-800"}`}>
                             <Activity className="w-4 h-4 text-teal-500" />
                             Registro de Actividad
@@ -1510,13 +1488,17 @@ export default function VigilanciaExamenesLista({
                       ),
                     }));
                   }
-                  setModoRevision(false);
-                  mostrarModal(
-                    "exito",
-                    "Calificación guardada",
-                    `La nota ${notaFinal} ha sido registrada exitosamente.`,
-                    cerrarModal
-                  );
+                  // Solo cerrar automáticamente para exámenes PDF (una sola nota global).
+                  // Para exámenes normales con múltiples preguntas, el docente cierra manualmente.
+                  if (estudianteSeleccionado?.esExamenPDF) {
+                    setModoRevision(false);
+                    mostrarModal(
+                      "exito",
+                      "Calificación guardada",
+                      `La nota ${notaFinal} ha sido registrada exitosamente.`,
+                      cerrarModal
+                    );
+                  }
                 }}
               />
             </div>

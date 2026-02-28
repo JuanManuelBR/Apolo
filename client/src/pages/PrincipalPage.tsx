@@ -528,7 +528,7 @@ export default function LMSDashboard() {
       </div>
 
       {/* Main Content - SCROLL CONDICIONAL */}
-      <div className="flex-1 flex flex-col relative z-10" style={{ overflow: location.pathname === '/vigilancia' ? 'hidden' : 'auto' }}>
+      <div className={`flex-1 flex flex-col relative z-10 ${location.pathname === '/vigilancia' ? 'md:overflow-hidden overflow-auto' : 'overflow-auto'}`}>
         <header
           className="bg-transparent px-3 md:px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
@@ -555,7 +555,7 @@ export default function LMSDashboard() {
           </div>
         </header>
 
-        <main className={`flex-1 px-3 sm:px-5 md:px-8 py-4 md:py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'overflow-hidden' : 'overflow-auto'}`}>
+        <main className={`flex-1 px-3 sm:px-5 md:px-8 py-4 md:py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'md:overflow-hidden' : 'overflow-auto'}`}>
           {!tokenListo ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />

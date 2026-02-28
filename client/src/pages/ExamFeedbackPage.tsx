@@ -53,7 +53,7 @@ export default function ExamFeedbackPage() {
         </div>
 
         {/* Tarjeta de Cristal (Glassmorphism) que contiene el examen */}
-        <div className={`w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden border backdrop-blur-xl transition-all duration-500 ${darkMode ? "bg-slate-900/60 border-slate-700/50" : "bg-white/70 border-white/60"}`}>
+        <div className={`w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden border backdrop-blur-xl transition-all duration-500 anim-scaleIn ${darkMode ? "bg-slate-900/60 border-slate-700/50" : "bg-white/70 border-white/60"}`}>
           <RevisarCalificacion
             intentoId={0}
             codigoRevision={revisionCode}
