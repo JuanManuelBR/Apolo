@@ -443,7 +443,7 @@ export default function RevisarCalificacion({
                     </div>
 
                     {/* Stats strip */}
-                    <div className={`border-t grid divide-x ${darkMode ? "border-slate-700 divide-slate-700 bg-slate-800/40" : "border-gray-200 divide-gray-200 bg-slate-50"} ${isPDF ? "grid-cols-2" : "grid-cols-2 md:grid-cols-4"}`}>
+                    <div className={`border-t grid divide-x ${darkMode ? "border-slate-700 divide-slate-700 bg-slate-800/40" : "border-gray-200 divide-gray-200 bg-slate-50"} ${isPDF ? "grid-cols-2" : "grid-cols-3"}`}>
                       {isPDF ? (
                         <>
                           <div className="px-4 py-3 text-center">
@@ -459,12 +459,6 @@ export default function RevisarCalificacion({
                         </>
                       ) : (
                         <>
-                          <div className="px-4 py-3 text-center">
-                            <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Correctas</p>
-                            <p className={`text-xl font-black ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
-                              {estadisticas.preguntasCorrectas}<span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/{estadisticas.totalPreguntas}</span>
-                            </p>
-                          </div>
                           <div className="px-4 py-3 text-center">
                             <p className={`text-[10px] font-bold uppercase tracking-widest mb-0.5 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Puntaje</p>
                             <p className={`text-xl font-black ${darkMode ? "text-white" : "text-slate-800"}`}>
@@ -793,7 +787,7 @@ export default function RevisarCalificacion({
                   
                   <div className="flex flex-col xl:flex-row items-stretch">
                     {/* CONTENIDO PRINCIPAL */}
-                    <div className="flex-1 p-4 md:p-8 pl-6 md:pl-10 min-w-0">
+                    <div className="flex-1 p-3 sm:p-4 md:p-8 pl-5 sm:pl-6 md:pl-10 min-w-0">
                       <div className="flex items-start gap-4 mb-6">
                         {/* Columna Izquierda: Número y Puntaje */}
                         <div className="flex-shrink-0 flex flex-col items-center gap-3">
@@ -811,7 +805,7 @@ export default function RevisarCalificacion({
                         </div>
 
                         <div className="flex-1">
-                          <h3 className={`text-xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
+                          <h3 className={`text-base sm:text-xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
                             {pregunta.enunciado}
                           </h3>
                           <div className="flex items-center gap-3 mt-2">
@@ -1552,6 +1546,18 @@ function RenderOpen({ pregunta, darkMode }: { pregunta: Pregunta; darkMode: bool
               );
             })}
           </div>
+        </div>
+      )}
+
+      {pregunta.textoRespuesta && (
+        <div className={`p-4 rounded-xl border-2 ${darkMode ? "bg-emerald-900/20 border-emerald-700/40" : "bg-emerald-50 border-emerald-200"}`}>
+          <p className={`text-xs font-bold uppercase tracking-wider mb-1.5 flex items-center gap-1.5 ${darkMode ? "text-emerald-400" : "text-emerald-600"}`}>
+            <CheckCircle className="w-3.5 h-3.5" />
+            Respuesta correcta esperada
+          </p>
+          <p className={`text-sm whitespace-pre-wrap ${darkMode ? "text-emerald-200" : "text-emerald-800"}`}>
+            {pregunta.textoRespuesta}
+          </p>
         </div>
       )}
     </div>
