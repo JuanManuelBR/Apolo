@@ -965,7 +965,12 @@ export default function ListaExamenes({
                             setMenuAbierto(null);
                           } else {
                             const rect = e.currentTarget.getBoundingClientRect();
-                            setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                            const MENU_HEIGHT = 260;
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            const top = spaceBelow < MENU_HEIGHT
+                              ? Math.max(8, rect.top - MENU_HEIGHT - 6)
+                              : rect.bottom + 6;
+                            setMenuPos({ top, right: window.innerWidth - rect.right });
                             setMenuAbierto(examen.codigoExamen);
                           }
                         }}
