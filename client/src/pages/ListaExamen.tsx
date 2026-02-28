@@ -1,5 +1,6 @@
 // src/components/ListaExamenes.tsx
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Copy,
@@ -60,6 +61,7 @@ export default function ListaExamenes({
   const [urlCopiada, setUrlCopiada] = useState<string | null>(null);
   const [regenerandoCodigo, setRegenerandoCodigo] = useState<number | null>(null);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; right: number }>({ top: 0, right: 0 });
   const [codigoGrande, setCodigoGrande] = useState<{
     codigo: string;
     nombre: string;
@@ -669,8 +671,6 @@ export default function ListaExamenes({
               <ScrollReveal key={examen.id} delay={index * 55}>
               <div
                 className={`group rounded-2xl p-5 border transition-all duration-300 ${
-                  isMenuOpen ? "z-50 relative shadow-xl" : "z-0 relative"
-                } ${
                   isInactive
                     ? darkMode
                       ? "bg-slate-800/50 border-slate-700/50"
@@ -957,13 +957,17 @@ export default function ListaExamenes({
                       </button>
                     )}
 
-                    <div className="relative z-10">
+                    <div>
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          setMenuAbierto(
-                            isMenuOpen ? null : examen.codigoExamen,
-                          );
+                          if (isMenuOpen) {
+                            setMenuAbierto(null);
+                          } else {
+                            const rect = e.currentTarget.getBoundingClientRect();
+                            setMenuPos({ top: rect.bottom + 6, right: window.innerWidth - rect.right });
+                            setMenuAbierto(examen.codigoExamen);
+                          }
                         }}
                         className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-white/10" : "hover:bg-black/5"}`}
                       >
@@ -972,15 +976,15 @@ export default function ListaExamenes({
                         />
                       </button>
 
-                      {isMenuOpen && (
+                      {isMenuOpen && createPortal(
                         <>
                           <div
-                            className="fixed inset-0 z-40"
+                            className="fixed inset-0 z-[1000]"
                             onClick={() => setMenuAbierto(null)}
                           />
-
                           <div
-                            className={`absolute right-0 top-full mt-2 w-44 rounded-xl shadow-2xl border z-50 py-1.5 ${
+                            style={{ position: "fixed", top: menuPos.top, right: menuPos.right, zIndex: 1001 }}
+                            className={`w-44 rounded-xl shadow-2xl border py-1.5 ${
                               darkMode
                                 ? "bg-slate-800 border-slate-700"
                                 : "bg-white border-gray-200"
@@ -1012,9 +1016,7 @@ export default function ListaExamenes({
 
                             {examen.archivado ? (
                               <button
-                                onClick={() =>
-                                  desarchivarExamen(examen.codigoExamen)
-                                }
+                                onClick={() => desarchivarExamen(examen.codigoExamen)}
                                 className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
                                   darkMode
                                     ? "text-gray-300 hover:bg-slate-700"
@@ -1026,9 +1028,7 @@ export default function ListaExamenes({
                               </button>
                             ) : (
                               <button
-                                onClick={() =>
-                                  archivarExamen(examen)
-                                }
+                                onClick={() => archivarExamen(examen)}
                                 className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
                                   darkMode
                                     ? "text-gray-300 hover:bg-slate-700"
@@ -1052,25 +1052,20 @@ export default function ListaExamenes({
                               Exportar a PDF
                             </button>
 
-                            <div
-                              className={`my-1 h-px ${darkMode ? "bg-slate-700" : "bg-gray-200"}`}
-                            />
+                            <div className={`my-1 h-px ${darkMode ? "bg-slate-700" : "bg-gray-200"}`} />
 
                             <button
-                              onClick={() =>
-                                confirmarEliminar(examen.id, examen.nombre)
-                              }
+                              onClick={() => confirmarEliminar(examen.id, examen.nombre)}
                               className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 text-red-500 transition-colors ${
-                                darkMode
-                                  ? "hover:bg-red-500/10"
-                                  : "hover:bg-red-50"
+                                darkMode ? "hover:bg-red-500/10" : "hover:bg-red-50"
                               }`}
                             >
                               <Trash2 className="w-4 h-4" />
                               Eliminar
                             </button>
                           </div>
-                        </>
+                        </>,
+                        document.body
                       )}
                     </div>
                   </div>
