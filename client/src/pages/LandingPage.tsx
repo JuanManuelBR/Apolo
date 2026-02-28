@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, School, Moon, Sun, ChevronRight } from "lucide-react";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
@@ -26,50 +26,31 @@ export default function LandingPage() {
     }
   }, [navigate]);
 
-  // Campo de estrellas — efecto espacio
-  // [tamaño_px, x%, y%]  |  x en espacio del gradiente (0-100% = 3× ancho visible)
-  // Opacidad por tamaño: 0.8px→dim, 1px→media, 1.5px→media-alta, 2px→brillante, 2.5px→muy brillante
-  const starDots: [number, number, number][] = [
-    // Estrellas de fondo tenues (0.8px)
-    [0.8, 1, 42], [0.8, 4, 80], [0.8, 9, 22],
-    [0.8, 13, 68], [0.8, 17, 35], [0.8, 21, 88],
-    [0.8, 26, 15], [0.8, 30, 55], [0.8, 35, 78],
-    [0.8, 40, 28], [0.8, 45, 62], [0.8, 50, 10],
-    [0.8, 54, 75], [0.8, 59, 45], [0.8, 64, 90],
-    [0.8, 69, 30], [0.8, 74, 68], [0.8, 79, 18],
-    [0.8, 84, 52], [0.8, 89, 85], [0.8, 94, 38],
-    [0.8, 98, 72],
-    // Estrellas pequeñas (1px)
-    [1, 2, 58],  [1, 7, 32],  [1, 12, 85],
-    [1, 18, 48], [1, 23, 72], [1, 28, 18],
-    [1, 33, 62], [1, 38, 38], [1, 43, 92],
-    [1, 48, 25], [1, 53, 65], [1, 58, 12],
-    [1, 63, 55], [1, 68, 82], [1, 73, 28],
-    [1, 78, 60], [1, 83, 42], [1, 88, 78],
-    [1, 93, 15], [1, 97, 50],
-    // Estrellas medianas (1.5px)
-    [1.5, 5, 50],  [1.5, 11, 20], [1.5, 20, 75],
-    [1.5, 29, 40], [1.5, 37, 65], [1.5, 46, 8],
-    [1.5, 55, 82], [1.5, 62, 35], [1.5, 70, 58],
-    [1.5, 77, 88], [1.5, 86, 22], [1.5, 95, 68],
-    // Estrellas brillantes (2px)
-    [2, 8, 45],  [2, 22, 25], [2, 36, 80],
-    [2, 51, 55], [2, 65, 18], [2, 80, 72],
-    [2, 91, 40], [2, 99, 12],
-    // Estrellas muy brillantes (2.5px)
-    [2.5, 15, 60], [2.5, 44, 30], [2.5, 72, 85], [2.5, 87, 50],
-  ];
-  const starGradients = starDots
-    .map(([r, x, y]) => {
-      const opacity = r <= 0.8 ? 0.38 : r <= 1 ? 0.55 : r <= 1.5 ? 0.72 : 0.92;
-      return `radial-gradient(circle ${r}px at ${x}% ${y}%, rgba(255,255,255,${opacity}) 0%, transparent 100%)`;
-    })
-    .join(", ");
+  const [showEasterEgg] = useState(() => window.innerWidth >= 768 && Math.random() < 1 / 10);
 
-  // Colores vibrantes 400-level — funcionan en ambos modos
-  const galaxyGradient = "linear-gradient(135deg, #818cf8, #a78bfa, #e879f9, #c084fc, #60a5fa, #22d3ee, #34d399, #a78bfa, #818cf8)";
-  const galaxyDark = `${starGradients}, ${galaxyGradient}`;
-  const galaxyDay  = `${starGradients}, ${galaxyGradient}`;
+  const galaxyBg = useMemo(() => {
+    const cols = 10, rows = 7;
+    const cw = 100 / cols, rh = 100 / rows;
+    const stars: string[] = [];
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const x  = (col * cw + Math.random() * cw).toFixed(1);
+        const y  = (row * rh + Math.random() * rh).toFixed(1);
+        const r  = (Math.random() * 2.2 + 0.8).toFixed(1);
+        const op = (Math.random() * 0.45 + 0.55).toFixed(2);
+        stars.push(`radial-gradient(circle ${r}px at ${x}% ${y}%, rgba(255,255,255,${op}) 0%, transparent 100%)`);
+      }
+    }
+
+    const nebulas = [
+      `radial-gradient(ellipse 35% 60% at 20% 50%, rgba(139,92,246,0.55) 0%, transparent 70%)`,
+      `radial-gradient(ellipse 30% 50% at 75% 40%, rgba(59,130,246,0.45) 0%, transparent 70%)`,
+      `radial-gradient(ellipse 25% 45% at 50% 70%, rgba(236,72,153,0.35) 0%, transparent 70%)`,
+    ];
+
+    const base = "linear-gradient(135deg, #6366f1, #8b5cf6, #ec4899, #3b82f6, #06b6d4, #8b5cf6, #6366f1)";
+    return [...nebulas, ...stars, base].join(", ");
+  }, []);
 
   return (
     <div
@@ -103,7 +84,7 @@ export default function LandingPage() {
 
         {/* Encabezado */}
         <div className="flex flex-col items-center text-center animate-fade-in-down">
-          <div className="mb-5 transition-all duration-500 hover:scale-105">
+          <div className="mb-5">
             <img
               src={logoUniversidadNoche}
               alt="Universidad de Ibagué"
@@ -120,18 +101,17 @@ export default function LandingPage() {
               0%, 100% { background-position: 0% 50%; }
               50%       { background-position: 100% 50%; }
             }
-          `}</style>
+`}</style>
 
           <h1 className="text-white text-2xl sm:text-4xl md:text-6xl font-black tracking-tighter mb-3 [text-shadow:0_4px_20px_rgba(0,0,0,0.8)]">
             Portal de{" "}
             <span
-              className="text-transparent bg-clip-text"
-              style={{
-                WebkitTextStroke: darkMode ? "0px" : "1.5px rgba(0,0,0,0.5)",
-                backgroundImage: darkMode ? galaxyDark : galaxyDay,
+              className={darkMode && showEasterEgg ? "text-transparent bg-clip-text" : "text-white"}
+              style={darkMode && showEasterEgg ? {
+                backgroundImage: galaxyBg,
                 backgroundSize: "300% 100%",
-                animation: "galaxyFlow 28s ease-in-out infinite",
-              }}
+                animation: "galaxyFlow 45s ease-in-out infinite",
+              } : undefined}
             >
               Evaluaciones
             </span>
@@ -167,7 +147,7 @@ export default function LandingPage() {
                   top: "-75%",
                   left: "-75%",
                   background:
-                    "conic-gradient(transparent 0% 50%, #93c5fd 63%, #c4b5fd 78%, #67e8f9 88%, transparent 94% 100%)",
+                    "conic-gradient(transparent 0% 82%, rgba(147,197,253,0.4) 85%, #93c5fd 88%, #c4b5fd 91%, #67e8f9 93%, transparent 96% 100%)",
                   animation: "rotateBorder 7s linear infinite",
                 }}
               />
@@ -177,7 +157,7 @@ export default function LandingPage() {
             <div
               className={`relative z-10 flex flex-col items-center justify-center p-7 m-[2px] rounded-[22px] backdrop-blur-xl transition-all duration-500 ${
                 darkMode
-                  ? "bg-slate-950/95 group-hover:bg-slate-900/95"
+                  ? "bg-slate-950 group-hover:bg-slate-900"
                   : "bg-white shadow-2xl shadow-black/20 group-hover:bg-slate-50"
               }`}
             >
@@ -221,7 +201,7 @@ export default function LandingPage() {
                   top: "-75%",
                   left: "-75%",
                   background:
-                    "conic-gradient(transparent 0% 50%, #6ee7b7 63%, #5eead4 78%, #d9f99d 88%, transparent 94% 100%)",
+                    "conic-gradient(transparent 0% 82%, rgba(110,231,183,0.4) 85%, #6ee7b7 88%, #5eead4 91%, #d9f99d 93%, transparent 96% 100%)",
                   animation: "rotateBorder 7s linear infinite",
                   animationDelay: "-3.5s",
                 }}
@@ -232,7 +212,7 @@ export default function LandingPage() {
             <div
               className={`relative z-10 flex flex-col items-center justify-center p-7 m-[2px] rounded-[22px] backdrop-blur-xl transition-all duration-500 ${
                 darkMode
-                  ? "bg-slate-950/95 group-hover:bg-slate-900/95"
+                  ? "bg-slate-950 group-hover:bg-slate-900"
                   : "bg-white shadow-2xl shadow-black/20 group-hover:bg-slate-50"
               }`}
             >

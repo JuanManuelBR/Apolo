@@ -4,7 +4,7 @@ import {
   Undo, Redo, Type, X, Plus, Image as ImageIcon,
   Layout, Diamond, Grid3x3,
   PenTool, Eraser, Square, Circle, User, Braces, Hexagon, Cloud,
-  ChevronDown, ChevronRight, Brush, Minus, Triangle, Star,
+  ChevronDown, ChevronRight, Brush, Minus, Triangle, Star, SlidersHorizontal,
 } from 'lucide-react';
 // --- DEFINICIÓN DE TIPOS ---
 
@@ -215,6 +215,7 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
   const offscreenCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [showGrid, setShowGrid] = useState(false);
   const [mobileLeftOpen, setMobileLeftOpen] = useState(false);
+  const [mobilePropsOpen, setMobilePropsOpen] = useState(false);
   // Gestión de Hojas
   const [sheets, setSheets] = useState<Sheet[]>(initialData?.sheets || [
       { 
@@ -310,6 +311,11 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
 
   const isPaintTool = ['pencil', 'marker', 'eraser', 'rect_shape', 'circle_shape', 'triangle_shape', 'star_shape', 'hexagon_shape', 'cloud_shape'].includes(tool);
 
+  // Auto-abrir panel de propiedades en mobile al seleccionar un elemento
+  useEffect(() => {
+    if (selectedIds.size > 0) setMobilePropsOpen(true);
+  }, [selectedIds.size]);
+
   // --- HELPERS ---
   
   const getAutoDimensions = (type: string, name: string, fontSize: number, fields: any[] = [], methods: any[] = []) => {
@@ -389,13 +395,13 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
     return null;
   };
 
-  const screenToCanvas = (e: React.MouseEvent | React.WheelEvent) => {
+  const screenToCanvas = (clientX: number, clientY: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     return {
-      x: (e.clientX - rect.left - pan.x) / scale,
-      y: (e.clientY - rect.top - pan.y) / scale
+      x: (clientX - rect.left - pan.x) / scale,
+      y: (clientY - rect.top - pan.y) / scale
     };
   };
 
@@ -1308,7 +1314,7 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
-    const pos = screenToCanvas(e);
+    const pos = screenToCanvas(e.clientX, e.clientY);
     setLastMousePos({ x: e.clientX, y: e.clientY });
     setMouseCanvasPos(pos);
     setIsDrawing(true);
@@ -1468,7 +1474,7 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    const pos = screenToCanvas(e);
+    const pos = screenToCanvas(e.clientX, e.clientY);
     setMouseCanvasPos(pos);
 
     if (isDrawing && ['pencil', 'marker', 'eraser'].includes(tool)) {
@@ -1575,6 +1581,149 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
     setIsPanning(false);
     setIsSelecting(false);
     setSelectionBox(null);
+  };
+
+  // --- TOUCH HANDLERS (mobile) ---
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const pos = screenToCanvas(touch.clientX, touch.clientY);
+    setLastMousePos({ x: touch.clientX, y: touch.clientY });
+    setMouseCanvasPos(pos);
+    setIsDrawing(true);
+
+    if (readOnly) { setIsPanning(true); return; }
+
+    if (isPaintTool) {
+      setDrawStartPos(pos);
+      if (['pencil', 'marker', 'eraser'].includes(tool)) {
+        saveToHistory();
+        setPaintActions([...paintActions, { id: generateId(), tool: tool as any, points: [pos], color: paintColor, width: paintWidth }]);
+      }
+      return;
+    }
+
+    if (!['select', 'hand', 'relation'].includes(tool)) {
+      let initialW = tool === 'uml_actor' ? 60 : 120;
+      let initialH = tool === 'uml_actor' ? 120 : 60;
+      if (['table', 'table_keys', 'uml_class'].includes(tool)) { initialW = 160; initialH = 140; }
+      if (tool === 'text') {
+        const ctx = canvasRef.current?.getContext('2d');
+        if (ctx) { ctx.font = '14px sans-serif'; initialW = ctx.measureText('Texto').width + 16; initialH = 30; }
+      }
+      let finalTool = tool;
+      let initialName = 'Nuevo Nodo';
+      const extraProps: any = {};
+      if (tool.startsWith('er_')) {
+        if (tool === 'er_entity') initialName = 'Entidad';
+        else if (tool === 'er_relationship') initialName = 'Relación';
+        else if (tool === 'er_attribute') initialName = 'Atributo';
+        else if (tool === 'er_inheritance') initialName = 'ISA';
+        if (tool === 'er_attribute') { initialW = 100; initialH = 60; }
+      }
+      const newNode: DiagramNode = {
+        id: generateId(), type: finalTool,
+        x: snapToGrid(pos.x - 50), y: snapToGrid(pos.y - 25),
+        w: initialW, h: initialH,
+        name: tool === 'text' ? 'Texto' : initialName,
+        fields: tool === 'uml_class' ? [{ name: 'atributo', type: 'String', visibility: '+' }] : [{ name: 'id', type: 'int' }],
+        methods: tool === 'uml_class' ? [{ name: 'metodo', type: 'void', visibility: '+' }] : undefined,
+        color: '', fontSize: 14, ...extraProps
+      };
+      setNodes([...nodes, newNode]);
+      setTool('select');
+      saveToHistory();
+      return;
+    }
+
+    if (tool === 'select') {
+      const clickedPaint = paintActions.slice().reverse().find(p => {
+        if (p.start && p.end) {
+          const x = Math.min(p.start.x, p.end.x); const y = Math.min(p.start.y, p.end.y);
+          const w = Math.abs(p.end.x - p.start.x); const h = Math.abs(p.end.y - p.start.y);
+          return pos.x >= x && pos.x <= x + w && pos.y >= y && pos.y <= y + h;
+        } else if (['pencil', 'marker'].includes(p.tool)) {
+          return p.points.some(pt => Math.hypot(pt.x - pos.x, pt.y - pos.y) < (p.width + 5));
+        }
+        return false;
+      });
+      if (clickedPaint) {
+        setSelectedIds(new Set([clickedPaint.id]));
+        return;
+      }
+    }
+
+    const clickedNode = nodes.slice().reverse().find(n =>
+      pos.x >= n.x && pos.x <= n.x + n.w && pos.y >= n.y && pos.y <= n.y + n.h
+    );
+    if (clickedNode) {
+      if (tool === 'relation') { setConnectingId(clickedNode.id); return; }
+      setSelectedIds(new Set([clickedNode.id]));
+      setDraggingId(clickedNode.id);
+      setDragOffset({ x: pos.x - clickedNode.x, y: pos.y - clickedNode.y });
+    } else {
+      const clickedConn = connections.find(c => {
+        const from = nodes.find(n => n.id === c.from);
+        const to = nodes.find(n => n.id === c.to);
+        if (!from || !to) return false;
+        const { start, cp1, cp2, end } = getBezierPath(c, from, to);
+        return isPointNearBezier(pos, start, cp1, cp2, end);
+      });
+      if (clickedConn) { setSelectedIds(new Set([clickedConn.id])); return; }
+      setSelectedIds(new Set());
+      if (tool === 'hand') { setIsPanning(true); }
+      else if (tool === 'select') { setIsSelecting(true); setSelectionBox({ start: pos, end: pos }); }
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    e.preventDefault();
+    const touch = e.touches[0];
+    const pos = screenToCanvas(touch.clientX, touch.clientY);
+    setMouseCanvasPos(pos);
+
+    if (isDrawing && ['pencil', 'marker', 'eraser'].includes(tool)) {
+      const actions = [...paintActions];
+      actions[actions.length - 1].points.push(pos);
+      setPaintActions(actions);
+      return;
+    }
+
+    if (isSelecting && selectionBox) {
+      const currentBox = { ...selectionBox, end: pos };
+      setSelectionBox(currentBox);
+      const x = Math.min(currentBox.start.x, currentBox.end.x);
+      const y = Math.min(currentBox.start.y, currentBox.end.y);
+      const w = Math.abs(currentBox.end.x - currentBox.start.x);
+      const h = Math.abs(currentBox.end.y - currentBox.start.y);
+      const newSelected = new Set<string>();
+      nodes.forEach(n => { if (n.x < x + w && n.x + n.w > x && n.y < y + h && n.y + n.h > y) newSelected.add(n.id); });
+      setSelectedIds(newSelected);
+      return;
+    }
+
+    if (isPanning) {
+      const dx = touch.clientX - lastMousePos.x;
+      const dy = touch.clientY - lastMousePos.y;
+      setPan({ x: pan.x + dx, y: pan.y + dy });
+      setLastMousePos({ x: touch.clientX, y: touch.clientY });
+      return;
+    }
+
+    if (draggingId) {
+      const draggedNode = nodes.find(n => n.id === draggingId);
+      if (!draggedNode) return;
+      const dx = snapToGrid(pos.x - dragOffset.x) - draggedNode.x;
+      const dy = snapToGrid(pos.y - dragOffset.y) - draggedNode.y;
+      setNodes(nodes.map(n => selectedIds.has(n.id) ? { ...n, x: n.x + dx, y: n.y + dy } : n));
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    e.preventDefault();
+    handleMouseUp();
   };
 
   // --- GESTIÓN DE HOJAS ---
@@ -1701,6 +1850,13 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
                 {selectedIds.size > 0 && (
                     <button onClick={deleteSelected} className="p-2 hover:bg-red-100 dark:hover:bg-red-900/20 text-red-500 rounded-lg transition-colors" title="Eliminar Selección"><Trash2 size={18}/></button>
                 )}
+                <button
+                  onClick={() => setMobilePropsOpen(v => !v)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${mobilePropsOpen ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700'}`}
+                  title="Propiedades"
+                >
+                  <SlidersHorizontal className="w-5 h-5" />
+                </button>
                 <button onClick={() => setShowGrid(!showGrid)} className={`p-2 rounded-lg transition-colors duration-200 ${showGrid ? 'bg-slate-800 dark:bg-blue-900/30 text-white dark:text-blue-100 border border-transparent dark:border-blue-800/50 shadow-sm' : 'text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-white'}`} title="Cuadrícula"><Grid3x3 size={18}/></button>
                 <button onClick={undo} className="p-2 rounded-lg text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-white transition-colors duration-200" title="Deshacer"><Undo size={18}/></button>
                 <button onClick={redo} className="p-2 rounded-lg text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-slate-700 dark:hover:text-white transition-colors duration-200" title="Rehacer"><Redo size={18}/></button>
@@ -1786,6 +1942,9 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
                         onMouseMove={handleMouseMove}
                         onMouseUp={handleMouseUp}
                         onMouseLeave={handleMouseUp}
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
                         className="absolute inset-0 w-full h-full touch-none"
                     />
                 </div>
@@ -1817,10 +1976,19 @@ export default function Lienzo({ darkMode, initialData, onSave, readOnly }: Lien
                 </div>
             </div>
 
-            {/* RIGHT SIDEBAR (INSPECTOR) — oculto en mobile */}
-            {!readOnly && <div className="hidden md:flex w-72 border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex-col z-20 shadow-xl overflow-y-auto min-h-0">
+            {/* Backdrop para mobile props */}
+            {!readOnly && mobilePropsOpen && (
+              <div
+                className="fixed inset-0 bg-black/40 z-40 md:hidden"
+                onClick={() => setMobilePropsOpen(false)}
+              />
+            )}
+
+            {/* RIGHT SIDEBAR (INSPECTOR) — bottom sheet en mobile */}
+            {!readOnly && <div className={`${mobilePropsOpen ? 'flex' : 'hidden md:flex'} fixed md:relative bottom-0 left-0 right-0 md:bottom-auto md:left-auto md:right-auto z-50 md:z-20 w-full md:w-72 max-h-[70vh] md:max-h-none border-t md:border-t-0 md:border-l bg-white dark:bg-slate-800 border-gray-200 dark:border-slate-700 flex-col shadow-xl overflow-y-auto min-h-0 rounded-t-2xl md:rounded-none`}>
                 <div className="p-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 font-bold text-sm uppercase tracking-wider flex justify-between items-center text-gray-700 dark:text-gray-300">
                     <span>Propiedades</span>
+                    <button onClick={() => setMobilePropsOpen(false)} className="md:hidden p-1 rounded hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-500"><X size={16}/></button>
                 </div>
 
                 <div className="p-4 space-y-6">

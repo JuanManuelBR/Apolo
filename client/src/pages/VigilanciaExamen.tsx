@@ -707,13 +707,6 @@ export default function VigilanciaExamenesLista({
     }
   };
 
-  const getNotaColor = (nota: number | undefined | null, dark: boolean) => {
-    if (nota === undefined || nota === null) return dark ? "text-slate-400" : "text-slate-600";
-    if (nota >= 4.0) return dark ? "text-emerald-400" : "text-emerald-600";
-    if (nota >= 3.0) return dark ? "text-amber-400" : "text-amber-600";
-    return dark ? "text-rose-400" : "text-rose-600";
-  };
-
   const obtenerInfoVisual = (est: ExamAttempt) => {
     const tieneNombre = est.nombre_estudiante && est.nombre_estudiante !== "Sin nombre" && est.nombre_estudiante.trim() !== "";
     const codigo = est.identificacion_estudiante;
@@ -1119,19 +1112,22 @@ export default function VigilanciaExamenesLista({
                                   : "bg-white border-slate-100 hover:border-teal-200 hover:shadow-md"
                                }`}
                              >
-                                <div className="flex items-center gap-4">
-                                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center relative ${darkMode ? "bg-slate-700 text-slate-300" : "bg-teal-50 text-teal-600"}`}>
-                                      <User className="w-6 h-6" />
+                                <div className="flex items-center gap-3">
+                                   {/* Avatar */}
+                                   <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl flex items-center justify-center relative flex-shrink-0 ${darkMode ? "bg-slate-700 text-slate-300" : "bg-teal-50 text-teal-600"}`}>
+                                      <User className="w-5 h-5 sm:w-6 sm:h-6" />
                                       {estudiante.preguntasPendientes && (
-                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white dark:border-slate-800" title="Preguntas pendientes de calificación manual"></div>
+                                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full border-2 border-white dark:border-slate-800" title="Preguntas pendientes de calificación manual" />
                                       )}
                                    </div>
 
+                                   {/* Contenido principal */}
                                    <div className="flex-1 min-w-0">
-                                      <div className="flex items-center gap-2 mb-1">
-                                         <h4 className={`font-bold truncate text-base ${darkMode ? "text-white" : "text-slate-800"}`}>{displayName}</h4>
+                                      {/* Fila 1: nombre + badges */}
+                                      <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                         <h4 className={`font-bold text-sm truncate ${darkMode ? "text-white" : "text-slate-800"}`}>{displayName}</h4>
                                          {modoPrivacidad && (
-                                            <div 
+                                            <div
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     setEstudiantesRevelados(prev => {
@@ -1141,61 +1137,54 @@ export default function VigilanciaExamenesLista({
                                                         return newSet;
                                                     });
                                                 }}
-                                                className={`p-1.5 rounded-md cursor-pointer transition-colors ${darkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
+                                                className={`p-1 rounded-md cursor-pointer transition-colors ${darkMode ? "bg-slate-700 text-slate-200 hover:bg-slate-600" : "bg-slate-200 text-slate-600 hover:bg-slate-300"}`}
                                             >
                                                 {isHidden ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
                                             </div>
                                          )}
-                                         <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getEstadoBadgeColor(estado, darkMode)}`}>{estado}</span>
+                                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border flex-shrink-0 ${getEstadoBadgeColor(estado, darkMode)}`}>{estado}</span>
                                          {estudiante.calificacion !== undefined && estudiante.calificacion !== null && (
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${getEstadoBadgeColor("Calificado", darkMode)}`}>Calificado</span>
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold uppercase border flex-shrink-0 ${getEstadoBadgeColor("Calificado", darkMode)}`}>
+                                               {mostrarOpcionesPostCalificacion ? estudiante.calificacion : "Cal."}
+                                            </span>
                                          )}
                                       </div>
-                                      <div className={`flex items-center gap-4 text-xs font-mono ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-                                         <span className="flex items-center gap-1"><Clock className="w-3 h-3"/> {calcularTiempoDisplay(estudiante)}</span>
-                                         {displaySecondary && (
-                                            <>
-                                                <span>•</span>
-                                                <span>{displaySecondary}</span>
-                                            </>
-                                         )}
+
+                                      {/* Fila 2: tiempo | alertas + progreso */}
+                                      <div className="flex items-center justify-between gap-2">
+                                         <span className={`flex items-center gap-1 text-xs font-mono flex-shrink-0 ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+                                            <Clock className="w-3 h-3 flex-shrink-0"/>
+                                            {calcularTiempoDisplay(estudiante)}
+                                            {displaySecondary && <span className="hidden sm:inline"> • {displaySecondary}</span>}
+                                         </span>
+
+                                         <div className="flex items-center gap-2.5 flex-shrink-0">
+                                            {/* Alertas */}
+                                            <div className={`flex flex-col items-center ${estudiante.alertas > 0 ? "text-rose-500" : (darkMode ? "text-slate-600" : "text-slate-300")}`}>
+                                               {estudiante.alertasNoLeidas ? (
+                                                  <div className="relative animate-bounce">
+                                                     <AlertTriangle className="w-4 h-4" />
+                                                     <span className={`absolute -top-1 -right-1 w-2 h-2 bg-rose-500 rounded-full border ${darkMode ? "border-slate-800" : "border-white"}`} />
+                                                  </div>
+                                               ) : <AlertTriangle className="w-4 h-4" />}
+                                               <span className="text-[10px] font-bold leading-none mt-0.5">{estudiante.alertas}</span>
+                                            </div>
+
+                                            {/* Barra de progreso */}
+                                            <div className="w-16 sm:w-28 flex flex-col">
+                                               <div className="flex justify-between mb-0.5">
+                                                  <span className={`text-[9px] uppercase font-bold tracking-wide ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Prog.</span>
+                                                  <span className={`text-[10px] font-bold ${darkMode ? "text-teal-400" : "text-teal-600"}`}>{estudiante.progreso}%</span>
+                                               </div>
+                                               <div className={`h-2 w-full rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-slate-200"}`}>
+                                                  <div className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full transition-all duration-500" style={{ width: `${estudiante.progreso}%` }} />
+                                               </div>
+                                            </div>
+                                         </div>
                                       </div>
                                    </div>
 
-                                   <div className="flex items-center gap-3 sm:gap-8 sm:mr-4 mr-1 flex-shrink-0">
-                                      {mostrarOpcionesPostCalificacion && estudiante.calificacion !== undefined && estudiante.calificacion !== null && (
-                                        <div className="flex flex-col items-end">
-                                            <div className="flex items-center gap-1">
-                                                <span className={`text-lg font-bold ${getNotaColor(estudiante.calificacion, darkMode)}`}>
-                                                    {estudiante.calificacion}
-                                                </span>
-                                            </div>
-                                            <span className={`text-[10px] uppercase font-bold ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Nota</span>
-                                        </div>
-                                      )}
-
-                                      <div className={`text-center flex flex-col items-center ${estudiante.alertas > 0 ? "text-rose-500" : (darkMode ? "text-slate-600" : "text-slate-300")}`}>
-                                         {estudiante.alertasNoLeidas ? (
-                                            <div className="relative animate-bounce">
-                                               <AlertTriangle className="w-5 h-5" />
-                                               <span className={`absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full border-2 ${darkMode ? "border-slate-900" : "border-white"}`} />
-                                            </div>
-                                         ) : <AlertTriangle className="w-5 h-5" />}
-                                         <span className="text-[10px] font-bold mt-1">{estudiante.alertas}</span>
-                                      </div>
-
-                                      <div className="w-20 sm:w-32 flex flex-col items-end">
-                                          <div className="flex justify-between w-full mb-1">
-                                              <span className={`text-[10px] uppercase font-bold tracking-wider ${darkMode ? "text-slate-500" : "text-slate-400"}`}>Progreso</span>
-                                              <span className={`text-xs font-bold ${darkMode ? "text-teal-400" : "text-teal-600"}`}>{estudiante.progreso}%</span>
-                                          </div>
-                                          <div className={`h-2.5 w-full rounded-full overflow-hidden ${darkMode ? "bg-slate-700" : "bg-slate-200"}`}>
-                                             <div className="h-full bg-gradient-to-r from-teal-400 to-teal-600 rounded-full transition-all duration-500 shadow-[0_0_10px_rgba(20,184,166,0.3)]" style={{ width: `${estudiante.progreso}%` }}></div>
-                                          </div>
-                                      </div>
-                                   </div>
-                                   
-                                   <ChevronDown className={`w-5 h-5 -rotate-90 opacity-0 group-hover:opacity-100 transition-all ${darkMode ? "text-slate-500" : "text-slate-300"}`} />
+                                   <ChevronDown className={`w-4 h-4 -rotate-90 flex-shrink-0 opacity-0 group-hover:opacity-60 transition-all ${darkMode ? "text-slate-500" : "text-slate-300"}`} />
                                 </div>
                              </button>
                            );
