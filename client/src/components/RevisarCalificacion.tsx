@@ -172,6 +172,7 @@ export default function RevisarCalificacion({
   const [feedback, setFeedback] = useState<Record<number, string>>({});
   const [saveStatus, setSaveStatus] = useState<Record<number, SaveStatus>>({});
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
+  const [feedbackModalPreguntaId, setFeedbackModalPreguntaId] = useState<number | null>(null);
   // PDF-specific state
   const [pdfNota, setPdfNota] = useState<string>("");
   const [pdfRetroalimentacion, setPdfRetroalimentacion] = useState<string>("");
@@ -345,7 +346,7 @@ export default function RevisarCalificacion({
         {studentMode && (
           <>
             {/* Navbar */}
-            <div className={`sticky top-0 z-20 flex items-center px-5 py-3 border-b backdrop-blur-sm ${darkMode ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-gray-200"}`}>
+            <div className={`sticky top-0 z-20 flex items-center px-4 py-2 border-b backdrop-blur-sm ${darkMode ? "bg-slate-900/95 border-slate-800" : "bg-white/95 border-gray-200"}`}>
               {!hideHeader && (
                 <button onClick={onVolver} className={`flex items-center gap-1.5 text-sm font-medium transition-colors shrink-0 ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-500 hover:text-slate-900"}`}>
                   <ArrowLeft className="w-4 h-4" />
@@ -356,7 +357,7 @@ export default function RevisarCalificacion({
                 <img
                   src={darkMode ? logoUniversidadNoche : logoUniversidad}
                   alt="Universidad de Ibagué"
-                  className="h-16 object-contain"
+                  className="h-8 sm:h-12 object-contain"
                 />
               </div>
               {!hideHeader && <div className="shrink-0 w-14" />}
@@ -783,15 +784,15 @@ export default function RevisarCalificacion({
                   }`}
                 >
                   {/* Barra lateral de color - idéntica a ExamPanel */}
-                  <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${barColor}`}></div>
-                  
+                  <div className={`absolute left-0 top-0 bottom-0 w-2 bg-gradient-to-b ${barColor}`}></div>
+
                   <div className="flex flex-col xl:flex-row items-stretch">
                     {/* CONTENIDO PRINCIPAL */}
-                    <div className="flex-1 p-3 sm:p-4 md:p-8 pl-5 sm:pl-6 md:pl-10 min-w-0">
-                      <div className="flex items-start gap-4 mb-6">
-                        {/* Columna Izquierda: Número y Puntaje */}
+                    <div className="flex-1 p-4 sm:p-8 md:p-10 pl-6 sm:pl-10 md:pl-14 min-w-0">
+                      <div className="flex items-start gap-3 sm:gap-5 mb-4 sm:mb-8">
+                        {/* Columna Izquierda: Número */}
                         <div className="flex-shrink-0 flex flex-col items-center gap-3">
-                        <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm shrink-0 transition-all duration-300 ${
+                        <span className={`flex items-center justify-center w-8 h-8 sm:w-11 sm:h-11 rounded-xl font-bold text-sm sm:text-base shrink-0 transition-all duration-300 ${
                             !resp && currentScore === 0
                               ? (darkMode ? "bg-slate-700 text-slate-400" : "bg-slate-200 text-slate-500")
                               : pctScore >= 80
@@ -805,11 +806,11 @@ export default function RevisarCalificacion({
                         </div>
 
                         <div className="flex-1">
-                          <h3 className={`text-base sm:text-xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
+                          <h3 className={`text-base sm:text-xl md:text-2xl font-medium font-serif leading-snug ${darkMode ? "text-gray-100" : "text-gray-900"}`}>
                             {pregunta.enunciado}
                           </h3>
                           <div className="flex items-center gap-3 mt-2">
-                            <span className={`inline-block text-xs font-semibold px-2 py-1 rounded ${darkMode ? "bg-slate-700/50 text-slate-400" : "bg-slate-100 text-slate-500"}`}>
+                            <span className={`inline-block text-xs font-semibold px-3 py-1 rounded-full ${darkMode ? "bg-slate-700/60 text-slate-400" : "bg-gray-100 text-slate-500"}`}>
                               {pregunta.type === "test" ? "Selección Múltiple" : pregunta.type === "open" ? "Pregunta Abierta" : pregunta.type === "match" ? "Emparejamiento" : "Completar"}
                             </span>
                           </div>
@@ -818,13 +819,34 @@ export default function RevisarCalificacion({
                         {/* Botón de Puntaje a la Derecha */}
                         <div className="flex-shrink-0">
                           {readOnly ? (
-                            <div className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
-                              <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
-                              <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>
-                                {currentScore}
-                              </span>
-                              <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
-                            </div>
+                            resp?.retroalimentacion ? (
+                              <>
+                                {/* Móvil: botón que abre el modal de feedback */}
+                                <button
+                                  onClick={() => setFeedbackModalPreguntaId(pregunta.id)}
+                                  className={`xl:hidden relative flex flex-col items-center justify-center min-w-[70px] px-3 py-2 rounded-xl border transition-colors ${darkMode ? "bg-slate-800 border-teal-700/50 text-slate-400 active:bg-slate-700" : "bg-white border-teal-300 text-slate-600 active:bg-teal-50"}`}
+                                >
+                                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
+                                  <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
+                                  <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
+                                  <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full ${darkMode ? "bg-teal-500" : "bg-teal-500"}`}>
+                                    <MessageSquare className="w-2.5 h-2.5 text-white" />
+                                  </span>
+                                </button>
+                                {/* Escritorio: estático (el panel lateral muestra el feedback) */}
+                                <div className={`hidden xl:flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
+                                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
+                                  <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
+                                  <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
+                                </div>
+                              </>
+                            ) : (
+                              <div className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
+                                <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
+                                <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
+                                <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
+                              </div>
+                            )
                           ) : (
                           <button
                             onClick={() => toggleEditMode(pregunta.id)}
@@ -881,9 +903,9 @@ export default function RevisarCalificacion({
                       </div>
                     </div>
 
-                    {/* PANEL LATERAL DE CALIFICACIÓN */}
+                    {/* PANEL LATERAL DE CALIFICACIÓN — solo escritorio */}
                     {readOnly && resp?.retroalimentacion && (
-                      <div className={`w-full xl:w-80 border-t xl:border-t-0 xl:border-l flex flex-col flex-shrink-0 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-slate-50 border-gray-200"}`}>
+                      <div className={`hidden xl:flex xl:w-80 xl:border-l flex-col flex-shrink-0 ${darkMode ? "bg-slate-900/50 border-slate-700" : "bg-slate-50 border-gray-200"}`}>
                         <div className={`p-4 border-b flex items-center gap-2 ${darkMode ? "border-slate-700 bg-slate-800/50" : "border-gray-200 bg-white"}`}>
                           <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
                             <MessageSquare className="w-4 h-4" />
@@ -1078,6 +1100,43 @@ export default function RevisarCalificacion({
 
         </div>
       </div>
+
+      {/* ── MODAL DE FEEDBACK (solo móvil) ── */}
+      {feedbackModalPreguntaId !== null && (() => {
+        const preguntaModal = preguntas?.find(p => p.id === feedbackModalPreguntaId);
+        const retroText = preguntaModal?.respuestaEstudiante?.retroalimentacion;
+        if (!retroText) return null;
+        return (
+          <div className="xl:hidden fixed inset-0 z-50 flex items-end" onClick={() => setFeedbackModalPreguntaId(null)}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div
+              className={`relative w-full rounded-t-2xl shadow-2xl max-h-[70vh] flex flex-col ${darkMode ? "bg-slate-800" : "bg-white"}`}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className={`w-10 h-1 rounded-full ${darkMode ? "bg-slate-600" : "bg-gray-300"}`} />
+              </div>
+              {/* Header */}
+              <div className={`flex items-center gap-2 px-5 py-3 border-b ${darkMode ? "border-slate-700" : "border-gray-100"}`}>
+                <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <span className={`font-bold text-base ${darkMode ? "text-slate-100" : "text-slate-800"}`}>
+                  Retroalimentación del profesor
+                </span>
+                <button onClick={() => setFeedbackModalPreguntaId(null)} className={`ml-auto p-1.5 rounded-lg transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700"}`}>
+                  <XCircle className="w-5 h-5" />
+                </button>
+              </div>
+              {/* Body */}
+              <div className={`p-5 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                {retroText}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -1683,128 +1742,141 @@ function RenderMatch({ pregunta, darkMode }: { pregunta: Pregunta; darkMode: boo
   });
 
   return (
-    <div ref={containerRef} className={`relative p-6 rounded-xl border select-none ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
-      {/* SVG Layer */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
-        {/* Líneas correctas punteadas — se muestran cuando el estudiante falló o no conectó */}
+    <div className={`rounded-xl border select-none ${darkMode ? "bg-slate-800/50 border-slate-700" : "bg-white border-gray-200"}`}>
+
+      {/* ── VISTA MÓVIL: lista de pares ── */}
+      <div className="md:hidden p-4 space-y-2">
         {paresCorrectos.map((par) => {
           const studentPair = respuestas.find(r => r.itemA.id === par.itemA.id);
-          const isCorrectlyAnswered = studentPair?.esCorrecto || puntajeTotal;
-          if (isCorrectlyAnswered) return null; // Ya está bien, no mostrar pista
-          const posA = itemPositions[`a-${par.itemA.id}`];
-          const posB = itemPositions[`b-${par.itemB.id}`];
-          if (!posA || !posB) return null;
-          return (
-            <g key={`hint-${par.id}`}>
-              <path
-                d={getPath(posA, posB)}
-                fill="none"
-                stroke={darkMode ? "rgba(52,211,153,0.55)" : "rgba(5,150,105,0.55)"}
-                strokeWidth="2.5"
-                strokeDasharray="7 4"
-                strokeLinecap="round"
-              />
-              <circle cx={posA.left} cy={posA.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
-              <circle cx={posB.left} cy={posB.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
-            </g>
-          );
-        })}
-
-        {/* Líneas del estudiante (encima de las pistas) */}
-        {respuestas.map((resp, idx) => {
-          const posA = itemPositions[`a-${resp.itemA.id}`];
-          const posB = itemPositions[`b-${resp.itemB.id}`];
-          if (!posA || !posB) return null;
-
-          const style = getStableColor(resp.itemA.id, PAIR_COLORS);
+          const isCorrect = studentPair ? (studentPair.esCorrecto || puntajeTotal) : false;
+          const studentAnswerText = studentPair ? studentPair.itemB.text : null;
 
           return (
-            <g key={idx}>
-              {/* Sombra de la línea para profundidad */}
-              <path
-                d={getPath(posA, posB)}
-                fill="none"
-                stroke="rgba(0,0,0,0.1)"
-                strokeWidth="6"
-                className={darkMode ? "stroke-black/20" : ""}
-              />
-              <path
-                d={getPath(posA, posB)}
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                className={darkMode ? style.darkStroke : style.stroke}
-              />
-              <circle cx={posA.left} cy={posA.top} r="4" className={darkMode ? style.darkFill : style.fill} />
-              <circle cx={posB.left} cy={posB.top} r="4" className={darkMode ? style.darkFill : style.fill} />
-            </g>
+            <div key={par.id} className={`rounded-xl border overflow-hidden ${
+              isCorrect
+                ? (darkMode ? "border-emerald-700/50" : "border-emerald-200")
+                : (darkMode ? "border-rose-700/50" : "border-rose-200")
+            }`}>
+              <div className="flex items-stretch">
+                {/* Item A */}
+                <div className={`flex-1 px-3 py-2.5 text-sm font-medium text-right ${darkMode ? "bg-slate-800 text-slate-200" : "bg-gray-50 text-slate-700"}`}>
+                  {par.itemA.text}
+                </div>
+                {/* Conector */}
+                <div className={`flex items-center px-2 text-xs font-bold ${
+                  isCorrect
+                    ? (darkMode ? "bg-emerald-900/30 text-emerald-400" : "bg-emerald-50 text-emerald-600")
+                    : (darkMode ? "bg-rose-900/30 text-rose-400" : "bg-rose-50 text-rose-600")
+                }`}>
+                  →
+                </div>
+                {/* Item B — respuesta del estudiante */}
+                <div className={`flex-1 px-3 py-2.5 text-sm font-medium ${
+                  isCorrect
+                    ? (darkMode ? "bg-emerald-900/20 text-emerald-300" : "bg-emerald-50 text-emerald-700")
+                    : (darkMode ? "bg-rose-900/20 text-rose-300" : "bg-rose-50 text-rose-700")
+                }`}>
+                  {studentAnswerText ?? <span className="italic opacity-50 text-xs">Sin responder</span>}
+                </div>
+              </div>
+              {/* Si incorrecto, mostrar la respuesta correcta */}
+              {!isCorrect && (
+                <div className={`px-3 py-1.5 text-xs flex items-center gap-1.5 ${darkMode ? "bg-emerald-900/10 text-emerald-400 border-t border-emerald-800/30" : "bg-emerald-50/70 text-emerald-700 border-t border-emerald-100"}`}>
+                  <CheckCircle className="w-3 h-3 shrink-0" />
+                  Correcto: {par.itemA.text} → {par.itemB.text}
+                </div>
+              )}
+            </div>
           );
         })}
-      </svg>
-
-      <div className="flex justify-between gap-12 relative z-20">
-        {/* Columna A */}
-        <div className="flex-1 space-y-4">
-          {itemsA.map(item => {
-            const pair = respuestas.find(r => r.itemA.id === item.id);
-            const isConnected = !!pair;
-            const style = isConnected ? getStableColor(item.id, PAIR_COLORS) : null;
-            const isCorrect = pair ? (pair.esCorrecto || puntajeTotal) : false;
-
-            return (
-            <div 
-              key={item.id} 
-              id={`rev-match-a-${pregunta.id}-${item.id}`} 
-              className={`p-4 rounded-xl border text-right flex items-center justify-end relative transition-all ${
-                isConnected 
-                  ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
-                  : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-gray-50 border-gray-200 text-slate-700")
-              }`}
-            >
-              <span className={`font-medium ${isConnected ? (isCorrect ? (darkMode ? "text-emerald-400" : "text-emerald-700") : (darkMode ? "text-rose-400" : "text-rose-700")) : ""}`}>{item.text}</span>
-              <div className={`w-3 h-3 rounded-full border-2 absolute -right-1.5 top-1/2 -translate-y-1/2 ${isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-600 border-slate-500" : "bg-gray-300 border-gray-400")}`}></div>
-            </div>
-          )})}
-        </div>
-        
-        {/* Columna B */}
-        <div className="flex-1 space-y-4">
-          {itemsB.map(item => {
-            const pair = respuestas.find(r => r.itemB.id === item.id);
-            const isConnected = !!pair;
-            const style = isConnected ? getStableColor(pair.itemA.id, PAIR_COLORS) : null;
-            const isCorrect = pair ? (pair.esCorrecto || puntajeTotal) : false;
-
-            return (
-            <div 
-              key={item.id} 
-              id={`rev-match-b-${pregunta.id}-${item.id}`} 
-              className={`p-4 rounded-xl border flex items-center relative transition-all ${
-                isConnected 
-                  ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`)
-                  : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-gray-50 border-gray-200 text-slate-700")
-              }`}
-            >
-              <div className={`w-3 h-3 rounded-full border-2 absolute -left-1.5 top-1/2 -translate-y-1/2 ${isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-600 border-slate-500" : "bg-gray-300 border-gray-400")}`}></div>
-              <span className={`font-medium ${isConnected ? (isCorrect ? (darkMode ? "text-emerald-400" : "text-emerald-700") : (darkMode ? "text-rose-400" : "text-rose-700")) : ""}`}>{item.text}</span>
-            </div>
-          )})}
-        </div>
       </div>
 
-      {/* Leyenda — solo cuando hay errores */}
-      {hayErrores && (
-        <div className={`mt-4 flex flex-wrap gap-4 text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
-          <span className="flex items-center gap-2">
-            <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(52,211,153,0.7)" : "rgba(5,150,105,0.7)"} strokeWidth="2" strokeDasharray="5 3" strokeLinecap="round"/></svg>
-            Conexión correcta
-          </span>
-          <span className="flex items-center gap-2">
-            <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(248,113,113,0.9)" : "rgba(220,38,38,0.9)"} strokeWidth="2.5" strokeLinecap="round"/></svg>
-            Tu respuesta (incorrecta)
-          </span>
+      {/* ── VISTA ESCRITORIO: columnas con SVG ── */}
+      <div ref={containerRef} className="hidden md:block relative p-6">
+        {/* SVG Layer */}
+        <svg className="absolute inset-0 w-full h-full pointer-events-none z-10 overflow-visible">
+          {paresCorrectos.map((par) => {
+            const studentPair = respuestas.find(r => r.itemA.id === par.itemA.id);
+            const isCorrectlyAnswered = studentPair?.esCorrecto || puntajeTotal;
+            if (isCorrectlyAnswered) return null;
+            const posA = itemPositions[`a-${par.itemA.id}`];
+            const posB = itemPositions[`b-${par.itemB.id}`];
+            if (!posA || !posB) return null;
+            return (
+              <g key={`hint-${par.id}`}>
+                <path
+                  d={getPath(posA, posB)}
+                  fill="none"
+                  stroke={darkMode ? "rgba(52,211,153,0.55)" : "rgba(5,150,105,0.55)"}
+                  strokeWidth="2.5"
+                  strokeDasharray="7 4"
+                  strokeLinecap="round"
+                />
+                <circle cx={posA.left} cy={posA.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
+                <circle cx={posB.left} cy={posB.top} r="5" fill={darkMode ? "rgba(52,211,153,0.4)" : "rgba(5,150,105,0.4)"} />
+              </g>
+            );
+          })}
+          {respuestas.map((resp, idx) => {
+            const posA = itemPositions[`a-${resp.itemA.id}`];
+            const posB = itemPositions[`b-${resp.itemB.id}`];
+            if (!posA || !posB) return null;
+            const style = getStableColor(resp.itemA.id, PAIR_COLORS);
+            return (
+              <g key={idx}>
+                <path d={getPath(posA, posB)} fill="none" stroke="rgba(0,0,0,0.1)" strokeWidth="6" className={darkMode ? "stroke-black/20" : ""} />
+                <path d={getPath(posA, posB)} fill="none" stroke="currentColor" strokeWidth="3" className={darkMode ? style.darkStroke : style.stroke} />
+                <circle cx={posA.left} cy={posA.top} r="4" className={darkMode ? style.darkFill : style.fill} />
+                <circle cx={posB.left} cy={posB.top} r="4" className={darkMode ? style.darkFill : style.fill} />
+              </g>
+            );
+          })}
+        </svg>
+
+        <div className="flex justify-between gap-12 relative z-20">
+          <div className="flex-1 space-y-4">
+            {itemsA.map(item => {
+              const pair = respuestas.find(r => r.itemA.id === item.id);
+              const isConnected = !!pair;
+              const style = isConnected ? getStableColor(item.id, PAIR_COLORS) : null;
+              const isCorrect = pair ? (pair.esCorrecto || puntajeTotal) : false;
+              return (
+                <div key={item.id} id={`rev-match-a-${pregunta.id}-${item.id}`} className={`p-4 rounded-xl border text-right flex items-center justify-end relative transition-all ${isConnected ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`) : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-gray-50 border-gray-200 text-slate-700")}`}>
+                  <span className={`font-medium ${isConnected ? (isCorrect ? (darkMode ? "text-emerald-400" : "text-emerald-700") : (darkMode ? "text-rose-400" : "text-rose-700")) : ""}`}>{item.text}</span>
+                  <div className={`w-3 h-3 rounded-full border-2 absolute -right-1.5 top-1/2 -translate-y-1/2 ${isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-600 border-slate-500" : "bg-gray-300 border-gray-400")}`}></div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex-1 space-y-4">
+            {itemsB.map(item => {
+              const pair = respuestas.find(r => r.itemB.id === item.id);
+              const isConnected = !!pair;
+              const style = isConnected ? getStableColor(pair.itemA.id, PAIR_COLORS) : null;
+              const isCorrect = pair ? (pair.esCorrecto || puntajeTotal) : false;
+              return (
+                <div key={item.id} id={`rev-match-b-${pregunta.id}-${item.id}`} className={`p-4 rounded-xl border flex items-center relative transition-all ${isConnected ? (darkMode ? `${style?.darkBorder} ${style?.darkBg}` : `${style?.border} ${style?.bg}`) : (darkMode ? "bg-slate-800 border-slate-700 text-slate-300" : "bg-gray-50 border-gray-200 text-slate-700")}`}>
+                  <div className={`w-3 h-3 rounded-full border-2 absolute -left-1.5 top-1/2 -translate-y-1/2 ${isConnected ? (darkMode ? `bg-slate-700 ${style?.darkBorder}` : `bg-white ${style?.border}`) : (darkMode ? "bg-slate-600 border-slate-500" : "bg-gray-300 border-gray-400")}`}></div>
+                  <span className={`font-medium ${isConnected ? (isCorrect ? (darkMode ? "text-emerald-400" : "text-emerald-700") : (darkMode ? "text-rose-400" : "text-rose-700")) : ""}`}>{item.text}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      )}
+
+        {hayErrores && (
+          <div className={`mt-4 flex flex-wrap gap-4 text-xs ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+            <span className="flex items-center gap-2">
+              <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(52,211,153,0.7)" : "rgba(5,150,105,0.7)"} strokeWidth="2" strokeDasharray="5 3" strokeLinecap="round"/></svg>
+              Conexión correcta
+            </span>
+            <span className="flex items-center gap-2">
+              <svg width="28" height="10"><line x1="0" y1="5" x2="28" y2="5" stroke={darkMode ? "rgba(248,113,113,0.9)" : "rgba(220,38,38,0.9)"} strokeWidth="2.5" strokeLinecap="round"/></svg>
+              Tu respuesta (incorrecta)
+            </span>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

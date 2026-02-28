@@ -40,20 +40,20 @@ export default function ExamFeedbackPage() {
       }`} />
 
       {/* Contenido Principal */}
-      <div className="relative z-10 container mx-auto px-4 py-8 md:py-12 flex flex-col items-center justify-center min-h-screen">
-        
-        {/* Header de la página */}
-        <div className="mb-8 text-center space-y-2">
-          <h1 className={`text-3xl md:text-4xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-800"}`}>
+      <div className="relative z-10 container mx-auto px-0 sm:px-4 py-0 sm:py-8 md:py-12 flex flex-col items-center justify-center min-h-screen">
+
+        {/* Header de la página — solo visible en pantallas medianas+ */}
+        <div className="hidden sm:block mb-8 text-center space-y-2">
+          <h1 className={`text-2xl md:text-4xl font-bold tracking-tight ${darkMode ? "text-white" : "text-slate-800"}`}>
             Resultados del Examen
           </h1>
-          <p className={`text-lg ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
+          <p className={`text-base md:text-lg ${darkMode ? "text-slate-400" : "text-slate-500"}`}>
             Revisión detallada de tus respuestas y calificación.
           </p>
         </div>
 
         {/* Tarjeta de Cristal (Glassmorphism) que contiene el examen */}
-        <div className={`w-full max-w-5xl rounded-3xl shadow-2xl overflow-hidden border backdrop-blur-xl transition-all duration-500 anim-scaleIn ${darkMode ? "bg-slate-900/60 border-slate-700/50" : "bg-white/70 border-white/60"}`}>
+        <div className={`w-full max-w-5xl sm:rounded-3xl shadow-2xl overflow-hidden border backdrop-blur-xl transition-all duration-500 anim-scaleIn ${darkMode ? "bg-slate-900/60 border-slate-700/50" : "bg-white/70 border-white/60"}`}>
           <RevisarCalificacion
             intentoId={0}
             codigoRevision={revisionCode}
