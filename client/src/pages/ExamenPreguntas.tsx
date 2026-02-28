@@ -84,55 +84,75 @@ const getStableColor = (id: number, colors: any[]) => {
 
 // --- VISOR PDF PARA MÓVIL (canvas inline, sin abrir pestaña) ---
 function MobilePdfViewer({ blobUrl, darkMode }: { blobUrl: string; darkMode: boolean }) {
-  const [pages, setPages] = useState<HTMLCanvasElement[]>([]);
+  const [pageUrls, setPageUrls] = useState<string[]>([]);   // imágenes renderizadas progresivamente
+  const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [scale, setScale] = useState(1.2);
-  const pdfDocRef = useRef<any>(null);
+  const pdfRef = useRef<any>(null);
+  const cancelRef = useRef(false);
 
+  // Renderiza páginas progresivamente (las muestra a medida que están listas)
   const renderPages = useCallback(async (pdf: any, s: number) => {
-    const rendered: HTMLCanvasElement[] = [];
+    cancelRef.current = false;
+    setPageUrls([]);
+    setLoading(true);
     for (let i = 1; i <= pdf.numPages; i++) {
+      if (cancelRef.current) return;
       const page = await pdf.getPage(i);
-      const viewport = page.getViewport({ scale: s });
+      const vp = page.getViewport({ scale: s });
       const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      const ctx = canvas.getContext("2d")!;
-      await page.render({ canvasContext: ctx, viewport }).promise;
-      rendered.push(canvas);
+      canvas.width = vp.width;
+      canvas.height = vp.height;
+      await page.render({ canvasContext: canvas.getContext("2d")!, viewport: vp }).promise;
+      if (!cancelRef.current) {
+        // JPEG 0.85 es ~4× más rápido que PNG y suficiente calidad para texto
+        const url = canvas.toDataURL("image/jpeg", 0.85);
+        setPageUrls(prev => [...prev, url]);
+      }
     }
-    setPages(rendered);
-    setLoading(false);
+    if (!cancelRef.current) setLoading(false);
   }, []);
 
+  // Efecto 1: cargar documento PDF (solo cuando cambia la URL)
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
+    cancelRef.current = true;
+    let mounted = true;
+    setPageUrls([]);
+    setTotalPages(0);
     setError(false);
-    setPages([]);
+    setLoading(true);
+
     pdfjsLib.getDocument(blobUrl).promise
       .then((pdf) => {
-        if (cancelled) return;
-        pdfDocRef.current = pdf;
-        return renderPages(pdf, scale);
+        if (!mounted) return;
+        pdfRef.current = pdf;
+        setTotalPages(pdf.numPages);
+        renderPages(pdf, scale);
       })
       .catch(() => {
-        if (!cancelled) { setError(true); setLoading(false); }
+        if (mounted) { setError(true); setLoading(false); }
       });
-    return () => { cancelled = true; };
-  }, [blobUrl, scale, renderPages]);
+
+    return () => { mounted = false; cancelRef.current = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blobUrl]); // NO incluir scale aquí — el zoom tiene su propio efecto
+
+  // Efecto 2: re-renderizar al cambiar zoom (reutiliza el PDF ya cargado, sin re-descarga)
+  useEffect(() => {
+    if (!pdfRef.current || totalPages === 0) return;
+    cancelRef.current = true;
+    // Pequeño debounce para evitar re-renders rápidos mientras se presiona zoom
+    const timer = setTimeout(() => {
+      if (pdfRef.current) renderPages(pdfRef.current, scale);
+    }, 350);
+    return () => { clearTimeout(timer); cancelRef.current = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scale]); // Solo scale — pdfRef y renderPages son estables
 
   const changeScale = (delta: number) => {
-    setScale((s) => Math.min(3, Math.max(0.6, parseFloat((s + delta).toFixed(1)))));
+    setScale(s => Math.min(3, Math.max(0.6, parseFloat((s + delta).toFixed(1)))));
   };
-
-  if (loading) return (
-    <div className={`flex flex-col items-center justify-center gap-3 py-16 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
-      <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
-      <span className="text-sm font-medium">Cargando PDF…</span>
-    </div>
-  );
 
   if (error) return (
     <div className={`text-center py-10 text-sm ${darkMode ? "text-red-400" : "text-red-500"}`}>
@@ -142,28 +162,47 @@ function MobilePdfViewer({ blobUrl, darkMode }: { blobUrl: string; darkMode: boo
 
   return (
     <div>
-      {/* Controles de zoom */}
-      <div className={`flex items-center justify-end gap-2 p-2 border-b ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-        <button onClick={() => changeScale(-0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <span className={`text-xs font-mono w-10 text-center ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{Math.round(scale * 100)}%</span>
-        <button onClick={() => changeScale(0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
-          <ZoomIn className="w-4 h-4" />
-        </button>
+      {/* Barra de zoom y progreso */}
+      <div className={`sticky top-0 z-10 flex items-center justify-between px-3 py-2 border-b ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-white"}`}>
+        <span className={`text-xs ${darkMode ? "text-slate-400" : "text-gray-400"}`}>
+          {loading
+            ? pageUrls.length > 0
+              ? `Cargando… ${pageUrls.length}/${totalPages} págs.`
+              : "Preparando PDF…"
+            : `${totalPages} págs.`}
+        </span>
+        <div className="flex items-center gap-1">
+          <button onClick={() => changeScale(-0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <span className={`text-xs font-mono w-10 text-center ${darkMode ? "text-slate-400" : "text-gray-500"}`}>{Math.round(scale * 100)}%</span>
+          <button onClick={() => changeScale(0.2)} className={`p-1.5 rounded-lg transition-colors ${darkMode ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-600"}`}>
+            <ZoomIn className="w-4 h-4" />
+          </button>
+        </div>
       </div>
-      {/* Páginas renderizadas */}
+
+      {/* Spinner inicial (antes de que aparezca la primera página) */}
+      {pageUrls.length === 0 && loading && (
+        <div className={`flex flex-col items-center justify-center gap-3 py-16 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+          <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm font-medium">Preparando PDF…</span>
+        </div>
+      )}
+
+      {/* Páginas (aparecen una a una) */}
       <div className="overflow-x-auto">
-        {pages.map((canvas, i) => (
-          <div key={i} className={`mb-2 flex justify-center ${darkMode ? "bg-slate-900" : "bg-gray-100"}`}>
-            <img
-              src={canvas.toDataURL()}
-              alt={`Página ${i + 1}`}
-              style={{ maxWidth: "100%", display: "block" }}
-              draggable={false}
-            />
+        {pageUrls.map((src, i) => (
+          <div key={i} className={`mb-1 flex justify-center ${darkMode ? "bg-slate-900" : "bg-gray-100"}`}>
+            <img src={src} alt={`Página ${i + 1}`} style={{ maxWidth: "100%", display: "block" }} draggable={false} />
           </div>
         ))}
+        {/* Spinner de páginas restantes */}
+        {loading && pageUrls.length > 0 && pageUrls.length < totalPages && (
+          <div className={`flex justify-center py-4 ${darkMode ? "text-slate-500" : "text-gray-400"}`}>
+            <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+          </div>
+        )}
       </div>
     </div>
   );
