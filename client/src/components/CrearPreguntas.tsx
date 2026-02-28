@@ -504,8 +504,8 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
           <label className="block text-sm font-medium mb-2 text-action">
             Pregunta
           </label>
-          <div className="flex items-start gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-start gap-3">
+            <div className="flex-1 w-full">
               <EditorTexto
                 value={pregunta.titulo}
                 onChange={(html) => actualizarPregunta(pregunta.id, { titulo: html })}
@@ -515,9 +515,9 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               />
             </div>
 
-            <label className={`flex flex-col items-center gap-1.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border-2 border-dashed self-start mt-2 ${
-              darkMode 
-                ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700 text-gray-300 hover:text-white' 
+            <label className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-1.5 px-4 py-2.5 rounded-lg cursor-pointer transition-all border-2 border-dashed sm:self-start sm:mt-0 w-full sm:w-auto justify-center ${
+              darkMode
+                ? 'border-slate-600 hover:border-slate-500 hover:bg-slate-700 text-gray-300 hover:text-white'
                 : 'border-gray-300 hover:border-blue-400 hover:bg-blue-50 text-gray-600 hover:text-blue-600'
             }`}>
               <ImageIcon className="w-5 h-5" />

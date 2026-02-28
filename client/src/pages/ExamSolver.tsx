@@ -1776,16 +1776,26 @@ export default function SecureExamPlatform() {
         <SavingIndicator savingStates={savingStates} darkMode={darkMode} />
         <TimerNotification alert={timerAlert} onClose={() => setTimerAlert(null)} darkMode={darkMode} />
 
+        {/* Backdrop para sidebar en mobile */}
+        {!sidebarCollapsed && (
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={() => setSidebarCollapsed(true)}
+          />
+        )}
+
         {/* --- SIDEBAR REFACTORIZADO (Estilo Dashboard) --- */}
-        <div className={`relative z-30 flex flex-col transition-all duration-300 ease-in-out border-r ${
-            sidebarCollapsed ? "w-14 md:w-20" : "w-14 md:w-64"
+        <div className={`flex-shrink-0 flex flex-col transition-all duration-300 ease-in-out border-r ${
+            sidebarCollapsed
+              ? "w-0 overflow-hidden md:w-20 md:overflow-visible"
+              : "absolute inset-y-0 left-0 z-50 w-64 md:relative md:inset-auto md:z-30 md:w-64"
           } ${
             darkMode
               ? "bg-slate-900/80 backdrop-blur-md border-slate-800"
               : "bg-white border-gray-200"
           }`}>
-          
-          {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) */}
+
+          {/* Botón de contraer/expandir flotante en el borde (Estilo Pestaña) — solo desktop */}
           <button
             onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
             className={`hidden md:flex absolute -right-2.5 top-1/2 transform -translate-y-1/2 z-50 items-center justify-center w-5 h-12 rounded-full shadow-md border transition-all duration-200 ${
@@ -1887,11 +1897,21 @@ export default function SecureExamPlatform() {
         <div className="flex-1 flex flex-col overflow-hidden relative">
           
           {/* Header Superior Flotante */}
-          <div className="h-24 px-6 flex items-center justify-between absolute top-0 left-0 right-0 z-20">
-              {/* Left: Control Layout */}
-              <div className={`flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
-                  <button onClick={() => setLayout("vertical")} className={`p-1.5 rounded ${layout === "vertical" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Columns className="w-4 h-4"/></button>
-                  <button onClick={() => setLayout("horizontal")} className={`p-1.5 rounded ${layout === "horizontal" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Rows className="w-4 h-4"/></button>
+          <div className="h-20 md:h-24 px-3 md:px-6 flex items-center justify-between absolute top-0 left-0 right-0 z-20">
+              {/* Left: Hamburger (mobile) + Control Layout */}
+              <div className="flex items-center gap-2">
+                  {/* Hamburger solo en mobile */}
+                  <button
+                    onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                    className={`md:hidden p-2 rounded-lg border shadow-md ${darkMode ? "bg-slate-900/80 border-slate-700 text-gray-300" : "bg-white/80 border-gray-200 text-gray-700"}`}
+                    title="Menú"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <div className={`flex p-1 rounded-lg ${darkMode ? "bg-slate-900/50 backdrop-blur-sm border border-slate-700" : "bg-white/50 backdrop-blur-sm border-gray-200/50 shadow-md"}`}>
+                      <button onClick={() => setLayout("vertical")} className={`p-1.5 rounded ${layout === "vertical" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Columns className="w-4 h-4"/></button>
+                      <button onClick={() => setLayout("horizontal")} className={`p-1.5 rounded ${layout === "horizontal" ? (darkMode ? "bg-blue-900/50 text-blue-100 border border-blue-800/50" : "bg-slate-800 text-white shadow-sm") : (darkMode ? "text-slate-400" : "text-slate-400")}`}><Rows className="w-4 h-4"/></button>
+                  </div>
               </div>
 
               {/* Right: Timer and logo */}
@@ -1933,13 +1953,13 @@ export default function SecureExamPlatform() {
                   <img
                     src={darkMode ? logoUniversidadNoche : logoUniversidad}
                     alt="Logo Universidad"
-                    className="h-14 w-auto object-contain transition-opacity duration-300"
+                    className="h-10 md:h-14 w-auto object-contain transition-opacity duration-300"
                   />
               </div>
           </div>
 
           {/* Contenedor de Paneles */}
-          <div className={`flex-1 flex ${layout === "vertical" ? "flex-row" : "flex-col"} p-4 pt-24 gap-2 overflow-hidden`}>
+          <div className={`flex-1 flex ${layout === "vertical" ? "flex-row" : "flex-col"} p-2 md:p-4 pt-20 md:pt-24 gap-2 overflow-hidden`}>
               {openPanels.length === 0 ? (
                   <div className={`flex-1 flex flex-col items-center justify-center opacity-50 ${darkMode ? "text-slate-600" : "text-gray-300"}`}>
                       <LayoutGrid className="w-24 h-24 mb-4" />
