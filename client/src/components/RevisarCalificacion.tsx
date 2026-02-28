@@ -173,6 +173,7 @@ export default function RevisarCalificacion({
   const [saveStatus, setSaveStatus] = useState<Record<number, SaveStatus>>({});
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
   const [feedbackModalPreguntaId, setFeedbackModalPreguntaId] = useState<number | null>(null);
+  const [feedbackSummaryOpen, setFeedbackSummaryOpen] = useState(true);
   // PDF-specific state
   const [pdfNota, setPdfNota] = useState<string>("");
   const [pdfRetroalimentacion, setPdfRetroalimentacion] = useState<string>("");
@@ -760,6 +761,45 @@ export default function RevisarCalificacion({
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* ===== RESUMEN RETROALIMENTACIONES (readOnly + mobile) ===== */}
+          {!isPDF && readOnly && preguntas?.some(p => p.respuestaEstudiante?.retroalimentacion) && (
+            <div className={`xl:hidden mb-6 rounded-2xl border overflow-hidden shadow-sm ${darkMode ? "bg-slate-800/60 border-teal-700/40" : "bg-white border-teal-200"}`}>
+              <button
+                onClick={() => setFeedbackSummaryOpen(o => !o)}
+                className={`w-full flex items-center justify-between px-4 py-3 ${darkMode ? "bg-slate-800/80" : "bg-teal-50"}`}
+              >
+                <div className="flex items-center gap-2">
+                  <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
+                    <MessageSquare className="w-4 h-4" />
+                  </div>
+                  <span className={`font-bold text-sm ${darkMode ? "text-slate-200" : "text-slate-700"}`}>
+                    Retroalimentación del profesor
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${darkMode ? "bg-teal-900/40 text-teal-400" : "bg-teal-100 text-teal-700"}`}>
+                    {preguntas.filter(p => p.respuestaEstudiante?.retroalimentacion).length}
+                  </span>
+                </div>
+                <svg className={`w-4 h-4 transition-transform ${feedbackSummaryOpen ? "rotate-180" : ""} ${darkMode ? "text-slate-400" : "text-slate-500"}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {feedbackSummaryOpen && (
+                <div className="divide-y">
+                  {preguntas.filter(p => p.respuestaEstudiante?.retroalimentacion).map((p) => (
+                    <div key={p.id} className={`px-4 py-3 ${darkMode ? "divide-slate-700 bg-slate-800/40" : "divide-gray-100 bg-white"}`}>
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${darkMode ? "text-slate-500" : "text-slate-400"}`}>
+                        Pregunta {preguntas.indexOf(p) + 1}
+                      </p>
+                      <p className={`text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
+                        {p.respuestaEstudiante!.retroalimentacion}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

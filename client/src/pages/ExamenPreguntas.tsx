@@ -194,7 +194,7 @@ function MobilePdfViewer({ blobUrl, darkMode }: { blobUrl: string; darkMode: boo
       <div className="overflow-x-auto">
         {pageUrls.map((src, i) => (
           <div key={i} className={`mb-1 flex justify-center ${darkMode ? "bg-slate-900" : "bg-gray-100"}`}>
-            <img src={src} alt={`Página ${i + 1}`} style={{ maxWidth: "100%", display: "block" }} draggable={false} />
+            <img src={src} alt={`Página ${i + 1}`} style={{ display: "block" }} draggable={false} />
           </div>
         ))}
         {/* Spinner de páginas restantes */}
