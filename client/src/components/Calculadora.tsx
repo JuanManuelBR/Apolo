@@ -13,6 +13,25 @@ interface CalculadoraProps {
   onSave?: (data: any) => void;
 }
 
+// Formatea un resultado numérico evitando notación científica para números normales
+const formatResult = (res: any): string => {
+  if (typeof res !== 'number' && typeof res !== 'bigint') {
+    // Para matrices, expresiones simbólicas, etc. usar format de mathjs
+    return format(res, { precision: 14 });
+  }
+  const n = Number(res);
+  if (!isFinite(n)) return String(n);
+  // Solo usar notación científica para números muy grandes o muy pequeños
+  const abs = Math.abs(n);
+  if (abs !== 0 && (abs >= 1e15 || abs < 1e-9)) {
+    return format(res, { precision: 14 });
+  }
+  // Número normal: mostrar sin notación científica, eliminando ceros decimales innecesarios
+  const str = n.toPrecision(14);
+  // Convertir a número para quitar trailing zeros (ej: "126280.00000000000" → "126280")
+  return String(parseFloat(str));
+};
+
 // Helper para factorización de números primos
 const primeFactors = (n: number): string => {
   if (!Number.isInteger(n)) return n.toString();
@@ -269,7 +288,7 @@ export default function Calculadora({ darkMode, initialState, onSave }: Calculad
       };
 
       const res = evaluate(expr, evalScope);
-      const formattedResult = format(res, { precision: 14 });
+      const formattedResult = formatResult(res);
       
       const newScope = { ...scope };
       Object.keys(evalScope).forEach(key => {

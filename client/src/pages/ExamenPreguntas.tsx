@@ -87,6 +87,44 @@ export default function ExamPanel({
   const [showNoAnswerConfirm, setShowNoAnswerConfirm] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
 
+  // PDF: cargamos el archivo como Blob URL para que iOS Safari pueda mostrarlo inline en el iframe
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [pdfBlobLoading, setPdfBlobLoading] = useState(false);
+  const pdfBlobRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!examData?.archivoPDF) return;
+    let cancelled = false;
+    setPdfBlobLoading(true);
+    setPdfBlobUrl(null);
+
+    fetch(buildPdfViewUrl(examData.archivoPDF))
+      .then(res => {
+        if (!res.ok) throw new Error('error');
+        return res.blob();
+      })
+      .then(blob => {
+        if (cancelled) return;
+        // Forzamos MIME correcto para que el navegador lo reconozca como PDF
+        const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+        const url = URL.createObjectURL(pdfBlob);
+        pdfBlobRef.current = url;
+        setPdfBlobUrl(url);
+        setPdfBlobLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setPdfBlobLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (pdfBlobRef.current) {
+        URL.revokeObjectURL(pdfBlobRef.current);
+        pdfBlobRef.current = null;
+      }
+    };
+  }, [examData?.archivoPDF]);
+
   const questions = examData?.questions || [];
   const total = questions.length;
   const currentQuestion = questions[currentIndex];
@@ -201,12 +239,44 @@ export default function ExamPanel({
                 )}
               </header>
               <div className={`rounded-xl border overflow-hidden shadow-sm ${darkMode ? "border-slate-700" : "border-gray-200"}`}>
-                <iframe
-                  src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
-                  className="w-full border-0"
-                  style={{ height: "70vh" }}
-                  title="Examen PDF"
-                />
+                {pdfBlobLoading ? (
+                  <div
+                    className={`w-full flex flex-col items-center justify-center gap-3 ${darkMode ? "bg-slate-800 text-slate-400" : "bg-gray-50 text-gray-500"}`}
+                    style={{ height: "70vh" }}
+                  >
+                    <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <span className="text-sm font-medium">Cargando PDF del examen...</span>
+                  </div>
+                ) : pdfBlobUrl ? (
+                  <iframe
+                    src={`${pdfBlobUrl}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                    className="w-full border-0"
+                    style={{ height: "70vh" }}
+                    title="Examen PDF"
+                  />
+                ) : (
+                  /* Fallback si el blob falla: mostrar iframe directo y botón de descarga */
+                  <div className="flex flex-col" style={{ height: "70vh" }}>
+                    <iframe
+                      src={`${buildPdfViewUrl(examData.archivoPDF!)}#toolbar=0&navpanes=0&scrollbar=1&view=FitH`}
+                      className="w-full border-0 flex-1"
+                      title="Examen PDF"
+                    />
+                    <div className={`p-3 border-t text-center ${darkMode ? "border-slate-700 bg-slate-800" : "border-gray-200 bg-gray-50"}`}>
+                      <p className={`text-xs mb-2 ${darkMode ? "text-slate-400" : "text-gray-500"}`}>
+                        Si el PDF no se muestra, usa el botón para verlo sin salir del examen:
+                      </p>
+                      <a
+                        href={buildPdfViewUrl(examData.archivoPDF!)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block px-4 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        Ver PDF en nueva pestaña
+                      </a>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
