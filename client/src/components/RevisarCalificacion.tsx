@@ -172,7 +172,6 @@ export default function RevisarCalificacion({
   const [feedback, setFeedback] = useState<Record<number, string>>({});
   const [saveStatus, setSaveStatus] = useState<Record<number, SaveStatus>>({});
   const [editingQuestionId, setEditingQuestionId] = useState<number | null>(null);
-  const [feedbackModalPreguntaId, setFeedbackModalPreguntaId] = useState<number | null>(null);
   const [feedbackSummaryOpen, setFeedbackSummaryOpen] = useState(true);
   // PDF-specific state
   const [pdfNota, setPdfNota] = useState<string>("");
@@ -860,26 +859,11 @@ export default function RevisarCalificacion({
                         <div className="flex-shrink-0">
                           {readOnly ? (
                             resp?.retroalimentacion ? (
-                              <>
-                                {/* Móvil: botón que abre el modal de feedback */}
-                                <button
-                                  onClick={() => setFeedbackModalPreguntaId(pregunta.id)}
-                                  className={`xl:hidden relative flex flex-col items-center justify-center min-w-[70px] px-3 py-2 rounded-xl border transition-colors ${darkMode ? "bg-slate-800 border-teal-700/50 text-slate-400 active:bg-slate-700" : "bg-white border-teal-300 text-slate-600 active:bg-teal-50"}`}
-                                >
-                                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
-                                  <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
-                                  <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
-                                  <span className={`absolute -top-1.5 -right-1.5 flex items-center justify-center w-4 h-4 rounded-full ${darkMode ? "bg-teal-500" : "bg-teal-500"}`}>
-                                    <MessageSquare className="w-2.5 h-2.5 text-white" />
-                                  </span>
-                                </button>
-                                {/* Escritorio: estático (el panel lateral muestra el feedback) */}
-                                <div className={`hidden xl:flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
-                                  <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
-                                  <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
-                                  <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
-                                </div>
-                              </>
+                              <div className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-teal-700/40 text-slate-400" : "bg-white border-teal-200 text-slate-600"}`}>
+                                <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
+                                <span className={`text-2xl font-black ${currentScore > 0 ? (darkMode ? "text-emerald-400" : "text-emerald-600") : (darkMode ? "text-slate-500" : "text-slate-400")}`}>{currentScore}</span>
+                                <span className={`text-xs font-medium ${darkMode ? "text-slate-500" : "text-slate-400"}`}>/ {pregunta.puntajeMaximo}</span>
+                              </div>
                             ) : (
                               <div className={`flex flex-col items-center justify-center min-w-[80px] px-3 py-2 rounded-xl border ${darkMode ? "bg-slate-800 border-slate-700 text-slate-400" : "bg-white border-gray-200 text-slate-600"}`}>
                                 <span className="text-[10px] uppercase font-bold tracking-wider opacity-70">Nota</span>
@@ -1141,42 +1125,6 @@ export default function RevisarCalificacion({
         </div>
       </div>
 
-      {/* ── MODAL DE FEEDBACK (solo móvil) ── */}
-      {feedbackModalPreguntaId !== null && (() => {
-        const preguntaModal = preguntas?.find(p => p.id === feedbackModalPreguntaId);
-        const retroText = preguntaModal?.respuestaEstudiante?.retroalimentacion;
-        if (!retroText) return null;
-        return (
-          <div className="xl:hidden fixed inset-0 z-50 flex items-end" onClick={() => setFeedbackModalPreguntaId(null)}>
-            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-            <div
-              className={`relative w-full rounded-t-2xl shadow-2xl max-h-[70vh] flex flex-col ${darkMode ? "bg-slate-800" : "bg-white"}`}
-              onClick={e => e.stopPropagation()}
-            >
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className={`w-10 h-1 rounded-full ${darkMode ? "bg-slate-600" : "bg-gray-300"}`} />
-              </div>
-              {/* Header */}
-              <div className={`flex items-center gap-2 px-5 py-3 border-b ${darkMode ? "border-slate-700" : "border-gray-100"}`}>
-                <div className={`p-1.5 rounded-md ${darkMode ? "bg-teal-500/20 text-teal-400" : "bg-teal-100 text-teal-600"}`}>
-                  <MessageSquare className="w-4 h-4" />
-                </div>
-                <span className={`font-bold text-base ${darkMode ? "text-slate-100" : "text-slate-800"}`}>
-                  Retroalimentación del profesor
-                </span>
-                <button onClick={() => setFeedbackModalPreguntaId(null)} className={`ml-auto p-1.5 rounded-lg transition-colors ${darkMode ? "text-slate-400 hover:text-white" : "text-slate-400 hover:text-slate-700"}`}>
-                  <XCircle className="w-5 h-5" />
-                </button>
-              </div>
-              {/* Body */}
-              <div className={`p-5 overflow-y-auto text-sm leading-relaxed whitespace-pre-wrap ${darkMode ? "text-slate-300" : "text-slate-700"}`}>
-                {retroText}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
