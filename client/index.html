@@ -2,12 +2,48 @@
 <html lang="eS">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="/orion.ico" />
+    <link rel="icon" id="favicon" type="image/png" href="/apolo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Orión</title>
+    <title>Apolo</title>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      (function () {
+        var img = new Image();
+        img.onload = function () {
+          var canvas = document.createElement('canvas');
+          canvas.width = 128; canvas.height = 128;
+          var ctx = canvas.getContext('2d');
+          // Find bounding box of non-transparent pixels
+          var tmp = document.createElement('canvas');
+          tmp.width = img.width; tmp.height = img.height;
+          var tctx = tmp.getContext('2d');
+          tctx.drawImage(img, 0, 0);
+          var data = tctx.getImageData(0, 0, img.width, img.height).data;
+          var minX = img.width, minY = img.height, maxX = 0, maxY = 0;
+          for (var i = 0; i < data.length; i += 4) {
+            if (data[i + 3] > 10) {
+              var px = (i / 4) % img.width;
+              var py = Math.floor((i / 4) / img.width);
+              if (px < minX) minX = px; if (px > maxX) maxX = px;
+              if (py < minY) minY = py; if (py > maxY) maxY = py;
+            }
+          }
+          var pad = 2;
+          var srcW = maxX - minX + pad * 2;
+          var srcH = maxY - minY + pad * 2;
+          var scale = Math.min(128 / srcW, 128 / srcH) * 1.1;
+          var dstW = srcW * scale;
+          var dstH = srcH * scale;
+          var dstX = (128 - dstW) / 2;
+          var dstY = (128 - dstH) / 2;
+          ctx.drawImage(img, minX - pad, minY - pad, srcW, srcH, dstX, dstY, dstW, dstH);
+          document.getElementById('favicon').href = canvas.toDataURL('image/png');
+        };
+        img.src = '/apolo.png';
+      })();
+    </script>
   </body>
 </html>
