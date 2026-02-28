@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronDown,
   Clock,
@@ -1422,8 +1423,8 @@ export default function VigilanciaExamenesLista({
         onCancelar={modal.onCancelar || cerrarModal}
       />
 
-      {/* Modal de revisión de calificación */}
-      {modoRevision && estudianteSeleccionado && (
+      {/* Modal de revisión de calificación — renderizado en document.body para escapar el stacking context */}
+      {modoRevision && estudianteSeleccionado && createPortal(
         <div
           className="fixed top-0 left-0 w-screen h-screen bg-black/60 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 overflow-hidden animate-in fade-in duration-200"
           onClick={() => setModoRevision(false)}
@@ -1499,7 +1500,8 @@ export default function VigilanciaExamenesLista({
               />
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </>

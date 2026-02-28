@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Moon, Sun } from 'lucide-react';
+import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import logoUniversidad from '../../assets/logo-universidad.webp';
 import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
 import fondoImagen from '../../assets/fondo.webp';
@@ -161,6 +161,20 @@ export default function LoginPage() {
           ? 'bg-gradient-to-b from-slate-950/90 via-slate-900/80 to-slate-950/90 backdrop-blur-[3px]'
           : 'bg-gradient-to-b from-sky-950/55 via-sky-900/30 to-sky-950/55 backdrop-blur-[5px]'
       }`} />
+
+      {/* Botón volver a inicio */}
+      <button
+        onClick={() => navigate('/')}
+        className={`fixed top-6 left-6 z-20 flex items-center gap-2 px-4 py-2.5 rounded-full shadow-xl border transition-all duration-300 hover:scale-105 text-sm font-medium ${
+          darkMode
+            ? 'bg-slate-800/80 backdrop-blur-xl border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white'
+            : 'bg-white/90 backdrop-blur-sm border-slate-200 text-slate-600 shadow-slate-300/60 hover:bg-white hover:text-slate-900'
+        }`}
+        title="Volver al inicio"
+      >
+        <ChevronLeft className="w-4 h-4" />
+        Inicio
+      </button>
 
       {/* Botón de tema */}
       <button

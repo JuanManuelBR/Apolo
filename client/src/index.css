@@ -69,6 +69,10 @@
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
 }
 
+button, [role="button"], label[for], select, a {
+  cursor: pointer;
+}
+
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
