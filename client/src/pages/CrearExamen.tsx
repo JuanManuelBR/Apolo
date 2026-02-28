@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
@@ -1477,16 +1478,16 @@ export default function CrearExamen({
       </div>
 
       {/* Modal Preguntas Automáticas - ⭐ MODIFICADO */}
-      {mostrarModalPreguntasAutomaticas && (
-        <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 ${cerrandoModalPreguntas ? "anim-fadeOut" : "anim-fadeIn"}`}>
+      {mostrarModalPreguntasAutomaticas && createPortal(
+        <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-2 sm:p-4 ${cerrandoModalPreguntas ? "anim-fadeOut" : "anim-fadeIn"}`}>
           <div
             className={`bg-surface border-ui rounded-lg border shadow-2xl w-full max-w-7xl h-[95vh] flex flex-col ${cerrandoModalPreguntas ? "anim-scaleOut" : "anim-scaleIn"}`}
           >
             <div
-              className="flex items-center justify-between p-6 border-b border-ui"
+              className="flex items-center justify-between p-3 sm:p-6 border-b border-ui"
             >
               <h3
-                className="text-xl font-semibold text-primary"
+                className="text-lg sm:text-xl font-semibold text-primary"
               >
                 Crear preguntas del examen
               </h3>
@@ -1497,7 +1498,7 @@ export default function CrearExamen({
                 <X className="w-5 h-5" />
               </button>
             </div>
-            <div className="flex-1 p-6 overflow-auto">
+            <div className="flex-1 p-3 sm:p-6 overflow-auto">
               {/* ⭐ AGREGADA PROP onValidationChange */}
               <CrearPreguntas
                 darkMode={darkMode}
@@ -1507,19 +1508,19 @@ export default function CrearExamen({
               />
             </div>
             <div
-              className="flex items-center justify-between gap-3 p-6 border-t border-ui"
+              className="flex flex-wrap items-center justify-between gap-2 p-3 sm:p-6 border-t border-ui"
             >
               {preguntasAutomaticasTemp.length > 0 && (
-                <div className="flex items-center gap-6">
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
                   <span
-                    className="font-medium text-primary"
+                    className="text-sm sm:text-base font-medium text-primary"
                   >
-                    Total de preguntas: {preguntasAutomaticasTemp.length}
+                    Total: {preguntasAutomaticasTemp.length} preguntas
                   </span>
                   <span
-                    className="font-medium text-primary"
+                    className="text-sm sm:text-base font-medium text-primary"
                   >
-                    Puntos totales:{" "}
+                    Puntos:{" "}
                     {preguntasAutomaticasTemp.reduce(
                       (acc, p) => acc + p.puntos,
                       0,
@@ -1527,7 +1528,7 @@ export default function CrearExamen({
                   </span>
                 </div>
               )}
-              <div className="flex gap-3">
+              <div className="flex gap-2 sm:gap-3 ml-auto">
                 <button
                   onClick={cancelarPreguntasAutomaticas}
                   className="px-6 py-3 rounded-lg font-medium transition-colors bg-raised text-primary hover:bg-ui-hover"
@@ -1553,7 +1554,7 @@ export default function CrearExamen({
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Modal Examen Creado */}
       {examenCreado && (

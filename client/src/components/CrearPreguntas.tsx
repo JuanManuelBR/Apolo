@@ -445,7 +445,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
 
     return (
       <div
-        className={`rounded-lg border-l-4 ${theme.border} p-6 mb-4 bg-raised shadow-sm`}
+        className={`rounded-lg border-l-4 ${theme.border} p-3 sm:p-6 mb-4 bg-raised shadow-sm`}
       >
         {/* Header con botón de colapsar */}
         <div className="flex items-center justify-between mb-4">
@@ -731,7 +731,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
             </label>
             <div className="space-y-3">
               {pregunta.paresConexion?.map((par) => (
-                <div key={par.id} className="flex items-center gap-3">
+                <div key={par.id} className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
                   <input
                     type="text"
                     value={par.izquierda}
@@ -739,7 +739,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                     placeholder="Elemento izquierdo"
                     className="flex-1 px-3 py-2 rounded border bg-raised border-ui text-primary"
                   />
-                  <span className="text-2xl text-primary">⟷</span>
+                  <span className="hidden sm:block text-2xl text-primary">⟷</span>
                   <input
                     type="text"
                     value={par.derecha}
@@ -750,7 +750,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
                   {pregunta.paresConexion && pregunta.paresConexion.length > 1 && (
                     <button
                       onClick={() => eliminarParConexion(pregunta.id, par.id)}
-                      className={`p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
+                      className={`self-end sm:self-auto p-2 ${darkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -784,7 +784,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
             <div className="space-y-4">
               {/* Selector de método de evaluación */}
               <div>
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                   <button
                     onClick={() => cambiarMetodoEvaluacion(pregunta.id, 'manual')}
                     className={`flex-1 px-4 py-3 rounded-lg border-2 transition-all ${
@@ -1293,7 +1293,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
         {/* Barra lateral de estado (decorativa) con color dinámico */}
         <div className={`absolute left-0 top-0 bottom-0 w-1.5 bg-gradient-to-b ${theme.gradient}`}></div>
 
-        <div className="p-6 md:p-8 pl-8 md:pl-10">
+        <div className="p-3 sm:p-6 md:p-8 pl-5 sm:pl-8 md:pl-10">
           {/* Encabezado de la Pregunta */}
           <div className="flex items-start gap-4 mb-6">
             <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm shrink-0 transition-all duration-300 ${

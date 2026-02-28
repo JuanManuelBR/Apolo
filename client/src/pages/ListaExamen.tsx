@@ -709,7 +709,7 @@ export default function ListaExamenes({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2.5 mb-1.5">
                         <h3
-                          className={`font-bold text-lg truncate ${
+                          className={`font-bold text-base sm:text-lg truncate ${
                             darkMode ? "text-white" : "text-gray-900"
                           }`}
                         >
@@ -767,14 +767,14 @@ export default function ListaExamenes({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <div
                         onClick={(e) => {
                           e.stopPropagation();
                           if (examen.codigoExamen)
                             copiarSoloCodigo(examen.codigoExamen);
                         }}
-                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-base font-mono font-bold transition-all duration-200 shadow-sm cursor-pointer ${
+                        className={`hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-lg border text-base font-mono font-bold transition-all duration-200 shadow-sm cursor-pointer ${
                           examen.codigoExamen && codigoCopiado === examen.codigoExamen
                             ? "bg-emerald-500 border-emerald-500 text-white"
                             : isInactive
@@ -833,7 +833,7 @@ export default function ListaExamenes({
                         )}
                       </div>
 
-                      <div className="flex flex-col gap-1">
+                      <div className="hidden sm:flex flex-col gap-1">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
