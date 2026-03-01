@@ -30,11 +30,7 @@ export const examsAttemptsApi = axios.create({
 // Interceptores globales
 [usersApi, examsAttemptsApi].forEach((api) => {
   api.interceptors.request.use(
-    (config) => {
-      console.log("📤 Request:", config.method?.toUpperCase(), config.url);
-      console.log("   🍪 Cookies:", document.cookie);
-      return config;
-    },
+    (config) => config,
     (error) => {
       console.error("❌ Request Error:", error);
       return Promise.reject(error);
@@ -42,11 +38,7 @@ export const examsAttemptsApi = axios.create({
   );
 
   api.interceptors.response.use(
-    (response) => {
-      console.log("📥 Response:", response.status, response.config.url);
-      console.log("   🍪 Cookies después:", document.cookie);
-      return response;
-    },
+    (response) => response,
     (error) => {
       console.error(
         "❌ Response Error:",
@@ -55,7 +47,6 @@ export const examsAttemptsApi = axios.create({
       );
 
       if (error.response?.status === 401 || error.response?.status === 403) {
-        console.log("🚪 Sesión expirada, redirigiendo a login...");
         localStorage.removeItem("usuario");
 
         const currentPath = window.location.pathname;

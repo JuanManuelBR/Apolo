@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Trash2, Copy, Image as ImageIcon, X, Check, ChevronDown, AlertCircle, HelpCircle, ChevronUp, Pencil } from 'lucide-react';
-import EditorTexto from './EditorTexto';
+import EditorTexto from './TextEditor';
 
 interface CrearPreguntasProps {
   darkMode: boolean;
@@ -72,6 +72,7 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
   const [preguntasNuevas, setPreguntasNuevas] = useState<Set<string>>(new Set());
   const [preguntasCerrando, setPreguntasCerrando] = useState<Set<string>>(new Set());
   const [preguntasTransicionando, setPreguntasTransicionando] = useState<Set<string>>(new Set());
+  const [imageError, setImageError] = useState<string | null>(null);
 
   // Notificar al padre cuando cambien las preguntas
   useEffect(() => {
@@ -417,15 +418,29 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
     actualizarPregunta(preguntaId, { textoExacto: texto });
   };
 
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/bmp'];
+
   const handleImagenCarga = (preguntaId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        actualizarPregunta(preguntaId, { imagen: event.target?.result as string });
-      };
-      reader.readAsDataURL(file);
+    e.target.value = '';
+    if (!file) return;
+
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      setImageError(`Tipo de archivo no permitido: "${file.type || file.name.split('.').pop()}". Solo se aceptan JPEG, PNG, GIF, WEBP o BMP.`);
+      return;
     }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setImageError('La imagen supera el límite de 10 MB.');
+      return;
+    }
+
+    setImageError(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      actualizarPregunta(preguntaId, { imagen: event.target?.result as string });
+    };
+    reader.readAsDataURL(file);
   };
 
   const eliminarImagen = (preguntaId: string) => {
@@ -524,12 +539,18 @@ export default function CrearPreguntas({ darkMode, preguntasIniciales = [], onPr
               <span className="text-xs font-medium whitespace-nowrap">Subir imagen</span>
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp,image/bmp"
                 className="hidden"
                 onChange={(e) => handleImagenCarga(pregunta.id, e)}
               />
             </label>
           </div>
+          {imageError && (
+            <div className="mt-2 flex items-start gap-2 p-2 rounded-lg bg-red-50 border border-red-200 text-red-700 text-xs dark:bg-red-900/30 dark:border-red-700 dark:text-red-400">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <span>{imageError}</span>
+            </div>
+          )}
         </div>
 
         {pregunta.imagen && (

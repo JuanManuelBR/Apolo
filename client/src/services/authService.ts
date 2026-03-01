@@ -111,15 +111,10 @@ export const usersService = {
     password: string,
   ): Promise<{ usuario: BackendUser; token: string }> => {
     try {
-      console.log("📤 [API] Haciendo login en backend para:", email);
-
       const response = await usersApi.post("/login", {
         email: email,
         contrasena: password,
       });
-
-      console.log("✅ [API] Login backend exitoso");
-      console.log("🍪 [API] Cookies después del login:", document.cookie);
 
       if (response.data.token) setAuthToken(response.data.token);
 
@@ -148,13 +143,9 @@ export const usersService = {
     firebaseIdToken: string,
   ): Promise<{ usuario: BackendUser; token: string }> => {
     try {
-      console.log("📤 [API] Login con Google token en backend...");
-
       const response = await usersApi.post("/login-google", {
         firebaseIdToken,
       });
-
-      console.log("✅ [API] Login Google backend exitoso");
 
       if (response.data.token) setAuthToken(response.data.token);
 
@@ -182,7 +173,6 @@ export const usersService = {
   updateLastAccess: async (userId: number): Promise<void> => {
     try {
       await usersApi.patch(`/${userId}/update-access`);
-      console.log("✅ ultimo_acceso actualizado");
     } catch (error) {
       console.error("⚠️ Error actualizando ultimo_acceso:", error);
     }
@@ -226,11 +216,9 @@ export const usersService = {
   ): Promise<BackendUser> => {
     try {
       const existingUser = await usersService.getUserByEmail(payload.email);
-      console.log("✅ Usuario existente encontrado");
       return existingUser;
     } catch (error: any) {
       if (error.message.includes("no encontrado")) {
-        console.log("ℹ️ Usuario no existe, creando nuevo...");
         return await usersService.createUser(payload);
       }
       throw error;
@@ -256,8 +244,6 @@ export const authService = {
     let firebaseUser = null;
 
     try {
-      console.log("🔄 [REGISTRO EMAIL] Iniciando...");
-
       // 1. Crear usuario en Firebase
       const userCredential = await createUserWithEmailAndPassword(
         auth,
@@ -269,8 +255,6 @@ export const authService = {
       await updateProfile(firebaseUser, {
         displayName: `${nombre} ${apellido}`,
       });
-
-      console.log("✅ [REGISTRO EMAIL] Usuario creado en Firebase");
 
       // 2. Crear usuario en el backend
       const backendPayload: CreateUserPayload = {
@@ -284,19 +268,12 @@ export const authService = {
       };
 
       const backendUser = await usersService.createUser(backendPayload);
-      console.log("✅ [REGISTRO EMAIL] Usuario creado en backend (MySQL)");
 
       // ✅ 3. HACER LOGIN PARA OBTENER LA COOKIE
-      console.log("🔄 [REGISTRO EMAIL] Obteniendo cookie del backend...");
       try {
         await usersService.loginUser(email, password);
-        console.log("✅ [REGISTRO EMAIL] Cookie obtenida correctamente");
       } catch (loginError: any) {
-        console.error(
-          "❌ [REGISTRO EMAIL] No se pudo obtener cookie:",
-          loginError.message,
-        );
-        // Continuar de todos modos
+        console.error("❌ [REGISTRO EMAIL] No se pudo obtener cookie:", loginError.message);
       }
 
       // 4. Guardar usuario en localStorage
@@ -313,7 +290,6 @@ export const authService = {
       };
 
       localStorage.setItem("usuario", JSON.stringify(localUser));
-      console.log("✅ [REGISTRO EMAIL] Usuario guardado en localStorage");
 
       return localUser;
     } catch (error: any) {
@@ -327,9 +303,6 @@ export const authService = {
       ) {
         try {
           await firebaseUser.delete();
-          console.log(
-            "🔄 [REGISTRO EMAIL] Rollback: usuario eliminado de Firebase",
-          );
         } catch (deleteError) {
           console.error("⚠️ [REGISTRO EMAIL] Error en rollback:", deleteError);
         }
@@ -358,16 +331,12 @@ export const authService = {
     googleProvider: GoogleAuthProvider,
   ): Promise<LocalUser> => {
     try {
-      console.log("🔄 [REGISTRO GOOGLE] Iniciando...");
-
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
       const fullName = firebaseUser.displayName || "";
       const { firstName, lastName } = splitFullName(fullName);
       const email = firebaseUser.email || "";
-
-      console.log("✅ [REGISTRO GOOGLE] Autenticado en Firebase");
 
       const backendPayload: CreateUserPayload = {
         nombres: firstName || "Usuario",
@@ -420,8 +389,6 @@ export const authService = {
     password: string,
   ): Promise<LocalUser> => {
     try {
-      console.log("🔄 [LOGIN EMAIL] Iniciando...");
-
       const userCredential = await signInWithEmailAndPassword(
         auth,
         email,
@@ -429,16 +396,12 @@ export const authService = {
       );
       const firebaseUser = userCredential.user;
 
-      console.log("✅ [LOGIN EMAIL] Autenticado en Firebase");
-
       let backendUser: BackendUser;
 
       try {
         const loginResponse = await usersService.loginUser(email, password);
         backendUser = loginResponse.usuario;
-        console.log("✅ [LOGIN EMAIL] Login backend - Cookie obtenida");
       } catch (backendError: any) {
-        console.warn("⚠️ Login backend falló, buscando usuario...");
 
         try {
           backendUser = await usersService.getUserByFirebaseUid(
@@ -487,16 +450,12 @@ export const authService = {
     googleProvider: GoogleAuthProvider,
   ): Promise<LocalUser> => {
     try {
-      console.log("🔄 [LOGIN GOOGLE] Iniciando...");
-
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
 
       const email = firebaseUser.email || "";
       const fullName = firebaseUser.displayName || "";
       const { firstName, lastName } = splitFullName(fullName);
-
-      console.log("✅ [LOGIN GOOGLE] Autenticado en Firebase");
 
       const backendPayload: CreateUserPayload = {
         nombres: firstName || "Usuario",
@@ -560,7 +519,6 @@ export const authService = {
     try {
       await auth.signOut();
       localStorage.removeItem("usuario");
-      console.log("✅ [LOGOUT] Sesión cerrada");
     } catch (error) {
       localStorage.removeItem("usuario");
     }

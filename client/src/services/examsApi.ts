@@ -26,12 +26,6 @@ examsApi.interceptors.request.use(
       config.headers["Authorization"] = `Bearer ${token}`;
     }
 
-    console.log(
-      "📤 [EXAMS] Request:",
-      config.method?.toUpperCase(),
-      config.url,
-    );
-    console.log("   🍪 Cookies:", document.cookie);
     return config;
   },
   (error) => {
@@ -41,10 +35,7 @@ examsApi.interceptors.request.use(
 );
 
 examsApi.interceptors.response.use(
-  (response) => {
-    console.log("✅ [EXAMS] Response:", response.status, response.config.url);
-    return response;
-  },
+  (response) => response,
   (error) => {
     console.error("❌ [EXAMS] Response Error:", {
       status: error.response?.status,
@@ -54,7 +45,6 @@ examsApi.interceptors.response.use(
 
     // Redirigir a login si es 401 o 403
     if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log("🚪 Sesión expirada en EXAMS API");
       localStorage.removeItem("usuario");
 
       const currentPath = window.location.pathname;

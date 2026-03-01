@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Sun, Moon } from "lucide-react";
-import RevisarCalificacion from "../components/RevisarCalificacion";
+import RevisarCalificacion from "../components/GradeReview";
 import fondoImagen from "../../assets/fondo.webp";
 
 export default function ExamFeedbackPage() {

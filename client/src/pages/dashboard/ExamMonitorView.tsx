@@ -24,12 +24,13 @@ import {
   TimerOff,
 } from "lucide-react";
 import { io } from "socket.io-client";
-import AlertasModal from "../components/AlertasModal";
-import { examsService } from "../services/examsService";
-import { examsAttemptsService } from "../services/examsAttempts";
-import ModalConfirmacion from "../components/ModalConfirmacion";
-import RevisarCalificacion from "../components/RevisarCalificacion";
-import PageLoader from "../components/PageLoader";
+import AlertsModal from "../../components/AlertsModal";
+import { examsService } from "../../services/examsService";
+import { examsAttemptsService } from "../../services/examsAttempts";
+import { buildPdfViewUrl } from "../../utils/examUtils";
+import ConfirmModal from "../../components/ConfirmModal";
+import GradeReview from "../../components/GradeReview";
+import PageLoader from "../../components/PageLoader";
 
 // ============================================
 // INTERFACES
@@ -86,12 +87,6 @@ type FiltroEstado = "todos" | "activos" | "bloqueados" | "pausados" | "terminado
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
 
-function buildPdfViewUrl(archivoPDF: string): string {
-  if (archivoPDF.startsWith("http")) {
-    return `${EXAMS_API_URL}/api/pdfs/proxy?url=${encodeURIComponent(archivoPDF)}`;
-  }
-  return `${EXAMS_API_URL}/api/pdfs/${archivoPDF}`;
-}
 
 const obtenerColoresExamen = (tipo: string): { borde: string; fondo: string } => {
   if (tipo === "pdf") return { borde: "border-rose-500", fondo: "bg-rose-600" };
@@ -173,8 +168,10 @@ export default function VigilanciaExamenesLista({
         const est = intentosMapped.find((i: ExamAttempt) => i.id === seleccionado.id);
         if (est) setEstudianteSeleccionado(est);
       }
-      if (!silencioso) console.log("🔄 Datos sincronizados");
-    } catch (error) { console.error("Error cargando intentos:", error); }
+    } catch (error: any) {
+      console.error("Error cargando intentos:", error);
+      if (!silencioso) mostrarModal("error", "Error al cargar intentos", error?.message || "No se pudieron cargar los intentos del examen.", cerrarModal);
+    }
   };
 
   const cargarExamenes = async () => {
@@ -236,7 +233,6 @@ export default function VigilanciaExamenesLista({
     const examId = examenActual.id;
 
     newSocket.on("connect", () => {
-      console.log("🔌 Conectado al WebSocket de vigilancia");
       newSocket.emit("join_exam_monitoring", examId);
     });
 
@@ -643,7 +639,6 @@ export default function VigilanciaExamenesLista({
     );
   };
   const handleCalificarAutomaticamente = async () => {
-      console.log("Calificando...");
       setModoPrivacidad(true);
       // Simulación: Asignar notas y pendientes si no tienen (solo para frontend)
       if (examenActual) {
@@ -673,7 +668,7 @@ export default function VigilanciaExamenesLista({
       console.error("Error descargando notas:", e);
     }
   };
-  const handleEnviarNotas = async () => console.log("Enviando notas...");
+  const handleEnviarNotas = async () => {};
 
   const toggleEstadoExamen = async (id: number, estadoActual: string) => {
     try {
@@ -1401,11 +1396,11 @@ export default function VigilanciaExamenesLista({
         </div>
 
         {mostrarModalAlertas && estudianteSeleccionado && (
-          <AlertasModal mostrar={true} alertas={alertasEstudiante} darkMode={darkMode} onCerrar={() => setMostrarModalAlertas(false)} nombreEstudiante={estudianteSeleccionado.nombre_estudiante} />
+          <AlertsModal mostrar={true} alertas={alertasEstudiante} darkMode={darkMode} onCerrar={() => setMostrarModalAlertas(false)} nombreEstudiante={estudianteSeleccionado.nombre_estudiante} />
         )}
       </div>
 
-      <ModalConfirmacion
+      <ConfirmModal
         {...modal}
         darkMode={darkMode}
         onCancelar={modal.onCancelar || cerrarModal}
@@ -1461,9 +1456,9 @@ export default function VigilanciaExamenesLista({
               </div>
             )}
 
-            {/* Panel derecho: RevisarCalificacion */}
+            {/* Panel derecho: GradeReview */}
             <div className="flex-1 min-w-0 overflow-hidden">
-              <RevisarCalificacion
+              <GradeReview
                 intentoId={estudianteSeleccionado.id}
                 darkMode={darkMode}
                 onVolver={() => setModoRevision(false)}

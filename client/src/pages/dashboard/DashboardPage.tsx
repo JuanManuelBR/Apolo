@@ -4,24 +4,25 @@
 // ============================================
 
 // Importar componentes reutilizables
-import ListaExamenes from "./ListaExamen";
-import NotificationItem from "../components/NotificationItem";
-import MiPerfil from "./MiPerfil";
-import CrearExamen from "./CrearExamen";
-import HomeContent from "./Homecontent";
-import VerExamen from "./VerExamen";
-import VigilanciaExamenesLista from "./VigilanciaExamen";
-import logoUniversidad from "../../assets/logo-universidad.webp";
-import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
-import fondoImagen from "../../assets/fondo.webp";
-import { useState, useEffect, useRef } from "react";
-import ModalConfirmacion from "../components/ModalConfirmacion";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
+import NotificationItem from "../../components/NotificationItem";
+import logoUniversidad from "../../../assets/logo-universidad.webp";
+import logoUniversidadNoche from "../../../assets/logo-universidad-noche.webp";
+import fondoImagen from "../../../assets/fondo.webp";
+
+const ListaExamenes = lazy(() => import("./ExamListView"));
+const MiPerfil = lazy(() => import("./ProfileView"));
+const CrearExamen = lazy(() => import("./CreateExamView"));
+const HomeContent = lazy(() => import("./HomeView"));
+const VerExamen = lazy(() => import("./ExamDetailView"));
+const VigilanciaExamenesLista = lazy(() => import("./ExamMonitorView"));
+import ConfirmModal from "../../components/ConfirmModal";
 import { getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { usersService } from "../services/Authservice";
-import { getAuthToken } from "../services/authToken";
+import { usersService } from "../../services/authService";
+import { getAuthToken } from "../../services/authToken";
 import { Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
-import AnimatedPage from "../components/AnimatedPage";
+import AnimatedPage from "../../components/AnimatedPage";
 import {
   Home,
   Bell,
@@ -38,7 +39,7 @@ import {
   Menu,
 } from "lucide-react";
 
-export default function LMSDashboard() {
+export default function DashboardPage() {
   const navigate = useNavigate();
   const location = useLocation();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -123,7 +124,6 @@ export default function LMSDashboard() {
         const usuarioStorage = localStorage.getItem("usuario");
 
         if (!usuarioStorage) {
-          console.log("❌ No hay usuario en localStorage, redirigiendo...");
           window.location.href = "/login";
           return;
         }
@@ -131,7 +131,6 @@ export default function LMSDashboard() {
         const usuario = JSON.parse(usuarioStorage);
 
         if (!usuario.id) {
-          console.log("❌ Usuario sin ID, redirigiendo...");
           localStorage.removeItem("usuario");
           window.location.href = "/login";
           return;
@@ -167,20 +166,17 @@ export default function LMSDashboard() {
         });
 
         if (response.status === 401) {
-          console.log("❌ Sesión expirada (401), redirigiendo al login...");
           localStorage.removeItem("usuario");
           window.location.href = "/login";
           return;
         }
 
         if (!response.ok) {
-          console.log("❌ Error al verificar sesión, redirigiendo...");
           localStorage.removeItem("usuario");
           window.location.href = "/login";
           return;
         }
 
-        console.log("✅ Sesión válida");
       } catch (error) {
         console.error("❌ Error al verificar sesión:", error);
         localStorage.removeItem("usuario");
@@ -295,7 +291,6 @@ export default function LMSDashboard() {
           },
           body: JSON.stringify({ userId: usuarioData.id }),
         });
-        console.log("✅ Usuario marcado como inactivo en logout");
       }
     } catch (error) {
       console.error("❌ Error al hacer logout:", error);
@@ -329,7 +324,6 @@ export default function LMSDashboard() {
   };
 
   const handleAcceptExam = (id: number, examId: string) => {
-    console.log(`Aceptando examen compartido: ${examId}`);
     mostrarModal("exito", "Examen aceptado", "Examen aceptado y agregado a tu lista", cerrarModal);
     handleDeleteNotification(id);
   };
@@ -479,24 +473,24 @@ export default function LMSDashboard() {
                 label="Nuevo Examen"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={location.pathname === "/nuevo-examen"}
-                onClick={() => navigate("/nuevo-examen")}
+                active={location.pathname === "/create-exam"}
+                onClick={() => navigate("/create-exam")}
               />
               <NavItem
                 icon={List}
                 label="Lista de Exámenes"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={["/lista-examenes", "/ver-examen", "/editar-examen"].includes(location.pathname)}
-                onClick={() => navigate("/lista-examenes")}
+                active={["/exam-list", "/exam-detail", "/edit-exam"].includes(location.pathname)}
+                onClick={() => navigate("/exam-list")}
               />
               <NavItem
                 icon={Monitor}
                 label="Vigilancia/Resultados"
                 collapsed={sidebarCollapsed}
                 darkMode={darkMode}
-                active={location.pathname === "/vigilancia"}
-                onClick={() => navigate("/vigilancia")}
+                active={location.pathname === "/monitor"}
+                onClick={() => navigate("/monitor")}
               />
             </div>
           </div>
@@ -528,7 +522,7 @@ export default function LMSDashboard() {
       </div>
 
       {/* Main Content - SCROLL CONDICIONAL */}
-      <div className={`flex-1 flex flex-col relative z-10 ${location.pathname === '/vigilancia' ? 'md:overflow-hidden overflow-auto' : 'overflow-auto'}`}>
+      <div className={`flex-1 flex flex-col relative z-10 ${location.pathname === '/monitor' ? 'md:overflow-hidden overflow-auto' : 'overflow-auto'}`}>
         <header
           className="bg-transparent px-3 md:px-8 py-2 transition-colors duration-300 flex-shrink-0"
         >
@@ -555,12 +549,12 @@ export default function LMSDashboard() {
           </div>
         </header>
 
-        <main className={`flex-1 px-3 sm:px-5 md:px-8 py-4 md:py-6 min-h-0 ${location.pathname === '/vigilancia' ? 'md:overflow-hidden' : 'overflow-auto'}`}>
+        <main className={`flex-1 px-3 sm:px-5 md:px-8 py-4 md:py-6 min-h-0 ${location.pathname === '/monitor' ? 'md:overflow-hidden' : 'overflow-auto'}`}>
           {!tokenListo ? (
             <div className="flex items-center justify-center h-full">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
             </div>
-          ) : <Routes>
+          ) : <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" /></div>}><Routes>
             <Route index element={<Navigate to="/home" replace />} />
             <Route path="home" element={<AnimatedPage key="home"><HomeContent darkMode={darkMode} /></AnimatedPage>} />
             <Route path="notificaciones" element={
@@ -575,11 +569,11 @@ export default function LMSDashboard() {
                 />
               </AnimatedPage>
             } />
-            <Route path="nuevo-examen" element={
-              <AnimatedPage key="nuevo-examen">
+            <Route path="create-exam" element={
+              <AnimatedPage key="create-exam">
                 <CrearExamen
                   darkMode={darkMode}
-                  onExamenCreado={() => navigate("/lista-examenes")}
+                  onExamenCreado={() => navigate("/exam-list")}
                 />
               </AnimatedPage>
             } />
@@ -587,15 +581,15 @@ export default function LMSDashboard() {
               <AnimatedPage key="editar-examen">
                 <CrearExamen
                   darkMode={darkMode}
-                  onExamenCreado={() => navigate("/lista-examenes")}
+                  onExamenCreado={() => navigate("/exam-list")}
                 />
               </AnimatedPage>
             } />
-            <Route path="ver-examen" element={<AnimatedPage key="ver-examen"><VerExamen darkMode={darkMode} /></AnimatedPage>} />
-            <Route path="lista-examenes" element={<AnimatedPage key="lista-examenes"><ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/nuevo-examen")} /></AnimatedPage>} />
-            <Route path="vigilancia" element={<AnimatedPage key="vigilancia"><VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} /></AnimatedPage>} />
-            <Route path="mi-perfil" element={<AnimatedPage key="mi-perfil"><MiPerfil darkMode={darkMode} /></AnimatedPage>} />
-          </Routes>}
+            <Route path="exam-detail" element={<AnimatedPage key="exam-detail"><VerExamen darkMode={darkMode} /></AnimatedPage>} />
+            <Route path="exam-list" element={<AnimatedPage key="exam-list"><ListaExamenes darkMode={darkMode} onCrearExamen={() => navigate("/create-exam")} /></AnimatedPage>} />
+            <Route path="monitor" element={<AnimatedPage key="monitor"><VigilanciaExamenesLista darkMode={darkMode} usuarioData={usuarioData} /></AnimatedPage>} />
+            <Route path="profile" element={<AnimatedPage key="profile"><MiPerfil darkMode={darkMode} /></AnimatedPage>} />
+          </Routes></Suspense>}
         </main>
       </div>
 
@@ -612,7 +606,7 @@ export default function LMSDashboard() {
         {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
       </button>
 
-      <ModalConfirmacion
+      <ConfirmModal
         {...modal}
         darkMode={darkMode}
         onCancelar={cerrarModal}

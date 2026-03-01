@@ -9,6 +9,7 @@ import PDFRoutes from "./routes/PDFRoutes";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/errorHandler";
 import { iniciarSchedulerExamenes } from "./scheduler/examScheduler";
+import { setupSwagger } from "./config/swagger";
 
 // Llamar express
 const app = express();
@@ -33,6 +34,8 @@ app.use(
     credentials: true,
   }),
 );
+
+setupSwagger(app);
 
 app.use("/api/exams", ExamRoutes);
 app.use("/api/images", ImageRoutes);

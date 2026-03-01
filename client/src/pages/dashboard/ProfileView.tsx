@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Mail, Save, X, FileEdit, Lock, AlertCircle } from 'lucide-react';
-import ModalConfirmacion from "../components/ModalConfirmacion";
+import ConfirmModal from "../../components/ConfirmModal";
 
 interface MiPerfilProps {
   darkMode: boolean;
@@ -47,16 +47,12 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       setIsLoading(true);
       
       const usuarioStorage = localStorage.getItem('usuario');
-      console.log('📦 Usuario en localStorage:', usuarioStorage);
-      
       if (!usuarioStorage) {
         mostrarModal("error", "Sin sesión", "No hay sesión activa. Por favor inicia sesión nuevamente.", () => { cerrarModal(); window.location.href = '/login'; });
         return;
       }
 
       const usuarioData = JSON.parse(usuarioStorage);
-      console.log('👤 Datos del usuario:', usuarioData);
-      
       const id = usuarioData.id;
       
       if (!id) {
@@ -68,11 +64,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       
       const method = usuarioData.loginMethod || 'email';
       setLoginMethod(method);
-      console.log('🔐 Método de login:', method);
 
-      console.log('🔄 Haciendo petición a:', `/api/users/${id}`);
-      console.log('🍪 Cookies disponibles:', document.cookie);
-      
       const response = await fetch(`/api/users/${id}`, {
         method: 'GET',
         credentials: 'include',
@@ -80,8 +72,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
           'Content-Type': 'application/json'
         }
       });
-
-      console.log('📡 Respuesta del servidor:', response.status, response.statusText);
 
       if (response.status === 401) {
         mostrarModal("error", "Sesión expirada", "Tu sesión ha expirado. Por favor inicia sesión nuevamente.", () => { cerrarModal(); localStorage.removeItem('usuario'); window.location.href = '/login'; });
@@ -95,8 +85,6 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
       }
 
       const data: UserData = await response.json();
-      console.log('✅ Datos recibidos:', data);
-
       setFormData({
         nombres: data.nombres || '',
         apellidos: data.apellidos || '',
@@ -232,11 +220,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
           picture: data.foto_perfil || usuario.picture
         };
         localStorage.setItem('usuario', JSON.stringify(updatedUsuario));
-        
-        console.log('✅ Usuario actualizado en localStorage:', updatedUsuario);
-        
         window.dispatchEvent(new Event('usuarioActualizado'));
-        console.log('✅ Evento "usuarioActualizado" disparado');
       }
       
       setFormData({
@@ -559,7 +543,7 @@ export default function MiPerfil({ darkMode }: MiPerfilProps) {
         </div>
       </div>
 
-      <ModalConfirmacion
+      <ConfirmModal
         {...modal}
         darkMode={darkMode}
         onCancelar={cerrarModal}

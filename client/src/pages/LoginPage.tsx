@@ -4,7 +4,7 @@ import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import logoUniversidad from '../../assets/logo-universidad.webp';
 import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
 import fondoImagen from '../../assets/fondo.webp';
-import { authService } from '../services/Authservice';
+import { authService } from '../services/authService';
 
 // Importa Firebase
 import { initializeApp, getApps } from 'firebase/app';
@@ -61,7 +61,6 @@ export default function LoginPage() {
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     if (currentUser) {
-      console.log('ℹ️ Usuario ya autenticado, redirigiendo...');
       navigate('/home');
     }
   }, [navigate]);
@@ -94,14 +93,7 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      console.log('🔐 Iniciando login con email...');
-      
-      // Usar el servicio de autenticación
       await authService.loginWithEmail(auth, email, password);
-
-      console.log('✅ Login exitoso, redirigiendo...');
-      
-      // Navegar a la página principal
       navigate('/home');
       
     } catch (error: any) {
@@ -253,7 +245,7 @@ export default function LoginPage() {
                     <span>
                       Este correo no está registrado.{' '}
                       <Link 
-                        to="/teacher-registration" 
+                        to="/register" 
                         className="font-semibold underline hover:text-red-300"
                       >
                         Crea una cuenta aquí
@@ -263,7 +255,7 @@ export default function LoginPage() {
                     <span>
                       Esta cuenta de Google no está registrada.{' '}
                       <Link 
-                        to="/teacher-registration" 
+                        to="/register" 
                         className="font-semibold underline hover:text-red-300"
                       >
                         Regístrate primero
@@ -307,7 +299,7 @@ export default function LoginPage() {
                   ¿No tienes cuenta?{' '}
                 </span>
                 <Link 
-                  to="/teacher-registration" 
+                  to="/register" 
                   className={`text-base font-medium no-underline hover:underline transition-colors duration-300 ${
                     darkMode ? 'text-blue-400' : 'text-[#003876]'
                   }`}

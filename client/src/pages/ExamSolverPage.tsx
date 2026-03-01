@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { Navigate } from "react-router-dom";
 import {
   Moon,
@@ -27,15 +27,17 @@ import {
   Coffee
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
-import ExamPanel from "./ExamenPreguntas";
-import MonitoreoSupervisado from "./ExamenAcceso";
-import EditorTexto from '../components/EditorTexto';
-import Calculadora from '../components/Calculadora';
-import HojaCalculo from '../components/HojaCalculo';
-import Lienzo from '../components/Lienzo';
-import EditorJavaScript from '../components/EditorJavaScript';
-import EditorPython from '../components/EditorPython';
-import EditorJava from '../components/EditorJava';
+import ExamPanel from "../components/ExamQuestionsPanel";
+import MonitoreoSupervisado from "../components/SupervisedMonitor";
+import ConfirmModal from "../components/ConfirmModal";
+
+const EditorTexto = lazy(() => import('../components/TextEditor'));
+const Calculadora = lazy(() => import('../components/Calculator'));
+const HojaCalculo = lazy(() => import('../components/Spreadsheet'));
+const Lienzo = lazy(() => import('../components/DrawingBoard'));
+const EditorJavaScript = lazy(() => import('../components/EditorJavaScript'));
+const EditorPython = lazy(() => import('../components/EditorPython'));
+const EditorJava = lazy(() => import('../components/EditorJava'));
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 
@@ -284,6 +286,8 @@ export default function SecureExamPlatform() {
   // Estados para Modales de Confirmación
   const [showExitModal, setShowExitModal] = useState(false);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [errorModal, setErrorModal] = useState<{ visible: boolean; titulo: string; mensaje: string }>({ visible: false, titulo: "", mensaje: "" });
+  const mostrarError = (titulo: string, mensaje: string) => setErrorModal({ visible: true, titulo, mensaje });
 
   // --- IDs VIRTUALES PARA RESPUESTAS PDF ---
   // Cada herramienta usa un pregunta_id virtual diferente para guardar su respuesta por separado
@@ -985,9 +989,9 @@ export default function SecureExamPlatform() {
               try {
                   window.close();
               } catch (e) { console.log("No se pudo cerrar automáticamente"); }
-          } catch (error) { 
-              console.error("Error:", error); 
-              console.error("Error al entregar el examen");
+          } catch (error: any) {
+              console.error("Error al entregar el examen:", error);
+              mostrarError("Error al entregar el examen", error?.message || "No se pudo completar la entrega. Intenta nuevamente o contacta a tu profesor.");
               setIsSubmitting(false);
           }
       } else {
@@ -1011,7 +1015,7 @@ export default function SecureExamPlatform() {
     setIsStarting(true);
     try {
       if (!studentData || !examData) {
-        console.error("No hay datos del estudiante o examen");
+        mostrarError("Error al iniciar", "No se encontraron los datos del examen. Regresa al acceso y vuelve a intentarlo.");
         setIsStarting(false);
         return;
       }
@@ -1234,8 +1238,8 @@ export default function SecureExamPlatform() {
       }, 100);
     } catch (error: any) {
         console.error("❌ Error al iniciar examen:", error);
+        mostrarError("Error al iniciar el examen", error?.message || "Ocurrió un error inesperado. Recarga la página e intenta nuevamente.");
         setIsStarting(false);
-        console.error(error.message || "Error al iniciar el examen");
     }
   };
 
@@ -1549,7 +1553,7 @@ export default function SecureExamPlatform() {
 
   // Guard: si no hay datos de sesión y el examen no está activo, redirigir a acceso
   if (!examStarted && !examFinished && !localStorage.getItem("studentData")) {
-    return <Navigate to="/acceso-examen" replace />;
+    return <Navigate to="/exam-access" replace />;
   }
 
   if (examFinished) {
@@ -2017,7 +2021,7 @@ export default function SecureExamPlatform() {
                                         : { transform: `scale(${panelZooms[index] / 100})`, transformOrigin: "top left", width: `${10000/panelZooms[index]}%`, height: `${10000/panelZooms[index]}%` }
                                     }
                                   >
-                                      {renderPanel(panel, panelZooms[index])}
+                                      <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" /></div>}>{renderPanel(panel, panelZooms[index])}</Suspense>
                                   </div>
                               </div>
                           </div>
@@ -2041,6 +2045,17 @@ export default function SecureExamPlatform() {
         >
           {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
+
+        {/* Modal de error */}
+        <ConfirmModal
+          visible={errorModal.visible}
+          tipo="error"
+          titulo={errorModal.titulo}
+          mensaje={errorModal.mensaje}
+          darkMode={darkMode}
+          textoConfirmar="Aceptar"
+          onConfirmar={() => setErrorModal((prev) => ({ ...prev, visible: false }))}
+        />
       </div>
     </div>
   );
