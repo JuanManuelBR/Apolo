@@ -5,6 +5,7 @@ import cors from "cors";
 import UserRoutes from "./routes/UserRoutes";
 import cookieParser from "cookie-parser";
 import { errorHandler } from "./middlewares/errorHandler";
+import { setupSwagger } from "./config/swagger";
 
 const app = express();
 
@@ -38,6 +39,8 @@ app.use(cookieParser());
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+setupSwagger(app);
 
 app.use("/api/users", UserRoutes);
 

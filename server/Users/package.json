@@ -4,12 +4,12 @@
   "scripts": {
     "build": "tsc -p tsconfig.prod.json",
     "clean-install": "rm -rf ./node_modules && rm -r package-lock.json && npm i",
-    "dev": "NODE_ENV=development ts-node ./src",
+    "dev": "cross-env NODE_ENV=development ts-node ./src/server.ts",
     "dev:hot": "nodemon --exec \"npm run dev\" --watch ./src --ext .ts",
     "lint": "eslint .",
     "start": "node dist/server.js",
     "railway:start": "npm run build && npm run start",
-    "test": "NODE_ENV=test vitest",
+    "test": "cross-env NODE_ENV=test vitest",
     "type-check": "tsc --noEmit"
   },
   "engines": {
@@ -35,11 +35,13 @@
     "jet-validators": "^1.4.3",
     "jsonfile": "^6.2.0",
     "jsonwebtoken": "^9.0.2",
-    "tsconfig-paths": "^4.2.0",
     "module-alias": "^2.2.3",
     "morgan": "^1.10.1",
     "mysql2": "^3.17.1",
     "reflect-metadata": "^0.2.2",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "tsconfig-paths": "^4.2.0",
     "typeorm": "^0.3.27"
   },
   "devDependencies": {
@@ -61,6 +63,9 @@
     "@types/morgan": "^1.9.10",
     "@types/node": "^24.10.0",
     "@types/supertest": "^6.0.3",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
+    "cross-env": "^7.0.3",
     "eslint": "^9.39.1",
     "eslint-plugin-n": "^17.23.1",
     "find": "^0.3.0",

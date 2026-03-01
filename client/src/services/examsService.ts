@@ -1,6 +1,6 @@
 // src/services/examsService.ts
 import { examsApi } from "./examsApi";
-import type { Pregunta } from "../components/CrearPreguntas";
+import type { Pregunta } from "../components/QuestionBuilder";
 
 // ==================== TIPOS ====================
 
@@ -227,8 +227,6 @@ export const examsService = {
     error?: string;
   }> => {
     try {
-      console.log("📋 [EXAMS] Preparando examen para enviar...");
-
       // ✅ Mapear preguntas y extraer imágenes
       let preguntasMapeadas: any[] = [];
       let imagenesMap: Map<string, File> = new Map();
@@ -243,9 +241,6 @@ export const examsService = {
         preguntasMapeadas = resultado.preguntasMapeadas;
         imagenesMap = resultado.imagenesMap;
 
-        console.log(
-          `🖼️ [EXAMS] Total de imágenes encontradas: ${imagenesMap.size}`,
-        );
       }
 
       const examData: any = {
@@ -305,37 +300,19 @@ export const examsService = {
       // ✅ Agregar PDF si existe
       if (datosExamen.tipoPregunta === "pdf" && datosExamen.archivoPDF) {
         formData.append("examPDF", datosExamen.archivoPDF);
-        console.log("📄 [EXAMS] PDF adjunto:", datosExamen.archivoPDF.name);
       }
 
       // ✅ Agregar imágenes de las preguntas
       if (imagenesMap.size > 0) {
         imagenesMap.forEach((file, key) => {
           formData.append(key, file);
-          console.log(`🖼️ [EXAMS] Imagen adjunta: ${key} (${file.size} bytes)`);
         });
       }
 
-      // 🔍 Debug: Mostrar contenido del FormData
-      console.log("📦 [EXAMS] Contenido del FormData:");
-      for (const [key, value] of formData.entries()) {
-        if (value instanceof File) {
-          console.log(
-            `  - ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`,
-          );
-        } else {
-          console.log(
-            `  - ${key}: ${typeof value === "string" ? value.substring(0, 100) + "..." : value}`,
-          );
-        }
-      }
 
-      console.log("🚀 [EXAMS] Enviando al backend...");
       const response = await examsApi.post("/", formData, {
-        withCredentials: true, // 🔴 ESTO ES CLAVE
+        withCredentials: true,
       });
-
-      console.log("✅ [EXAMS] Examen creado exitosamente");
 
       return {
         success: true,
@@ -364,10 +341,7 @@ export const examsService = {
    */
   obtenerMisExamenes: async (profesorId: number): Promise<ExamenCreado[]> => {
     try {
-      console.log("📚 [EXAMS] Obteniendo exámenes del profesor:", profesorId);
       const response = await examsApi.get(`/me`);
-
-      console.log("✅ [EXAMS] Exámenes obtenidos:", response.data.length);
       return response.data;
     } catch (error: any) {
       console.error("❌ [EXAMS] Error al obtener exámenes:", error);
@@ -426,43 +400,20 @@ export const examsService = {
         const response = await examsApi.get(`/${codigoLimpio}`);
 
         if (response.data) {
-          console.log(
-            "✅ [EXAMS] Examen encontrado via API:",
-            response.data.nombre,
-          );
           return response.data;
         }
       } catch (apiError: any) {
-        console.log(
-          "⚠️ [EXAMS] Búsqueda directa falló, intentando búsqueda local...",
-        );
-
         // Si falla, intentar obtener todos los exámenes y buscar localmente
         try {
           const todosResponse = await examsApi.get("/");
           const todosExamenes = todosResponse.data;
 
-          console.log(
-            "📋 [EXAMS] Total de exámenes en BD:",
-            todosExamenes.length,
-          );
-
-          // Buscar el examen comparando códigos (case-insensitive)
           const examenEncontrado = todosExamenes.find(
             (examen: ExamenCreado) =>
               examen.codigoExamen.toLowerCase() === codigoLimpio.toLowerCase(),
           );
 
           if (examenEncontrado) {
-            console.log(
-              "✅ [EXAMS] Examen encontrado via búsqueda local:",
-              examenEncontrado.nombre,
-            );
-            console.log(
-              "📊 [EXAMS] Código en BD:",
-              examenEncontrado.codigoExamen,
-            );
-            console.log("📊 [EXAMS] Código buscado:", codigoLimpio);
             return examenEncontrado;
           }
         } catch (localError) {
@@ -470,15 +421,9 @@ export const examsService = {
         }
       }
 
-      console.log("❌ [EXAMS] Examen no encontrado con código:", codigoLimpio);
       return null;
     } catch (error: any) {
       console.error("❌ [EXAMS] Error crítico al buscar examen:", error);
-      console.error("📊 [EXAMS] Detalles del error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
       return null;
     }
   },
@@ -488,13 +433,10 @@ export const examsService = {
    */
   eliminarExamen: async (id: number, profesorId: number): Promise<boolean> => {
     try {
-      console.log("🗑️ [EXAMS] Eliminando examen ID:", id);
-
       await examsApi.delete(`/${id}/single`, {
         withCredentials: true,
       });
 
-      console.log("✅ [EXAMS] Examen eliminado");
       return true;
     } catch (error: any) {
       console.error("❌ [EXAMS] Error al eliminar examen:", error);
@@ -509,17 +451,12 @@ export const examsService = {
     nuevoEstado: "open" | "closed",
   ): Promise<ExamenCreado> => {
     try {
-      console.log(
-        `🔄 [EXAMS] Actualizando estado del examen ${examId} a ${nuevoEstado}`,
-      );
-
       const response = await examsApi.patch(
         `/${examId}/status`,
         { estado: nuevoEstado },
         { withCredentials: true },
       );
 
-      console.log("✅ [EXAMS] Estado actualizado");
       return response.data.examen;
     } catch (error: any) {
       console.error("❌ [EXAMS] Error al actualizar estado:", error);

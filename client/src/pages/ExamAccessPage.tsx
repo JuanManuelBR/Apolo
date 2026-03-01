@@ -60,8 +60,6 @@ export default function ExamAccessPage() {
   // Iniciar examen - useCallback para evitar recreación
   const iniciarExamen = useCallback(
     (examen: any, datos: FormData = {}) => {
-      console.log("🚀 Iniciando examen:", examen.nombre);
-      console.log("📝 Datos del estudiante:", datos);
       if (examen.estado === "closed") {
         setError(
           "El examen no está disponible. Ha sido cerrado por el profesor.",
@@ -81,13 +79,7 @@ export default function ExamAccessPage() {
       localStorage.setItem("studentData", JSON.stringify(studentData));
       localStorage.setItem("currentExam", JSON.stringify(examen));
 
-      console.log("💾 Datos guardados en localStorage");
-      console.log("📊 studentData:", studentData);
-      console.log("📊 currentExam:", examen);
-
-      // Redirigir en la misma ventana a ExamSolver (replace para no dejar /exam-solver en historial)
       const rutaExamen = "/exam-solver";
-      console.log("➡️ Redirigiendo a:", rutaExamen);
 
       // Usar setTimeout para asegurar que localStorage se guarde antes de navegar
       setTimeout(() => {
@@ -114,7 +106,6 @@ export default function ExamAccessPage() {
       campos.push("contrasena");
     }
 
-    console.log("📋 Campos requeridos detectados:", campos);
     return campos;
   };
 
@@ -136,9 +127,6 @@ export default function ExamAccessPage() {
     if (hasProcessedUrl.current && currentCode.current === decodedCode) {
       return;
     }
-
-    console.log("📍 Código detectado en URL:", decodedCode);
-    console.log("📏 Longitud del código:", decodedCode.length);
 
     // Validar longitud (ahora 8 caracteres)
     if (decodedCode.length !== 8) {
@@ -163,7 +151,6 @@ export default function ExamAccessPage() {
         const examen = await examsService.obtenerExamenPorCodigo(decodedCode);
 
         if (examen) {
-          console.log("✅ Examen encontrado:", examen.nombre);
           if (examen.estado === "closed") {
             setError("El examen no aún no está abierto.");
             setLoading(false);
@@ -174,21 +161,13 @@ export default function ExamAccessPage() {
           const campos = obtenerCamposRequeridos(examen);
           setCamposRequeridos(campos);
 
-          console.log("📋 Campos requeridos:", campos);
-
-          // Si no hay campos requeridos, ir directo al examen
           if (campos.length === 0) {
-            console.log(
-              "⚡ Sin campos requeridos, iniciando examen directo...",
-            );
             iniciarExamen(examen, {});
           } else {
-            console.log("📝 Hay campos requeridos, mostrando formulario");
             setShowForm(true);
           }
           setError("");
         } else {
-          console.log("❌ Examen no encontrado");
           setError("Código incorrecto. Verifica e intenta de nuevo.");
         }
       } catch (error) {
@@ -311,9 +290,6 @@ export default function ExamAccessPage() {
       // Validar contraseña con el backend
       await examsService.validatePassword(examCode, formData.contrasena);
 
-      console.log("✅ Contraseña validada correctamente");
-
-      // Guardar datos en localStorage
       const studentData = {
         nombre: formData.nombre,
         correoElectronico: formData.correoElectronico,
@@ -325,8 +301,6 @@ export default function ExamAccessPage() {
 
       localStorage.setItem("studentData", JSON.stringify(studentData));
       localStorage.setItem("currentExam", JSON.stringify(examenData));
-
-      console.log("💾 Datos guardados (sin intento):", studentData);
 
       // Navegar a exam-solver (replace para no dejar /exam-solver en historial)
       setTimeout(() => {
@@ -401,11 +375,8 @@ export default function ExamAccessPage() {
   ) => {
     // Verificar si el campo está en los campos requeridos
     if (!camposRequeridos.includes(key)) {
-      console.log(`⏭️ Campo "${key}" no requerido, saltando...`);
       return null;
     }
-
-    console.log(`✅ Renderizando campo: ${key}`);
 
     return (
       <div key={key} className="mb-4">
@@ -755,7 +726,7 @@ export default function ExamAccessPage() {
                 hasProcessedUrl.current = false;
                 currentCode.current = "";
                 // Limpiar el código de la URL
-                navigate("/acceso-examen", { replace: true });
+                navigate("/exam-access", { replace: true });
               }}
               className={`w-full text-sm ${darkMode ? "text-blue-400 hover:text-blue-300" : "text-[#003876] hover:text-[#003876]/80"}`}
             >

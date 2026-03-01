@@ -4,7 +4,7 @@ import { Moon, Sun, ChevronLeft } from 'lucide-react';
 import logoUniversidad from '../../assets/logo-universidad.webp';
 import logoUniversidadNoche from '../../assets/logo-universidad-noche.webp';
 import fondoImagen from '../../assets/fondo.webp';
-import { authService } from '../services/Authservice';
+import { authService } from '../services/authService';
 
 // Importa Firebase
 import { initializeApp, getApps } from 'firebase/app';
@@ -80,7 +80,6 @@ export default function RegisterPage() {
   useEffect(() => {
     const currentUser = authService.getCurrentUser();
     if (currentUser) {
-      console.log('ℹ️ Usuario ya autenticado, redirigiendo...');
       navigate('/');
     }
   }, [navigate]);
@@ -206,9 +205,6 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      console.log('📝 Iniciando registro con email...');
-      
-      // Usar el servicio de autenticación
       await authService.registerWithEmail(
         auth,
         formData.nombre,
@@ -216,10 +212,6 @@ export default function RegisterPage() {
         formData.email,
         formData.password
       );
-
-      console.log('✅ Registro exitoso, redirigiendo...');
-      
-      // Navegar a la página principal
       navigate('/');
       
     } catch (error: any) {

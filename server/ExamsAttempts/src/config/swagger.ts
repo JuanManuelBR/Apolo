@@ -513,7 +513,6 @@ export const setupSwagger = (app: Express): void => {
     res.send(swaggerSpec);
   });
 
-  console.log('📚 Swagger docs disponible en: http://localhost:3002/api/exam/docs');
 };
 
 export default swaggerSpec;

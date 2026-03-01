@@ -1,7 +1,7 @@
 // components/ModalExamenCreado.tsx
 import { X, Copy, Share2, Check } from 'lucide-react';
 import { useState } from 'react';
-import ModalConfirmacion from "./ModalConfirmacion";
+import ModalConfirmacion from "./ConfirmModal";
 
 interface ModalExamenCreadoProps {
   mostrar: boolean;

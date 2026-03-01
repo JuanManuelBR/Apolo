@@ -12,16 +12,16 @@ import {
   AlertCircle,
   HelpCircle,
 } from "lucide-react";
-import EditorTexto from "../components/EditorTexto";
-import SeccionSeguridad from "../components/SeccionSeguridad";
-import SeccionHerramientas from "../components/SeccionHerramientas";
-import VisorPDF from "../components/VisorPDF";
-import CrearPreguntas, { type Pregunta } from "../components/CrearPreguntas";
-import ModalExamenCreado from "../components/ModalExamenCreado";
-import { examsService, obtenerUsuarioActual } from "../services/examsService";
-import { examsApi } from "../services/examsApi";
-import ModalConfirmacion from "../components/ModalConfirmacion";
-import Collapsible from "../components/Collapsible";
+import TextEditor from "../../components/TextEditor";
+import SecuritySection from "../../components/SecuritySection";
+import ToolsSection from "../../components/ToolsSection";
+import PDFViewer from "../../components/PDFViewer";
+import QuestionBuilder, { type Pregunta } from "../../components/QuestionBuilder";
+import ExamCreatedModal from "../../components/ExamCreatedModal";
+import { examsService, obtenerUsuarioActual } from "../../services/examsService";
+import { examsApi } from "../../services/examsApi";
+import ConfirmModal from "../../components/ConfirmModal";
+import Collapsible from "../../components/Collapsible";
 
 // Convierte una pregunta del formato backend al formato Pregunta del editor
 function mapearPreguntaBackendAFrontend(p: any): any {
@@ -265,7 +265,6 @@ export default function CrearExamen({
       .get(`/by-id/${examenAEditar.id}`, { withCredentials: true })
       .then((res) => {
         const ex = res.data;
-        console.log("📝 Cargando datos para edición:", ex);
 
         // Campos básicos
         setNombreExamen(ex.nombre || "");
@@ -322,7 +321,7 @@ export default function CrearExamen({
         // Herramientas (booleanos individuales en backend)
         setHerramientasActivas({
           dibujo: ex.incluirHerramientaDibujo || false,
-          calculadora: ex.incluirCalculadoraCientifica || false,
+          calculadora: ex.incluirCalculatorCientifica || false,
           excel: ex.incluirHojaExcel || false,
           javascript: ex.incluirJavascript || false,
           python: ex.incluirPython || false,
@@ -357,6 +356,7 @@ export default function CrearExamen({
       })
       .catch((err) => {
         console.error("❌ Error cargando datos del examen para edición:", err);
+        mostrarModal("error", "Error al cargar el examen", `No se pudieron cargar los datos del examen para editar: ${err?.message || "Error desconocido"}`, cerrarModal);
       });
   }, [examenAEditar?.id]);
 
@@ -625,8 +625,6 @@ export default function CrearExamen({
     setGuardando(true);
 
     try {
-      console.log("🎯 [CREAR EXAMEN] Iniciando creación...");
-
       const usuario = obtenerUsuarioActual();
       if (!usuario) {
         mostrarModal("error", "Error de sesión", "No se pudo obtener la información del usuario. Por favor, inicie sesión nuevamente.", cerrarModal);
@@ -658,27 +656,17 @@ export default function CrearExamen({
           .map(([herramienta, _]) => herramienta),
       };
 
-      console.log("📤 [CREAR EXAMEN] Enviando datos al backend...");
-      console.log("📋 [DEBUG] Datos del examen:", {
-        ...datosExamen,
-        archivoPDF: datosExamen.archivoPDF ? "FILE" : null,
-      });
-      
       let resultado;
       if (isEditMode) {
-        console.log("🔄 [EDITAR EXAMEN] Actualizando examen ID:", examenAEditar.id);
         resultado = await examsService.actualizarExamen(examenAEditar.id, datosExamen as any);
       } else {
         resultado = await examsService.crearExamen(datosExamen as any, usuario.id);
       }
 
       if (resultado.success) {
-        console.log(`✅ [${isEditMode ? "EDITAR" : "CREAR"} EXAMEN] Operación exitosa`);
-        console.log("🔑 [CREAR EXAMEN] Código:", resultado.codigoExamen);
-
         setExamenCreado({
           codigo: resultado.codigoExamen,
-          url: `${window.location.origin}/acceso-examen?code=${encodeURIComponent(resultado.codigoExamen)}`,
+          url: `${window.location.origin}/exam-access?code=${encodeURIComponent(resultado.codigoExamen)}`,
         });
       } else {
         throw new Error(resultado.error || `Error al ${isEditMode ? "actualizar" : "crear"} el examen`);
@@ -725,7 +713,7 @@ export default function CrearExamen({
           onClick={() => {
             mostrarModal("confirmar", "Salir sin guardar", "¿Está seguro que desea salir? Se perderán los cambios no guardados.", () => {
               cerrarModal();
-              navigate("/lista-examenes");
+              navigate("/exam-list");
             }, cerrarModal);
           }}
           className="p-2 rounded-lg transition-colors hover:bg-ui-hover text-action"
@@ -822,7 +810,7 @@ export default function CrearExamen({
               >
                 Descripción
               </label>
-              <EditorTexto
+              <TextEditor
                 value={descripcionExamen}
                 onChange={(value) => setDescripcionExamen(value)}
                 darkMode={darkMode}
@@ -1347,7 +1335,7 @@ export default function CrearExamen({
           )}
         </button>
         <Collapsible open={seccion5Abierta}>
-          <SeccionHerramientas
+          <ToolsSection
             darkMode={darkMode}
             tipoPregunta={tipoPregunta}
             herramientasActivas={herramientasActivas}
@@ -1406,7 +1394,7 @@ export default function CrearExamen({
           )}
         </button>
         <Collapsible open={seccion6Abierta}>
-          <SeccionSeguridad
+          <SecuritySection
             darkMode={darkMode}
             onContraseñaChange={setContraseñaExamen}
             onConsecuenciaChange={setConsecuenciaAbandono}
@@ -1507,7 +1495,7 @@ export default function CrearExamen({
             </div>
             <div className="flex-1 p-3 sm:p-6 overflow-auto">
               {/* ⭐ AGREGADA PROP onValidationChange */}
-              <CrearPreguntas
+              <QuestionBuilder
                 darkMode={darkMode}
                 preguntasIniciales={preguntasAutomaticasTemp}
                 onPreguntasChange={handlePreguntasChange}
@@ -1565,7 +1553,7 @@ export default function CrearExamen({
 
       {/* Modal Examen Creado */}
       {examenCreado && (
-        <ModalExamenCreado
+        <ExamCreatedModal
           mostrar={!!examenCreado}
           codigo={examenCreado.codigo}
           url={examenCreado.url}
@@ -1579,7 +1567,7 @@ export default function CrearExamen({
       )}
 
       {/* Visor PDF */}
-      <VisorPDF
+      <PDFViewer
         mostrar={mostrarVistaPreviaPDF}
         pdfURL={pdfURL}
         pdfCargando={pdfCargando}
@@ -1588,7 +1576,7 @@ export default function CrearExamen({
         onElegirOtro={elegirOtroPDF}
       />
 
-      <ModalConfirmacion
+      <ConfirmModal
         {...modal}
         darkMode={darkMode}
         onCancelar={modal.onCancelar || cerrarModal}

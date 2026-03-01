@@ -1,60 +1,64 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Route, Routes, Navigate } from "react-router-dom";
-import LoginPage from "../pages/LoginPage";
-import RegisterPage from "../pages/RegisterPage";
-import PrincipalPage from "../pages/PrincipalPage";
-import ExamAccessPage from "../pages/ExamAccessPage";
-import ExamSolver from "../pages/ExamSolver";
-import ExamFeedbackPage from "../pages/ExamFeedbackPage";
-import LandingPage from "../pages/LandingPage";
+
+const LoginPage = lazy(() => import("../pages/LoginPage"));
+const RegisterPage = lazy(() => import("../pages/RegisterPage"));
+const DashboardPage = lazy(() => import("../pages/dashboard/DashboardPage"));
+const ExamAccessPage = lazy(() => import("../pages/ExamAccessPage"));
+const ExamSolverPage = lazy(() => import("../pages/ExamSolverPage"));
+const ExamFeedbackPage = lazy(() => import("../pages/ExamFeedbackPage"));
+const LandingPage = lazy(() => import("../pages/LandingPage"));
 
 // Componente para proteger rutas
-function RutaProtegida({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const usuario = localStorage.getItem('usuario');
 
-  // Si no hay usuario, redirige al login
   if (!usuario) {
-    return <Navigate to="/teacher-login" replace />;
+    return <Navigate to="/login" replace />;
   }
 
-  // Si hay usuario, muestra la página
   return <>{children}</>;
 }
 
 export function MyRoutes() {
   return (
     <BrowserRouter>
-      <Routes>
-        {/* Página de inicio: selección de rol */}
-        <Route path="/" element={<LandingPage />} />
+      <Suspense fallback={null}>
+        <Routes>
+          {/* Landing page: role selection */}
+          <Route path="/" element={<LandingPage />} />
 
-        {/* Ruta del Login (pública) */}
-        <Route path="/teacher-login" element={<LoginPage />} />
+          {/* Login (public) */}
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Ruta del Registro (pública) */}
-        <Route path="/teacher-registration" element={<RegisterPage />} />
+          {/* Register (public) */}
+          <Route path="/register" element={<RegisterPage />} />
 
-        {/* Ruta de Acceso a Examen (pública) */}
-        <Route path="/acceso-examen" element={<ExamAccessPage />} />
+          {/* Exam access (public) */}
+          <Route path="/exam-access" element={<ExamAccessPage />} />
 
-        {/* Ruta del Examen (pública) */}
-        <Route path="/exam-solver" element={<ExamSolver />} />
+          {/* Exam solver (public) */}
+          <Route path="/exam-solver" element={<ExamSolverPage />} />
 
-        {/* Ruta de Revisión de Calificación (pública) */}
-        <Route path="/exam-feedback" element={<ExamFeedbackPage />} />
+          {/* Grade review (public) */}
+          <Route path="/exam-feedback" element={<ExamFeedbackPage />} />
 
-        {/* Ruta Principal (protegida) - usa /* para permitir sub-rutas internas */}
-        <Route
-          path="/*"
-          element={
-            <RutaProtegida>
-              <PrincipalPage />
-            </RutaProtegida>
-          }
-        />
+          {/* Dashboard (protected) - uses /* to allow internal sub-routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
 
-        {/* Cualquier otra ruta redirige a la landing */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          {/* Legacy redirects */}
+          <Route path="/teacher-login" element={<Navigate to="/login" replace />} />
+          <Route path="/teacher-registration" element={<Navigate to="/register" replace />} />
+          <Route path="/acceso-examen" element={<Navigate to="/exam-access" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

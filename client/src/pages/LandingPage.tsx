@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { GraduationCap, School, Moon, Sun, ChevronRight } from "lucide-react";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 import fondoImagen from "../../assets/fondo.webp";
-import { authService } from "../services/Authservice";
+import { authService } from "../services/authService";
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -128,7 +128,7 @@ export default function LandingPage() {
 
           {/* DOCENTE */}
           <button
-            onClick={() => navigate("/teacher-login")}
+            onClick={() => navigate("/login")}
             className={`group relative overflow-hidden rounded-3xl transition-all duration-500 hover:scale-[1.02] ${
               darkMode ? "" : "bg-gradient-to-br from-blue-600 via-indigo-600 to-cyan-600"
             }`}
@@ -182,7 +182,7 @@ export default function LandingPage() {
 
           {/* ESTUDIANTE */}
           <button
-            onClick={() => navigate("/acceso-examen")}
+            onClick={() => navigate("/exam-access")}
             className={`group relative overflow-hidden rounded-3xl transition-all duration-500 hover:scale-[1.02] ${
               darkMode ? "" : "bg-gradient-to-br from-emerald-600 via-teal-600 to-lime-600"
             }`}

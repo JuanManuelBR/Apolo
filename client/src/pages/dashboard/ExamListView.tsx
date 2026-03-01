@@ -29,12 +29,12 @@ import {
   examsService,
   obtenerUsuarioActual,
   type ExamenCreado,
-} from "../services/examsService";
-import { examsAttemptsService } from "../services/examsAttempts";
-import ModalConfirmacion from "../components/ModalConfirmacion";
-import ExportarPDFModal from "../components/ExportarPDFModal";
-import PageLoader from "../components/PageLoader";
-import ScrollReveal from "../components/ScrollReveal";
+} from "../../services/examsService";
+import { examsAttemptsService } from "../../services/examsAttempts";
+import ConfirmModal from "../../components/ConfirmModal";
+import ExportPDFModal from "../../components/ExportPDFModal";
+import PageLoader from "../../components/PageLoader";
+import ScrollReveal from "../../components/ScrollReveal";
 
 interface ListaExamenesProps {
   darkMode: boolean;
@@ -93,7 +93,6 @@ export default function ListaExamenes({
         return;
       }
 
-      console.log("📚 [LISTA] Cargando exámenes...");
       const data = await examsService.obtenerMisExamenes(usuario.id);
 
       const examenesConEstado = data.map((ex) => ({
@@ -103,7 +102,6 @@ export default function ListaExamenes({
       }));
 
       setExamenes(examenesConEstado);
-      console.log("✅ [LISTA] Exámenes cargados:", examenesConEstado.length);
     } catch (error: any) {
       console.error("❌ [LISTA] Error:", error);
       setError(error.message || "Error al cargar los exámenes");
@@ -213,7 +211,7 @@ export default function ListaExamenes({
   };
 
   const copiarEnlaceExamen = (codigo: string) => {
-    const url = `${window.location.origin}/acceso-examen?code=${encodeURIComponent(codigo)}`;
+    const url = `${window.location.origin}/exam-access?code=${encodeURIComponent(codigo)}`;
     navigator.clipboard.writeText(url).then(() => {
       setUrlCopiada(codigo);
       setTimeout(() => setUrlCopiada(null), 2000);
@@ -296,8 +294,6 @@ export default function ListaExamenes({
       return;
     }
 
-    console.log("📧 Enviando examen a:", correoDestino);
-
     setCompartiendoExito(true);
     setTimeout(() => {
       setCompartiendoExito(false);
@@ -316,12 +312,10 @@ export default function ListaExamenes({
           return;
         }
 
-        console.log("🗑️ [LISTA] Eliminando examen...");
         const success = await examsService.eliminarExamen(id, usuario.id);
 
         if (success) {
           setExamenes((prev) => prev.filter((ex) => ex.id !== id));
-          console.log("✅ [LISTA] Examen eliminado");
         } else {
           mostrarModal("error", "Error", "No se pudo eliminar el examen", cerrarModal);
         }
@@ -878,7 +872,7 @@ export default function ListaExamenes({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            navigate("/ver-examen", {
+                            navigate("/exam-detail", {
                               state: { examen }
                             });
                           }}
@@ -1063,7 +1057,7 @@ export default function ListaExamenes({
                               <button
                                 onClick={() => {
                                   setMenuAbierto(null);
-                                  navigate("/ver-examen", { state: { examen } });
+                                  navigate("/exam-detail", { state: { examen } });
                                 }}
                                 className={`w-full text-left px-3 py-2 text-sm flex items-center gap-2.5 transition-colors ${
                                   darkMode
@@ -1125,14 +1119,14 @@ export default function ListaExamenes({
         )}
       </div>
 
-      <ModalConfirmacion
+      <ConfirmModal
         {...modal}
         darkMode={darkMode}
         onCancelar={modal.onCancelar || cerrarModal}
       />
 
       {exportModal && (
-        <ExportarPDFModal
+        <ExportPDFModal
           examen={exportModal}
           darkMode={darkMode}
           onClose={() => setExportModal(null)}

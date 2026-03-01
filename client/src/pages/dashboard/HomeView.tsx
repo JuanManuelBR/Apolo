@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { FileEdit, User, Bell, CheckCircle, AlertTriangle, TrendingUp } from 'lucide-react';
-import ScrollReveal from '../components/ScrollReveal';
+import ScrollReveal from '../../components/ScrollReveal';
 
 interface HomeContentProps {
   darkMode: boolean;

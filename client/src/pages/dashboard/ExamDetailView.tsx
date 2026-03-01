@@ -1,9 +1,9 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { ArrowLeft, FileText, ExternalLink } from "lucide-react";
-import ExamPanel from "./ExamenPreguntas";
+import ExamPanel from "../../components/ExamQuestionsPanel";
 import { useEffect, useMemo, useState } from "react";
-import { examsApi } from "../services/examsApi";
-import { obtenerUsuarioActual } from "../services/examsService";
+import { examsApi } from "../../services/examsApi";
+import { obtenerUsuarioActual } from "../../services/examsService";
 
 interface VerExamenProps {
   darkMode: boolean;
@@ -147,7 +147,7 @@ export default function VerExamen({ darkMode }: VerExamenProps) {
       {/* Cabecera simple de navegación */}
       <div className="flex items-center gap-4 p-4 mb-4 rounded-xl border border-ui bg-surface shadow-sm">
         <button
-          onClick={() => navigate("/lista-examenes")}
+          onClick={() => navigate("/exam-list")}
           className="p-2 rounded-lg transition-colors text-action hover:bg-ui-hover hover:text-ui-hover"
         >
           <ArrowLeft className="w-6 h-6" />
