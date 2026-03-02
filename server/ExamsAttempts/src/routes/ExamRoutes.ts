@@ -1003,4 +1003,6 @@ router.get('/:examId/grades/download', ExamController.downloadGrades);
  */
 router.get('/attempt/feedback/:codigo_acceso', ExamController.getAttemptFeedback);
 
+router.post('/internal/notify-professor', ExamController.notifyProfessor);
+
 export default router;

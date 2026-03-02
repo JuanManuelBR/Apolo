@@ -580,6 +580,11 @@ export const examsService = {
     return response.data.examen;
   },
 
+  compartirExamen: async (examId: number, correoDestino: string): Promise<ExamenCreado> => {
+    const response = await examsApi.post(`/${examId}/share`, { correoDestino }, { withCredentials: true });
+    return response.data.examen;
+  },
+
   archiveExam: async (examId: number): Promise<void> => {
     await examsApi.patch(`/${examId}/archive`, {}, { withCredentials: true });
   },

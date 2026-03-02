@@ -480,4 +480,27 @@ export class ExamController {
       next(err);
     }
   }
+
+  static async notifyProfessor(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const { profesorId, event, data } = req.body;
+
+      if (!profesorId || !event) {
+        return res.status(400).json({ message: "profesorId y event son requeridos" });
+      }
+
+      const socketHandler = req.app.get("socketHandler");
+      if (socketHandler) {
+        socketHandler.emitToProfessor(Number(profesorId), event, data);
+      }
+
+      res.status(200).json({ message: "Notificación enviada" });
+    } catch (err) {
+      next(err);
+    }
+  }
 }
