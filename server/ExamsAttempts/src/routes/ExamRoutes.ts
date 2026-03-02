@@ -469,6 +469,8 @@ router.get("/attempt/:attemptId/events", ExamController.getAttemptEvents);
  */
 router.patch("/attempt/:attemptId/events/read", ExamController.markEventsAsRead);
 
+router.patch("/attempt/:attemptId/question-order", ExamController.saveQuestionOrder);
+
 /**
  * @openapi
  * /api/exam/attempt/{intento_id}/details:

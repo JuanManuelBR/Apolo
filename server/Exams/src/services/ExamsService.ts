@@ -124,6 +124,7 @@ export class ExamService {
         cambioEstadoAutomatico,
         dividirPreguntas: data.dividirPreguntas ?? false,
         permitirVolverPreguntas: data.permitirVolverPreguntas ?? false,
+        ordenAleatorio: data.ordenAleatorio ?? false,
       });
 
       const examen_guardado = await manager.save(Exam, nuevo_examen);
@@ -378,6 +379,8 @@ export class ExamService {
         existingExam.dividirPreguntas = data.dividirPreguntas;
       if (data.permitirVolverPreguntas !== undefined)
         existingExam.permitirVolverPreguntas = data.permitirVolverPreguntas;
+      if (data.ordenAleatorio !== undefined)
+        existingExam.ordenAleatorio = data.ordenAleatorio;
 
       // Validar que limiteTiempo no supere la ventana disponible
       if (existingExam.limiteTiempo && existingExam.horaCierre) {
@@ -641,6 +644,7 @@ export class ExamService {
 
       dividirPreguntas: exam.dividirPreguntas,
       permitirVolverPreguntas: exam.permitirVolverPreguntas,
+      ordenAleatorio: exam.ordenAleatorio,
 
       questions: sanitizedQuestions,
       nombreProfesor: nombreProfesor,
@@ -963,6 +967,7 @@ export class ExamService {
         tienePreguntasAbiertas: original.tienePreguntasAbiertas,
         dividirPreguntas: original.dividirPreguntas,
         permitirVolverPreguntas: original.permitirVolverPreguntas,
+        ordenAleatorio: original.ordenAleatorio,
       });
 
       const examenGuardado = await manager.save(Exam, nuevoExamen);

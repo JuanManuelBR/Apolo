@@ -20,6 +20,7 @@ export interface DatosExamen {
     consecuenciaAbandono: string;
     navegacionSecuencial?: boolean;
     permitirVolverPreguntas?: boolean;
+    ordenAleatorio?: boolean;
   };
   herramientasActivas: string[];
 }
@@ -289,6 +290,7 @@ export const examsService = {
 
         dividirPreguntas: datosExamen.seguridad.navegacionSecuencial ?? false,
         permitirVolverPreguntas: datosExamen.seguridad.permitirVolverPreguntas ?? false,
+        ordenAleatorio: datosExamen.seguridad.ordenAleatorio ?? false,
 
         questions: preguntasMapeadas,
       };
@@ -534,6 +536,7 @@ export const examsService = {
 
         dividirPreguntas: datosExamen.seguridad.navegacionSecuencial ?? false,
         permitirVolverPreguntas: datosExamen.seguridad.permitirVolverPreguntas ?? false,
+        ordenAleatorio: datosExamen.seguridad.ordenAleatorio ?? false,
 
         questions: preguntasMapeadas,
       };
