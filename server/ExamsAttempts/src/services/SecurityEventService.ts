@@ -223,6 +223,23 @@ export class SecurityEventService {
     return { message: "Alertas marcadas como leídas" };
   }
 
+  static async notifyConnectionLost(attemptId: number, io: Server) {
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+    const attempt = await attemptRepo.findOne({ where: { id: attemptId } });
+
+    if (!attempt) {
+      throwHttpError("Intento no encontrado", 404);
+    }
+
+    io.to(`exam_${attempt.examen_id}`).emit("student_connection_lost", {
+      attemptId,
+      estudiante: { nombre: attempt.nombre_estudiante },
+      graceSeconds: 60,
+    });
+
+    return { message: "Notificación de desconexión enviada" };
+  }
+
   static async deleteAttemptEvents(attemptId: number, io?: Server) {
     const eventRepo = AppDataSource.getRepository(ExamEvent);
     const attemptRepo = AppDataSource.getRepository(ExamAttempt);

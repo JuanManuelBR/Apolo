@@ -313,6 +313,7 @@ export default function SecureExamPlatform() {
   // --- ESTADOS DE CONEXIÓN WEBSOCKET ---
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const isSocketConnectedRef = useRef(false); // Ref para evitar stale closure en saveAnswer
+  const connectionLostRef = useRef(false);    // Ref para evitar stale closure en beforeunload
   const [connectionLost, setConnectionLost] = useState(false);
   const [connectionGraceSeconds, setConnectionGraceSeconds] = useState<
     number | null
@@ -884,10 +885,14 @@ export default function SecureExamPlatform() {
     };
   }, [examStarted, studentData, examData, examBlocked]);
 
-  // Sincronizar isSocketConnectedRef con el estado React (evita stale closure)
+  // Sincronizar refs con estado React (evita stale closure en handlers)
   useEffect(() => {
     isSocketConnectedRef.current = isSocketConnected;
   }, [isSocketConnected]);
+
+  useEffect(() => {
+    connectionLostRef.current = connectionLost;
+  }, [connectionLost]);
 
   // Countdown regresivo durante pérdida de conexión
   useEffect(() => {
@@ -1583,12 +1588,39 @@ export default function SecureExamPlatform() {
 
       newSocket.on("disconnect", () => {
         setIsSocketConnected(false);
-      });
+        setConnectionLost(true);
+        setConnectionGraceSeconds(GRACE_SECONDS);
 
-      newSocket.on("disconnect", () => {
-        setIsSocketConnected(false);
-        setConnectionLost(true); // ← Modal aparece inmediatamente
-        setConnectionGraceSeconds(GRACE_SECONDS); // ← Countdown arranca
+        // Notificar al profesor inmediatamente vía HTTP (no esperar pingTimeout del server)
+        if (studentData?.attemptId) {
+          fetch(
+            `${ATTEMPTS_API_URL}/api/exam/attempt/${studentData.attemptId}/connection-lost`,
+            { method: "POST", keepalive: true },
+          ).catch(() => {});
+        }
+
+        // Bucle de reconexión con backoff exponencial durante el periodo de gracia
+        let elapsed = 0;
+        let delay = 2000;
+        const maxDelay = 8000;
+
+        const scheduleReconnect = () => {
+          if (examFinishedRef.current) return;
+          if (elapsed >= GRACE_SECONDS * 1000) return;
+
+          setTimeout(() => {
+            if (examFinishedRef.current) return;
+            if (newSocket.connected) return;
+
+            elapsed += delay;
+            newSocket.connect();
+
+            delay = Math.min(delay + 2000, maxDelay);
+            scheduleReconnect();
+          }, delay);
+        };
+
+        scheduleReconnect();
       });
 
       newSocket.on("connection_restored", () => {
@@ -1701,7 +1733,8 @@ export default function SecureExamPlatform() {
     };
 
     const handleBeforeUnload = () => {
-      if (examStarted && !examFinishedRef.current && studentData?.attemptId) {
+      // No marcar como abandonado si la red ya estaba caída — el server maneja el grace period
+      if (examStarted && !examFinishedRef.current && !connectionLostRef.current && studentData?.attemptId) {
         fetch(
           `${ATTEMPTS_API_URL}/api/exam/attempt/${studentData.attemptId}/abandon`,
           {
