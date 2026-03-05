@@ -214,12 +214,78 @@ const ATTEMPTS_API_URL =
   import.meta.env.VITE_SOCKET_URL || "http://localhost:3002";
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
 
+// --- CALIDAD DE CONEXIÓN (0 = sin conexión, 1–4 = barras) ---
+function useConnectionQuality(isConnected: boolean): 0 | 1 | 2 | 3 | 4 {
+  const [level, setLevel] = React.useState<0 | 1 | 2 | 3 | 4>(
+    isConnected ? 4 : 0,
+  );
+
+  React.useEffect(() => {
+    if (!isConnected) {
+      setLevel(0);
+      return;
+    }
+
+    const conn = (navigator as any).connection;
+
+    const levelFromConn = (c: any): 1 | 2 | 3 | 4 => {
+      const type: string = c.effectiveType ?? "";
+      const rtt: number = c.rtt ?? 0;
+      if (type === "slow-2g") return 1;
+      if (type === "2g") return 2;
+      if (type === "3g") return 3;
+      if (rtt > 300) return 2;
+      if (rtt > 150) return 3;
+      return 4;
+    };
+
+    if (conn) {
+      const update = () => setLevel(levelFromConn(conn));
+      update();
+      conn.addEventListener("change", update);
+      return () => conn.removeEventListener("change", update);
+    }
+
+    // Fallback: medir latencia con fetch periódico al mismo origen
+    let active = true;
+    const measure = async () => {
+      if (!active) return;
+      const start = performance.now();
+      try {
+        const controller = new AbortController();
+        const t = setTimeout(() => controller.abort(), 5000);
+        await fetch(
+          `${window.location.origin}/favicon.ico?_=${Date.now()}`,
+          { method: "HEAD", cache: "no-store", signal: controller.signal },
+        );
+        clearTimeout(t);
+        const rtt = performance.now() - start;
+        if (!active) return;
+        if (rtt < 100) setLevel(4);
+        else if (rtt < 250) setLevel(3);
+        else if (rtt < 500) setLevel(2);
+        else setLevel(1);
+      } catch {
+        if (active) setLevel(1);
+      }
+    };
+    measure();
+    const interval = setInterval(measure, 5000);
+    return () => {
+      active = false;
+      clearInterval(interval);
+    };
+  }, [isConnected]);
+
+  return level;
+}
+
 // --- INDICADOR DE SEÑAL TIPO CELULAR ---
 function SignalIndicator({
-  connected,
+  level,
   darkMode,
 }: {
-  connected: boolean;
+  level: 0 | 1 | 2 | 3 | 4;
   darkMode: boolean;
 }) {
   const bars = [
@@ -228,15 +294,26 @@ function SignalIndicator({
     { height: "h-5" },
     { height: "h-[26px]" },
   ];
-  const activeCount = connected ? 4 : 1;
-  const activeColor = connected ? "bg-emerald-500" : "bg-red-500 animate-pulse";
+  const activeCount = level === 0 ? 1 : level;
+  const activeColor =
+    level === 0
+      ? "bg-red-500 animate-pulse"
+      : level === 1
+        ? "bg-red-500"
+        : level === 2
+          ? "bg-amber-500"
+          : level === 3
+            ? "bg-yellow-400"
+            : "bg-emerald-500";
+  const titles: Record<number, string> = {
+    0: "Sin conexión — respuestas en pausa",
+    1: "Señal muy débil — riesgo de desconexión",
+    2: "Señal débil",
+    3: "Buena señal",
+    4: "Conexión estable",
+  };
   return (
-    <div
-      className="flex items-end gap-[3px]"
-      title={
-        connected ? "Conexión estable" : "Sin conexión — respuestas en pausa"
-      }
-    >
+    <div className="flex items-end gap-[3px]" title={titles[level]}>
       {bars.map((bar, i) => (
         <div
           key={i}
@@ -315,6 +392,7 @@ export default function SecureExamPlatform() {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const isSocketConnectedRef = useRef(false); // Ref para evitar stale closure en saveAnswer
   const connectionLostRef = useRef(false);    // Ref para evitar stale closure en beforeunload
+  const saveAnswerRef = useRef<typeof saveAnswer | null>(null); // Ref para evitar stale closure en connect handler
   const [connectionLost, setConnectionLost] = useState(false);
   const [connectionGraceSeconds, setConnectionGraceSeconds] = useState<
     number | null
@@ -886,6 +964,8 @@ export default function SecureExamPlatform() {
     };
   }, [examStarted, studentData, examData, examBlocked]);
 
+  const signalLevel = useConnectionQuality(isSocketConnected);
+
   // Sincronizar refs con estado React (evita stale closure en handlers)
   useEffect(() => {
     isSocketConnectedRef.current = isSocketConnected;
@@ -1018,6 +1098,7 @@ export default function SecureExamPlatform() {
       setSavingStates((prev) => ({ ...prev, [preguntaId]: false }));
     }
   };
+  saveAnswerRef.current = saveAnswer; // Actualizar en cada render para evitar stale closure
 
   const handleAnswerChange = (
     preguntaId: number,
@@ -1610,7 +1691,7 @@ export default function SecureExamPlatform() {
         const pending = [...pendingAnswersQueueRef.current];
         pendingAnswersQueueRef.current = [];
         for (const a of pending) {
-          saveAnswer(a.preguntaId, a.respuesta, a.tipo_respuesta, a.metadata_codigo);
+          saveAnswerRef.current?.(a.preguntaId, a.respuesta, a.tipo_respuesta, a.metadata_codigo);
         }
       });
 
@@ -2590,7 +2671,7 @@ export default function SecureExamPlatform() {
               ⚠️ Conexión perdida — Reconectando... Las respuestas están en
               pausa. <strong>No cierres esta ventana.</strong>
             </span>
-            <SignalIndicator connected={false} darkMode={false} />
+            <SignalIndicator level={0} darkMode={false} />
           </div>
         )}
 
@@ -2840,7 +2921,7 @@ export default function SecureExamPlatform() {
                 </span>
                 {/* Indicador de señal WiFi */}
                 <SignalIndicator
-                  connected={isSocketConnected}
+                  level={signalLevel}
                   darkMode={darkMode}
                 />
                 <div
