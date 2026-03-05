@@ -309,6 +309,7 @@ export default function SecureExamPlatform() {
   const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
   const [isCharging, setIsCharging] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const socketRef = useRef<Socket | null>(null); // Ref para acceder al socket desde event listeners
 
   // --- ESTADOS DE CONEXIÓN WEBSOCKET ---
   const [isSocketConnected, setIsSocketConnected] = useState(false);
@@ -1670,6 +1671,7 @@ export default function SecureExamPlatform() {
         newSocket.disconnect();
       });
 
+      socketRef.current = newSocket;
       setSocket(newSocket);
       setExamStarted(true);
 
@@ -1775,12 +1777,41 @@ export default function SecureExamPlatform() {
       }
     };
 
+    // Detección inmediata de pérdida de red (antes de que socket.io detecte el disconnect)
+    const handleOffline = () => {
+      if (!examStarted || examFinishedRef.current) return;
+      // Actualizar estado sincrónicamente — más rápido que esperar el evento disconnect de socket.io
+      isSocketConnectedRef.current = false;
+      connectionLostRef.current = true;
+      setIsSocketConnected(false);
+      setConnectionLost(true);
+      setConnectionGraceSeconds(GRACE_SECONDS);
+      // Intentar notificar al profesor (puede funcionar si la caída es brevísima)
+      if (studentData?.attemptId) {
+        fetch(
+          `${ATTEMPTS_API_URL}/api/exam/attempt/${studentData.attemptId}/connection-lost`,
+          { method: "POST", keepalive: true },
+        ).catch(() => {});
+      }
+    };
+
+    // Cuando vuelve la red, reconectar el socket inmediatamente sin esperar el backoff
+    const handleOnline = () => {
+      if (!examStarted || examFinishedRef.current) return;
+      const sock = socketRef.current;
+      if (sock && !sock.connected) {
+        sock.connect();
+      }
+    };
+
     document.addEventListener("fullscreenchange", handleFullscreenChange);
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("focus", handleWindowFocus);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("offline", handleOffline);
+    window.addEventListener("online", handleOnline);
 
     return () => {
       document.removeEventListener("fullscreenchange", handleFullscreenChange);
@@ -1789,6 +1820,8 @@ export default function SecureExamPlatform() {
       window.removeEventListener("focus", handleWindowFocus);
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("offline", handleOffline);
+      window.removeEventListener("online", handleOnline);
       clearTimeout(fullscreenTimeout);
     };
   }, [examStarted, examBlocked, isSubmitting, examFinished, studentData]);
