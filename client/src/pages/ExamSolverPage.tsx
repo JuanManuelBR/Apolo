@@ -38,7 +38,7 @@ const Lienzo = lazy(() => import("../components/DrawingBoard"));
 const EditorJavaScript = lazy(() => import("../components/EditorJavaScript"));
 const EditorPython = lazy(() => import("../components/EditorPython"));
 const EditorJava = lazy(() => import("../components/EditorJava"));
-const GRACE_SECONDS = 60;
+const GRACE_SECONDS = 180;
 import logoUniversidad from "../../assets/logo-universidad.webp";
 import logoUniversidadNoche from "../../assets/logo-universidad-noche.webp";
 

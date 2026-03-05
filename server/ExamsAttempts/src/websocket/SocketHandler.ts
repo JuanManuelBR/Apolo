@@ -4,7 +4,7 @@ import { AttemptState, ExamInProgress } from "../models/ExamInProgress";
 import { ExamAttempt } from "../models/ExamAttempt";
 import { ExamService } from "../services/ExamService";
 
-const DISCONNECT_GRACE_MS = 60000; // 60 segundos de gracia para reconexión
+const DISCONNECT_GRACE_MS = 180000; // 3 minutos de gracia para reconexión
 
 export class SocketHandler {
   private io: Server;
