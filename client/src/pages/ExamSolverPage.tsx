@@ -955,6 +955,21 @@ export default function SecureExamPlatform() {
     ]);
   };
 
+  const enqueueAnswer = (
+    preguntaId: number,
+    respuesta: any,
+    tipo_respuesta?: string,
+    metadata_codigo?: string,
+  ) => {
+    const queue = pendingAnswersQueueRef.current;
+    const idx = queue.findIndex(
+      (a) => a.preguntaId === preguntaId && a.tipo_respuesta === tipo_respuesta,
+    );
+    const entry = { preguntaId, respuesta, tipo_respuesta, metadata_codigo };
+    if (idx >= 0) queue[idx] = entry; // reemplazar con la versión más reciente
+    else queue.push(entry);
+  };
+
   const saveAnswer = async (
     preguntaId: number,
     respuesta: any,
@@ -962,13 +977,13 @@ export default function SecureExamPlatform() {
     metadata_codigo?: string,
   ) => {
     if (!studentData?.attemptId) return;
-    // Bloquear guardado cuando no hay conexión — el overlay impide que el estudiante responda
+
+    // Sin conexión: encolar para reintento al reconectar
     if (!isSocketConnectedRef.current) {
-      console.warn(
-        `⚠️ saveAnswer bloqueado — sin conexión. Pregunta ${preguntaId} no guardada.`,
-      );
+      enqueueAnswer(preguntaId, respuesta, tipo_respuesta, metadata_codigo);
       return;
     }
+
     const respuestaStr = JSON.stringify(respuesta);
     const cacheKey = tipo_respuesta
       ? `${preguntaId}_${tipo_respuesta}`
@@ -994,7 +1009,10 @@ export default function SecureExamPlatform() {
       if (!response.ok) throw new Error("Error al guardar respuesta");
       setLastSavedAnswers((prev) => ({ ...prev, [cacheKey]: respuestaStr }));
     } catch (error) {
-      console.error("❌ Error guardando respuesta:", error);
+      // Encolar para reintento — cubre el caso de que el ref aún no se actualizó
+      // (ventana entre caída de red y detección del socket)
+      enqueueAnswer(preguntaId, respuesta, tipo_respuesta, metadata_codigo);
+      console.warn(`⚠️ Respuesta encolada para reintento (pregunta ${preguntaId})`);
     } finally {
       setSavingStates((prev) => ({ ...prev, [preguntaId]: false }));
     }
@@ -1581,12 +1599,23 @@ export default function SecureExamPlatform() {
 
       // --- EVENTOS DE CONEXIÓN / DESCONEXIÓN ---
       newSocket.on("connect", () => {
+        // Actualizar ref sincrónicamente para que flushPendingAnswers vea la conexión activa
+        isSocketConnectedRef.current = true;
         setIsSocketConnected(true);
         setConnectionLost(false);
         setConnectionGraceSeconds(null);
+
+        // Reenviar respuestas que fallaron o se encolaron durante la desconexión
+        const pending = [...pendingAnswersQueueRef.current];
+        pendingAnswersQueueRef.current = [];
+        for (const a of pending) {
+          saveAnswer(a.preguntaId, a.respuesta, a.tipo_respuesta, a.metadata_codigo);
+        }
       });
 
       newSocket.on("disconnect", () => {
+        // Actualizar ref sincrónicamente para bloquear saveAnswer de inmediato
+        isSocketConnectedRef.current = false;
         setIsSocketConnected(false);
         setConnectionLost(true);
         setConnectionGraceSeconds(GRACE_SECONDS);
