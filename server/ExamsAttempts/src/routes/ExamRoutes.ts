@@ -1004,5 +1004,6 @@ router.get('/:examId/grades/download', ExamController.downloadGrades);
 router.get('/attempt/feedback/:codigo_acceso', ExamController.getAttemptFeedback);
 
 router.post('/internal/notify-professor', ExamController.notifyProfessor);
+router.post('/attempt/:attemptId/connection-lost', ExamController.notifyConnectionLost);
 
 export default router;

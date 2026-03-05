@@ -481,6 +481,28 @@ export class ExamController {
     }
   }
 
+  static async notifyConnectionLost(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const attemptId = Number(req.params.attemptId);
+
+      if (isNaN(attemptId)) {
+        return res.status(400).json({ message: "ID de intento inválido" });
+      }
+
+      const result = await ExamService.notifyConnectionLost(
+        attemptId,
+        req.app.get("io"),
+      );
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async notifyProfessor(
     req: Request,
     res: Response,

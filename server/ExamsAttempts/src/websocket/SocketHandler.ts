@@ -78,19 +78,16 @@ export class SocketHandler {
               clearTimeout(existingGrace);
             }
 
-            // Notificar al estudiante (si sigue conectado brevemente) y al profesor
-            const graceSeconds = DISCONNECT_GRACE_MS / 1000;
-            this.io.to(`attempt_${attemptId}`).emit("connection_lost", {
-              message: "Tu conexión se ha perdido.",
-              graceSeconds,
-            });
-
             try {
               const attemptRepo = AppDataSource.getRepository(ExamAttempt);
               const attempt = await attemptRepo.findOne({
                 where: { id: attemptId },
               });
               if (attempt) {
+                const graceSeconds = DISCONNECT_GRACE_MS / 1000;
+                // El frontend ya notificó al profesor vía HTTP (/connection-lost).
+                // Esta emit actúa como fallback por si la llamada HTTP falló
+                // (p.ej. el proceso del cliente murió antes de enviarla).
                 this.io
                   .to(`exam_${attempt.examen_id}`)
                   .emit("student_connection_lost", {
