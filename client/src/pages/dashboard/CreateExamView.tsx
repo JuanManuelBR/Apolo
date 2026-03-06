@@ -1022,21 +1022,29 @@ export default function CrearExamen({
               de iniciar el examen. <span className="text-red-500">*</span>
             </p>
             {camposEstudiante.map((campo) => (
-              <div
-                key={campo.id}
-                onClick={() => toggleCampo(campo.id)}
-                className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${campo.activo ? `${borderActivo} ${bgActivoLight}` : "border-gray-200 hover:border-gray-300"}`}
-              >
-                <span
-                  className="font-medium text-primary"
-                >
-                  {campo.nombre}
-                </span>
+              <div key={campo.id}>
                 <div
-                  className={`w-5 h-5 rounded border-2 flex items-center justify-center ${campo.activo ? bgCheckbox : "border-gray-300"}`}
+                  onClick={() => toggleCampo(campo.id)}
+                  className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${campo.activo ? `${borderActivo} ${bgActivoLight}` : "border-gray-200 hover:border-gray-300"}`}
                 >
-                  {campo.activo && <Check className="w-3 h-3 text-white" />}
+                  <span
+                    className="font-medium text-primary"
+                  >
+                    {campo.nombre}
+                  </span>
+                  <div
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center ${campo.activo ? bgCheckbox : "border-gray-300"}`}
+                  >
+                    {campo.activo && <Check className="w-3 h-3 text-white" />}
+                  </div>
                 </div>
+                {campo.id === "correo" && (
+                  <p className={`text-xs mt-1 mb-1 px-1 ${campo.activo ? "text-teal-600" : "text-gray-400"}`}>
+                    {campo.activo
+                      ? "Al seleccionar correo podrá enviar las notas a los estudiantes de forma automática desde el panel de administración."
+                      : "Si selecciona correo podrá enviar las notas a los estudiantes de forma automática, sino será su responsabilidad entregar las notas a cada estudiante."}
+                  </p>
+                )}
               </div>
             ))}
         </Collapsible>

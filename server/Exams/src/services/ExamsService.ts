@@ -513,7 +513,19 @@ export class ExamService {
       throwHttpError("Examen no encontrado", 404);
     }
 
-    return exam;
+    let nombreProfesor = "Profesor no disponible";
+    try {
+      const usersMsUrl = process.env.USERS_MS_URL;
+      const response = await internalHttpClient.get<any>(
+        `${usersMsUrl}/api/users/${exam.id_profesor}`,
+      );
+      const profesor = response.data;
+      nombreProfesor = `${profesor.nombres} ${profesor.apellidos}`.trim();
+    } catch (error) {
+      console.error("Error al obtener profesor:", error);
+    }
+
+    return { ...exam, nombreProfesor };
   }
 
   async getExamForAttempt(codigo: string) {

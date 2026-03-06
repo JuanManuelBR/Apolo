@@ -409,6 +409,23 @@ export class ExamController {
     }
   }
 
+  static async sendGrades(
+    req: Request,
+    res: Response,
+    next: NextFunction,
+  ) {
+    try {
+      const examId = Number(req.params.examId);
+      if (isNaN(examId)) {
+        return res.status(400).json({ message: "ID de examen inválido" });
+      }
+      const result = await ExamService.sendGradesEmail(examId, req.app.get("io"));
+      res.status(200).json(result);
+    } catch (err) {
+      next(err);
+    }
+  }
+
   static async getAttemptFeedback(
     req: Request,
     res: Response,

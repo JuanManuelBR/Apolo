@@ -952,6 +952,7 @@ router.get('/:examId/attempt-count', ExamController.getAttemptCountByExam);
  *         description: No hay intentos registrados
  */
 router.get('/:examId/grades/download', ExamController.downloadGrades);
+router.post('/:examId/grades/send-email', ExamController.sendGrades);
 
 /**
  * @openapi

@@ -9,6 +9,7 @@ import { throwHttpError } from "../utils/errors";
 import { generateAccessCode } from "../utils/CodeGenerator";
 import { GradingService } from "./GradingService";
 import { internalHttpClient } from "../utils/httpClient";
+import { EmailService } from "./EmailService";
 
 export class ScoringService {
   static async calculateScore(attempt: ExamAttempt): Promise<number> {
@@ -427,5 +428,61 @@ export class ScoringService {
       intentosActualizados: activeProgress.length,
       intentoIds: activeProgress.map((p) => p.intento_id),
     };
+  }
+
+  static async sendGradesEmail(examId: number, io: Server): Promise<{ enviados: number; errores: number; sinCorreo: number }> {
+    // 1. Close and grade all pending active attempts first
+    await this.forceFinishActiveAttempts(examId, io);
+
+    // 2. Fetch exam info (name + professor)
+    const exam = await ExamAttemptValidator.validateExamExistsById(examId);
+
+    // 3. Get all finished attempts for this exam
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+    const attempts = await attemptRepo.find({
+      where: { examen_id: examId, estado: AttemptState.FINISHED },
+    });
+
+    let enviados = 0;
+    let errores = 0;
+    let sinCorreo = 0;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    for (const attempt of attempts) {
+      if (!attempt.correo_estudiante) {
+        sinCorreo++;
+        continue;
+      }
+      if (attempt.calificacionPendiente || attempt.notaFinal == null) {
+        sinCorreo++;
+        continue;
+      }
+
+      // Priority: nombre > identificacion > correo
+      const studentName =
+        attempt.nombre_estudiante ||
+        attempt.identificacion_estudiante ||
+        attempt.correo_estudiante;
+
+      const nota = round2(attempt.notaFinal);
+      const codigoRevision = attempt.codigoRevision || "(no disponible)";
+
+      try {
+        await EmailService.sendGradeNotification({
+          to: attempt.correo_estudiante,
+          studentName,
+          examName: exam.nombre,
+          professorName: exam.nombreProfesor || "el profesor",
+          nota,
+          codigoRevision,
+        });
+        enviados++;
+      } catch (e) {
+        console.error(`Error enviando correo a ${attempt.correo_estudiante}:`, e);
+        errores++;
+      }
+    }
+
+    return { enviados, errores, sinCorreo };
   }
 }

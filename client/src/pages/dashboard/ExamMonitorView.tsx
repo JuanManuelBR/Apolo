@@ -715,7 +715,28 @@ export default function VigilanciaExamenesLista({
       console.error("Error descargando notas:", e);
     }
   };
-  const handleEnviarNotas = async () => {};
+  const handleEnviarNotas = async () => {
+    if (!examenActual) return;
+    mostrarModal(
+      "confirmar",
+      "Enviar calificaciones por correo",
+      "Se cerrarán y calificarán los intentos pendientes, y luego se enviará un correo con la nota y el código de revisión a cada estudiante que proporcionó su correo. ¿Continuar?",
+      async () => {
+        cerrarModal();
+        try {
+          const resultado = await examsAttemptsService.sendGrades(examenActual.id);
+          const msg = [
+            `${resultado.enviados} correo(s) enviado(s) exitosamente.`,
+            resultado.errores > 0 ? `${resultado.errores} error(es) al enviar.` : '',
+            resultado.sinCorreo > 0 ? `${resultado.sinCorreo} estudiante(s) sin correo o nota pendiente.` : '',
+          ].filter(Boolean).join(' ');
+          mostrarModal("exito", "Correos enviados", msg, cerrarModal);
+        } catch (e: any) {
+          mostrarModal("error", "Error", e?.response?.data?.message || "Error al enviar los correos.", cerrarModal);
+        }
+      },
+    );
+  };
 
   const toggleEstadoExamen = async (id: number, estadoActual: string) => {
     try {
@@ -1027,24 +1048,22 @@ export default function VigilanciaExamenesLista({
                                     )}
                                     
                                     {mostrarOpcionesPostCalificacion && (
-                                        <>
-                                            <button
-                                                onClick={handleDescargarNotas}
-                                                className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-rose-500 text-slate-200" : "bg-white border-slate-200 hover:border-rose-500 text-slate-700"}`}
-                                            >
-                                                <Download className="w-3.5 h-3.5 text-rose-500" />
-                                                Descargar Notas
-                                            </button>
-                                            {hayCorreos && (
-                                                <button 
-                                                    onClick={handleEnviarNotas}
-                                                    className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-teal-500 text-slate-200" : "bg-white border-slate-200 hover:border-teal-500 text-slate-700"}`}
-                                                >
-                                                    <Mail className="w-3.5 h-3.5 text-teal-500" />
-                                                    Enviar calificaciones
-                                                </button>
-                                            )}
-                                        </>
+                                        <button
+                                            onClick={handleDescargarNotas}
+                                            className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-rose-500 text-slate-200" : "bg-white border-slate-200 hover:border-rose-500 text-slate-700"}`}
+                                        >
+                                            <Download className="w-3.5 h-3.5 text-rose-500" />
+                                            Descargar Notas
+                                        </button>
+                                    )}
+                                    {hayCorreos && (
+                                        <button 
+                                            onClick={handleEnviarNotas}
+                                            className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-teal-500 text-slate-200" : "bg-white border-slate-200 hover:border-teal-500 text-slate-700"}`}
+                                        >
+                                            <Mail className="w-3.5 h-3.5 text-teal-500" />
+                                            Enviar notas al correo
+                                        </button>
                                     )}
                                 </>
                             )}

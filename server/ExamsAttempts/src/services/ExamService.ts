@@ -128,6 +128,9 @@ export class ExamService {
   static removeTimeLimit(examId: number, io: Server) {
     return ScoringService.removeTimeLimit(examId, io);
   }
+  static sendGradesEmail(examId: number, io: Server) {
+    return ScoringService.sendGradesEmail(examId, io);
+  }
 
   // ── Consultas y reportes ──
   static getAttemptDetails(intento_id: number) {
