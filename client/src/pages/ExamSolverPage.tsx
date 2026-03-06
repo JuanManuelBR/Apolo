@@ -1877,7 +1877,7 @@ export default function SecureExamPlatform() {
         // Si aún no se había establecido (arranque), startupGraceRef silencia esto.
         if (startupGraceRef.current) return;
         blockExam("Salida de pantalla completa detectada", "CRITICAL");
-      }, 100);
+      });
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
