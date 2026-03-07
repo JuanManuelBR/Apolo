@@ -1,22 +1,11 @@
-import nodemailer from "nodemailer";
-const SMTP_HOST = process.env.SMTP_HOST || "";
-const SMTP_PORT = Number(process.env.SMTP_PORT) || 587;
-const SMTP_USER = process.env.SMTP_USER || "";
-const SMTP_PASS = process.env.SMTP_PASS || "";
-const SMTP_FROM = process.env.SMTP_FROM || "";
+import { Resend } from "resend";
+
+const RESEND_API_KEY = process.env.RESEND_API_KEY || "";
+const SMTP_FROM = process.env.SMTP_FROM || "noreply@apolo.app";
 
 export class EmailService {
-  private static getTransporter() {
-    return nodemailer.createTransport({
-      host: SMTP_HOST || "smtp.gmail.com",
-      port: SMTP_PORT || 587,
-      secure: (SMTP_PORT || 587) === 465,
-      auth: {
-        user: SMTP_USER,
-        pass: SMTP_PASS,
-      },
-      family: 4,
-    } as any);
+  private static getClient() {
+    return new Resend(RESEND_API_KEY);
   }
 
   static async sendGradeNotification(params: {
@@ -29,7 +18,6 @@ export class EmailService {
   }): Promise<void> {
     const { to, studentName, examName, professorName, nota, codigoRevision } = params;
 
-    const fromAddress = SMTP_FROM || SMTP_USER;
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1a1a2e;">
         <p>Estimado alumn@ <strong>${studentName}</strong>, su nota para el examen <strong>${examName}</strong> del profesor ${professorName} es la siguiente:</p>
@@ -54,11 +42,16 @@ export class EmailService {
       </div>
     `;
 
-    await this.getTransporter().sendMail({
-      from: `"APOLO - No responder" <${fromAddress}>`,
+    const resend = this.getClient();
+    const { error } = await resend.emails.send({
+      from: SMTP_FROM,
       to,
       subject: `Resultado examen: ${examName}`,
       html,
     });
+
+    if (error) {
+      throw new Error(error.message);
+    }
   }
 }
