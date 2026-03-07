@@ -9,7 +9,7 @@ import {
   generateAccessCode,
   generateSessionId,
 } from "../utils/CodeGenerator";
-import { Raw } from "typeorm";
+import { Raw, In } from "typeorm";
 import { throwHttpError } from "../utils/errors";
 import { StartExamAttemptDto } from "../dtos/Start-ExamAttempt.dto";
 import { ResumeExamAttemptDto } from "../dtos/Resume-ExamAttempt.dto";
@@ -31,6 +31,21 @@ export class AttemptLifecycleService {
       data.identificacion_estudiante,
     );
     ExamAttemptValidator.validateExamPassword(exam, data.contrasena);
+
+    // Validar duplicados por correo o identificación
+    const activeStates = [AttemptState.ACTIVE, AttemptState.BLOCKED, AttemptState.FINISHED];
+    if (data.correo_estudiante) {
+      const existing = await attemptRepo.findOne({
+        where: { examen_id: exam.id, correo_estudiante: data.correo_estudiante, estado: In(activeStates) },
+      });
+      if (existing) throwHttpError("Ya existe un intento registrado con ese correo electrónico para este examen.", 409);
+    }
+    if (data.identificacion_estudiante) {
+      const existing = await attemptRepo.findOne({
+        where: { examen_id: exam.id, identificacion_estudiante: data.identificacion_estudiante, estado: In(activeStates) },
+      });
+      if (existing) throwHttpError("Ya existe un intento registrado con esa identificación para este examen.", 409);
+    }
 
     // Detectar si es un examen PDF (tiene archivoPDF y no tiene preguntas)
     const esExamenPDF = !!(
