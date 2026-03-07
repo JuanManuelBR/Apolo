@@ -192,6 +192,48 @@ export class SecurityEventService {
     };
   }
 
+  static async unlockAllBlockedAttempts(examId: number, io: Server) {
+    const progressRepo = AppDataSource.getRepository(ExamInProgress);
+    const attemptRepo = AppDataSource.getRepository(ExamAttempt);
+
+    const blockedAttempts = await attemptRepo.find({
+      where: { examen_id: examId, estado: AttemptState.BLOCKED },
+    });
+
+    let desbloqueados = 0;
+    for (const attempt of blockedAttempts) {
+      const examInProgress = await progressRepo.findOne({ where: { intento_id: attempt.id } });
+      if (!examInProgress) continue;
+
+      examInProgress.estado = AttemptState.ACTIVE;
+      attempt.estado = AttemptState.ACTIVE;
+      attempt.fecha_fin = null;
+
+      await progressRepo.save(examInProgress);
+      await attemptRepo.save(attempt);
+
+      io.to(`attempt_${attempt.id}`).emit("attempt_unlocked", {
+        message: "Tu examen ha sido desbloqueado por el profesor",
+        attemptId: attempt.id,
+        estado: AttemptState.ACTIVE,
+      });
+
+      io.to(`exam_${examId}`).emit("attempt_unlocked_notification", {
+        attemptId: attempt.id,
+        estudiante: {
+          nombre: attempt.nombre_estudiante,
+          correo: attempt.correo_estudiante,
+          identificacion: attempt.identificacion_estudiante,
+        },
+        estado: AttemptState.ACTIVE,
+      });
+
+      desbloqueados++;
+    }
+
+    return { message: `${desbloqueados} intento(s) desbloqueado(s) exitosamente`, desbloqueados };
+  }
+
   static async getAttemptEvents(attemptId: number) {
     const eventRepo = AppDataSource.getRepository(ExamEvent);
 

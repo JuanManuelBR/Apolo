@@ -99,6 +99,9 @@ export class ExamService {
   static unlockAttempt(intento_id: number, io: Server) {
     return SecurityEventService.unlockAttempt(intento_id, io);
   }
+  static unlockAllBlockedAttempts(examId: number, io: Server) {
+    return SecurityEventService.unlockAllBlockedAttempts(examId, io);
+  }
   static notifyConnectionLost(attemptId: number, io: Server) {
     return SecurityEventService.notifyConnectionLost(attemptId, io);
   }

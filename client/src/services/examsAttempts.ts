@@ -27,6 +27,10 @@ export const examsAttemptsService = {
     );
     return response.data;
   },
+  async unlockAllAttempts(examId: number) {
+    const response = await examsAttemptsApi.post(`/${examId}/unlock-all`);
+    return response.data;
+  },
 
   getAttemptEvents: async (attemptId: number) => {
     try {

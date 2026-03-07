@@ -715,6 +715,19 @@ export default function VigilanciaExamenesLista({
       console.error("Error descargando notas:", e);
     }
   };
+  const handleDesbloquearTodos = async () => {
+    if (!examenActual) return;
+    mostrarModal("confirmar", "Desbloquear todos los intentos", "Se desbloquearán todos los intentos bloqueados del examen. ¿Continuar?", async () => {
+      cerrarModal();
+      try {
+        const result = await examsAttemptsService.unlockAllAttempts(examenActual.id);
+        mostrarModal("exito", "Intentos desbloqueados", result.message, cerrarModal);
+      } catch (e: any) {
+        mostrarModal("error", "Error", e?.response?.data?.message || "No se pudieron desbloquear los intentos.", cerrarModal);
+      }
+    }, cerrarModal);
+  };
+
   const handleEnviarNotas = async () => {
     if (!examenActual) return;
     mostrarModal(
@@ -1025,6 +1038,15 @@ export default function VigilanciaExamenesLista({
                                         <TimerOff className="w-3.5 h-3.5 text-red-500" />
                                         Eliminar tiempo límite
                                     </button>
+                                    {contadores.bloqueados > 0 && (
+                                        <button
+                                            onClick={handleDesbloquearTodos}
+                                            className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-teal-500 text-slate-200" : "bg-white border-slate-200 hover:border-teal-500 text-slate-700"}`}
+                                        >
+                                            <Zap className="w-3.5 h-3.5 text-teal-500" />
+                                            Desbloquear todos ({contadores.bloqueados})
+                                        </button>
+                                    )}
                                     <button
                                         onClick={handleForzarEnvio}
                                         className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-orange-500 text-slate-200" : "bg-white border-slate-200 hover:border-orange-500 text-slate-700"}`}
@@ -1038,7 +1060,7 @@ export default function VigilanciaExamenesLista({
                             {examenActual.estado === "closed" && (
                                 <>
                                     {obtenerTipoExamen(examenActual) !== "pdf" && !mostrarOpcionesPostCalificacion && (
-                                        <button 
+                                        <button
                                             onClick={handleCalificarAutomaticamente}
                                             className={`px-3 py-2 rounded-lg border text-xs font-semibold flex items-center gap-2 transition-all ${darkMode ? "bg-slate-800 border-slate-700 hover:border-indigo-500 text-slate-200" : "bg-white border-slate-200 hover:border-indigo-500 text-slate-700"}`}
                                         >
@@ -1046,7 +1068,6 @@ export default function VigilanciaExamenesLista({
                                             Calificar Auto
                                         </button>
                                     )}
-                                    
                                     {mostrarOpcionesPostCalificacion && (
                                         <button
                                             onClick={handleDescargarNotas}
