@@ -46,6 +46,7 @@ interface ExamPanelProps {
   timerStatus?: 'normal' | 'warning' | 'critical';
   timeLimitRemoved?: boolean;
   initialQuestionIndex?: number;
+  onQuestionIndexChange?: (index: number) => void;
 }
 
 const EXAMS_API_URL = import.meta.env.VITE_EXAMS_URL || "http://localhost:3001";
@@ -189,6 +190,7 @@ export default function ExamPanel({
   timerStatus = 'normal',
   timeLimitRemoved = false,
   initialQuestionIndex,
+  onQuestionIndexChange,
 }: ExamPanelProps) {
   const [currentIndex, setCurrentIndex] = useState(() => {
     const init = initialQuestionIndex ?? 0;
@@ -202,6 +204,10 @@ export default function ExamPanel({
   });
   const [showNoAnswerConfirm, setShowNoAnswerConfirm] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    onQuestionIndexChange?.(currentIndex);
+  }, [currentIndex]);
 
   // Detectar móvil: pantalla pequeña o touch device
   const isMobile = typeof window !== "undefined" && (window.innerWidth < 768 || navigator.maxTouchPoints > 0);

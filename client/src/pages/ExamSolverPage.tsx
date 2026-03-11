@@ -2218,6 +2218,7 @@ export default function SecureExamPlatform() {
               timerStatus={timerStatus}
               timeLimitRemoved={timeLimitRemoved}
               initialQuestionIndex={initialQuestionIndex}
+              onQuestionIndexChange={setInitialQuestionIndex}
             />
             {/* Overlay de desconexión — bloquea inputs visualmente */}
             {connectionLost && (
