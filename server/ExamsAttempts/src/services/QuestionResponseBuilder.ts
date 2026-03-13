@@ -3,7 +3,8 @@ import type { ExamAttempt } from "../models/ExamAttempt";
 import type { ExamAnswer } from "../models/ExamAnswer";
 
 export class QuestionResponseBuilder {
-  static parseStudentAnswer(_type: string, respuesta: string): any {
+  static parseStudentAnswer(_type: string, respuesta: string | null | undefined): any {
+    if (respuesta == null) return null;
     try {
       return JSON.parse(respuesta);
     } catch {
@@ -32,7 +33,7 @@ export class QuestionResponseBuilder {
       ];
       if (structuredTypes.includes(r.tipo_respuesta)) {
         try {
-          respuestaParsed = JSON.parse(r.respuesta);
+          respuestaParsed = JSON.parse(r.respuesta ?? "");
         } catch {
           respuestaParsed = r.respuesta;
         }

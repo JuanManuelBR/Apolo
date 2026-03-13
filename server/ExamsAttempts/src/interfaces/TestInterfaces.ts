@@ -12,7 +12,7 @@ export interface TestQuestion {
 
 export interface StudentAnswer {
   pregunta_id: number;
-  respuesta: string;
+  respuesta: string | null | undefined;
 }
 
 export interface OpenQuestion {
