@@ -655,6 +655,7 @@ export default function CrearExamen({
       }
 
       if (resultado.success) {
+        sessionStorage.setItem('lastCreatedExamCode', resultado.codigoExamen);
         setExamenCreado({
           codigo: resultado.codigoExamen,
           url: `${window.location.origin}/exam-access?code=${encodeURIComponent(resultado.codigoExamen)}`,
@@ -1041,8 +1042,8 @@ export default function CrearExamen({
                 {campo.id === "correo" && (
                   <p className={`text-xs mt-1 mb-1 px-1 ${campo.activo ? "text-teal-600" : "text-gray-400"}`}>
                     {campo.activo
-                      ? "Al seleccionar correo podrá enviar las notas a los estudiantes de forma automática desde el panel de administración."
-                      : "Si selecciona correo podrá enviar las notas a los estudiantes de forma automática, sino será su responsabilidad entregar las notas a cada estudiante."}
+                      ? "El sistema enviará automáticamente los resultados del examen al correo electrónico del estudiante al finalizar la evaluación."
+                      : "Al habilitar esta opción, los resultados serán notificados automáticamente por correo electrónico. De lo contrario, la entrega de calificaciones quedará bajo su responsabilidad."}
                   </p>
                 )}
               </div>
