@@ -841,7 +841,10 @@ export default function VigilanciaExamenesLista({
 
   const estudiantesFiltrados = examenActual && examAttempts[examenActual.id]
     ? examAttempts[examenActual.id].filter((est) => {
-        const match = est.nombre_estudiante.toLowerCase().includes(searchTerm.toLowerCase());
+        const term = searchTerm.toLowerCase();
+        const match = (est.nombre_estudiante || "").toLowerCase().includes(term)
+          || (est.correo_estudiante || "").toLowerCase().includes(term)
+          || (est.identificacion_estudiante || "").toLowerCase().includes(term);
         const st = traducirEstado(est.estado);
         if (!match) return false;
         if (filtroActual === "todos") return true;
