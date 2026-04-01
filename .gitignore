@@ -1,1 +1,16 @@
 node_modules/
+docs/webexams.puml
+plantuml.jar
+docs/13-Attempts-CalificarFeedback.png
+docs/12-Attempts-TomarExamen.png
+docs/11-Attempts-Estados.png
+docs/10-Attempts-Clases.png
+docs/09-Exams-AccesoEstudiante.png
+docs/08-Exams-CrearExamen.png
+docs/07-Exams-Clases.png
+docs/06-Users-LoginGoogle.png
+docs/05-Users-RegistroEmail.png
+docs/04-Users-Clases.png
+docs/03-CasosDeUso.png
+docs/02-Componentes.png
+docs/01-Despliegue.png
