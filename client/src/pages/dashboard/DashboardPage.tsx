@@ -120,6 +120,27 @@ export default function DashboardPage() {
           }
         }
 
+        // Verificar expiración del token localmente antes de llamar al backend
+        const token = getAuthToken();
+        if (token) {
+          try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            if (payload.exp && payload.exp * 1000 < Date.now()) {
+              clearAuthToken();
+              localStorage.removeItem("usuario");
+              window.location.href = "/login";
+              return;
+            }
+          } catch {
+            // Si el token no es un JWT válido, dejarlo pasar — el backend lo rechazará
+          }
+        } else {
+          // No hay token — redirigir a login
+          localStorage.removeItem("usuario");
+          window.location.href = "/login";
+          return;
+        }
+
         setTokenListo(true);
 
         // Verificar con el backend si la sesión es válida
@@ -444,9 +465,10 @@ export default function DashboardPage() {
             label="Notificaciones"
             collapsed={sidebarCollapsed}
             darkMode={darkMode}
-            active={location.pathname === "/notificaciones"}
-            onClick={() => navigate("/notificaciones")}
+            active={false}
+            onClick={() => {}}
             badge={unreadCount}
+            disabled
           />
 
           <div className="pt-4 pb-2">
@@ -606,6 +628,7 @@ function NavItem({
   darkMode = false,
   onClick,
   badge,
+  disabled = false,
 }: {
   icon: any;
   label: string;
@@ -614,22 +637,28 @@ function NavItem({
   darkMode?: boolean;
   onClick: () => void;
   badge?: number;
+  disabled?: boolean;
 }) {
   const showBadge = badge !== undefined && badge > 0;
 
   return (
     <button
-      onClick={onClick}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
       className={`w-full flex items-center rounded-lg text-sm transition-colors ${
         collapsed ? "justify-center px-2 py-2" : "px-3 py-2 gap-3"
       } ${
-        active
+        disabled
           ? darkMode
-            ? "bg-slate-800/70 text-white font-medium shadow-lg"
-            : "bg-[#2c3e50] text-white font-medium"
-          : darkMode
-            ? "text-gray-300 hover:bg-slate-800/50"
-            : "text-gray-700 hover:bg-gray-50"
+            ? "text-gray-600 cursor-default"
+            : "text-gray-400 cursor-default"
+          : active
+            ? darkMode
+              ? "bg-slate-800/70 text-white font-medium shadow-lg"
+              : "bg-[#2c3e50] text-white font-medium"
+            : darkMode
+              ? "text-gray-300 hover:bg-slate-800/50"
+              : "text-gray-700 hover:bg-gray-50"
       }`}
       title={collapsed ? label : ""}
     >

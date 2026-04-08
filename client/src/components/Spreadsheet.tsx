@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import GLPK from 'glpk.js';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ interface HojaCalculoProps {
     sheets: SheetMeta[];
     activeSheet: number;
     colWidths: Record<string, number>;
+    solverConfigs?: Record<number, SolverConfig>;
   };
   onSave?: (data: any) => void;
 }
@@ -436,7 +438,7 @@ function EmptyChart({ width, height, darkMode }: { width: number; height: number
 }
 
 // Shared grid lines + Y axis helper
-function GridLines({ ticks, pad, W, axisC, textC, height, padBottom }: any) {
+function GridLines({ ticks, pad, W, axisC, textC }: any) {
   return (
     <>
       {ticks.map((t: any, i: number) => (
@@ -735,7 +737,6 @@ function PieChartSVG({ data, width, height, darkMode }: SVGChartProps) {
   const { labels, series } = data;
   if (!labels.length || !series.length) return <EmptyChart width={width} height={height} darkMode={darkMode} />;
 
-  const legendH = Math.min(labels.length * 18 + 8, height - 10);
   const legendW = 80;
   const cx = (width - legendW) / 2;
   const cy = height / 2;
@@ -921,7 +922,7 @@ interface ChartModalProps {
   onClose: () => void;
   onInsert: (cfg: Omit<ChartConfig, 'id' | 'pos' | 'size'>) => void;
   onUpdate?: (id: number, cfg: Omit<ChartConfig, 'id' | 'pos' | 'size'>) => void;
-  onStartPick: (field: 'X' | 'Y', cb: (range: string) => void) => void;
+  onStartPick: (field: string, cb: (range: string) => void, single?: boolean) => void;
 }
 
 function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose, onInsert, onUpdate, onStartPick }: ChartModalProps) {
@@ -955,12 +956,48 @@ function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose,
   const dm = darkMode;
   const canTrend = type === 'line' || type === 'scatter';
 
-  const chartTypes: { id: ChartConfig['type']; label: string }[] = [
-    { id: 'bar',     label: 'Barras' },
-    { id: 'line',    label: 'Líneas' },
-    { id: 'area',    label: 'Área' },
-    { id: 'pie',     label: 'Pastel' },
-    { id: 'scatter', label: 'Dispersión' },
+  const chartTypes: { id: ChartConfig['type']; label: string; icon: React.ReactNode }[] = [
+    { id: 'bar', label: 'Barras', icon: (
+      <svg width="22" height="18" viewBox="0 0 22 18" fill="none">
+        <rect x="1" y="6" width="4" height="11" rx="1" fill="currentColor" opacity=".9"/>
+        <rect x="7" y="2" width="4" height="15" rx="1" fill="currentColor"/>
+        <rect x="13" y="9" width="4" height="8" rx="1" fill="currentColor" opacity=".7"/>
+        <rect x="19" y="4" width="4" height="13" rx="1" fill="currentColor" opacity=".85"/>
+      </svg>
+    )},
+    { id: 'line', label: 'Líneas', icon: (
+      <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
+        <polyline points="1,14 6,8 11,11 16,4 22,9" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" fill="none"/>
+        <circle cx="1" cy="14" r="1.5" fill="currentColor"/>
+        <circle cx="6" cy="8" r="1.5" fill="currentColor"/>
+        <circle cx="11" cy="11" r="1.5" fill="currentColor"/>
+        <circle cx="16" cy="4" r="1.5" fill="currentColor"/>
+        <circle cx="22" cy="9" r="1.5" fill="currentColor"/>
+      </svg>
+    )},
+    { id: 'area', label: 'Área', icon: (
+      <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
+        <path d="M1,17 L1,10 L7,5 L13,9 L19,3 L23,7 L23,17 Z" fill="currentColor" opacity=".3"/>
+        <polyline points="1,10 7,5 13,9 19,3 23,7" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" fill="none"/>
+      </svg>
+    )},
+    { id: 'pie', label: 'Pastel', icon: (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M10,10 L10,1 A9,9 0 0,1 18.7,14.5 Z" fill="currentColor"/>
+        <path d="M10,10 L18.7,14.5 A9,9 0 0,1 2.1,15.4 Z" fill="currentColor" opacity=".5"/>
+        <path d="M10,10 L2.1,15.4 A9,9 0 0,1 10,1 Z" fill="currentColor" opacity=".75"/>
+      </svg>
+    )},
+    { id: 'scatter', label: 'Dispersión', icon: (
+      <svg width="22" height="18" viewBox="0 0 22 18" fill="none">
+        <circle cx="4" cy="14" r="2" fill="currentColor" opacity=".8"/>
+        <circle cx="8" cy="7" r="2" fill="currentColor"/>
+        <circle cx="13" cy="11" r="2" fill="currentColor" opacity=".7"/>
+        <circle cx="17" cy="4" r="2" fill="currentColor" opacity=".9"/>
+        <circle cx="20" cy="9" r="2" fill="currentColor" opacity=".6"/>
+        <circle cx="5" cy="3" r="2" fill="currentColor" opacity=".5"/>
+      </svg>
+    )},
   ];
 
   const handleConfirm = () => {
@@ -972,89 +1009,157 @@ function ChartModal({ darkMode, cells, selRange, initialConfig, hidden, onClose,
     }
   };
 
-  const inputCls = `flex-1 px-2 py-1.5 rounded border text-[13px] font-mono outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`;
-  const pickBtnCls = `shrink-0 px-2 py-1 rounded text-[11px] font-medium border cursor-pointer transition-colors ${dm ? 'bg-slate-600 border-slate-500 text-slate-200 hover:bg-slate-500' : 'bg-gray-100 border-gray-300 text-gray-600 hover:bg-gray-200'}`;
+  const inp = `flex-1 px-2.5 py-1.5 rounded-lg border text-[12px] font-mono outline-none transition-all
+    focus:ring-2 focus:ring-[#188038]/30 focus:border-[#188038]
+    ${dm ? 'bg-slate-700/60 border-slate-600 text-slate-100 placeholder-slate-500' : 'bg-white border-gray-200 text-gray-800 placeholder-gray-400'}`;
+
+  const pickBtn = `shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border cursor-pointer transition-colors
+    ${dm ? 'bg-slate-700 border-slate-600 text-slate-300 hover:bg-slate-600' : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'}`;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 ${hidden ? 'hidden' : ''}`} onClick={onClose}>
+    <div className={`fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm ${hidden ? 'hidden' : ''}`} onClick={onClose}>
       <div
-        className={`flex flex-col overflow-hidden rounded-xl shadow-2xl w-full max-w-[700px] mx-2 ${dm ? 'bg-slate-800' : 'bg-white'}`}
+        className={`flex flex-col overflow-hidden rounded-2xl shadow-2xl w-full max-w-[720px] mx-3 border ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}
+        style={{ maxHeight: '90vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-5 py-3 bg-[#188038]">
-          <span className="text-white font-semibold text-sm">{isEdit ? '✎ Editar gráfica' : 'Insertar gráfica'}</span>
-          <button onClick={onClose} className="text-white/80 hover:text-white text-xl bg-transparent border-none cursor-pointer">&times;</button>
+        {/* Header */}
+        <div className={`flex items-center justify-between px-6 py-4 border-b ${dm ? 'border-slate-700 bg-slate-900/50' : 'border-gray-100 bg-gray-50/80'}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-[#188038] flex items-center justify-center shadow-sm">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/>
+                <line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+              </svg>
+            </div>
+            <div>
+              <p className={`font-bold text-sm ${dm ? 'text-white' : 'text-gray-900'}`}>
+                {isEdit ? 'Editar gráfica' : 'Insertar gráfica'}
+              </p>
+              <p className={`text-[11px] ${dm ? 'text-slate-500' : 'text-gray-400'}`}>Configura el tipo y los datos</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${dm ? 'text-slate-400 hover:bg-slate-700 hover:text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
         </div>
 
-        <div className="flex flex-col sm:flex-row flex-1 overflow-auto">
-          <div className={`flex sm:flex-col flex-wrap gap-1 sm:gap-0 shrink-0 p-2 sm:w-36 border-b sm:border-b-0 sm:border-r overflow-x-auto ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
-            <p className={`text-[10px] font-semibold tracking-wider mb-2 pl-1 ${dm ? 'text-slate-500' : 'text-gray-400'}`}>TIPO</p>
-            {chartTypes.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setType(t.id)}
-                className={`flex items-center gap-2 w-full px-3 py-2 rounded-md mb-0.5 text-[13px] border-none cursor-pointer transition-colors
-                  ${type === t.id
-                    ? 'bg-[#e6f4ea] text-[#188038] font-semibold'
-                    : dm ? 'bg-transparent text-slate-300 hover:bg-slate-700' : 'bg-transparent text-gray-600 hover:bg-gray-100'
-                  }`}
-              >
-                {t.label}
-              </button>
-            ))}
+        <div className="flex flex-col sm:flex-row flex-1 overflow-auto min-h-0">
+          {/* Chart type selector */}
+          <div className={`shrink-0 sm:w-44 border-b sm:border-b-0 sm:border-r p-3 ${dm ? 'border-slate-700 bg-slate-900/30' : 'border-gray-100 bg-gray-50/60'}`}>
+            <p className={`text-[10px] font-bold tracking-widest uppercase mb-3 px-1 ${dm ? 'text-slate-500' : 'text-gray-400'}`}>Tipo de gráfica</p>
+            <div className="flex sm:flex-col gap-1.5">
+              {chartTypes.map((t) => {
+                const active = type === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    onClick={() => setType(t.id)}
+                    className={`flex items-center gap-2.5 w-full px-3 py-2.5 rounded-xl text-[13px] font-medium border transition-all cursor-pointer
+                      ${active
+                        ? dm
+                          ? 'bg-[#188038]/20 border-[#188038]/40 text-[#4ade80]'
+                          : 'bg-[#e6f4ea] border-[#188038]/30 text-[#188038]'
+                        : dm
+                          ? 'bg-transparent border-transparent text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'
+                          : 'bg-transparent border-transparent text-gray-500 hover:bg-gray-100 hover:text-gray-800'
+                      }`}
+                  >
+                    <span className={active ? (dm ? 'text-[#4ade80]' : 'text-[#188038]') : (dm ? 'text-slate-500' : 'text-gray-400')}>
+                      {t.icon}
+                    </span>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          <div className="flex-1 p-4 overflow-y-auto">
-            <div className={`rounded-lg border mb-4 p-2 ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
-              <p className={`text-[11px] font-medium text-center mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>{title || 'Vista previa'}</p>
-              <ChartPreview type={type} data={chartData} width={490} height={190} darkMode={dm} showTrendline={showTrendline} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <div className="col-span-2">
-                <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Título</label>
-                <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Título de la gráfica"
-                  className={`w-full px-2 py-1.5 rounded border text-[13px] outline-none focus:border-[#188038] ${dm ? 'bg-slate-700 border-slate-600 text-slate-100' : 'bg-white border-gray-300 text-gray-800'}`}
-                />
+          {/* Right panel */}
+          <div className="flex-1 flex flex-col overflow-y-auto p-5 gap-5">
+            {/* Preview */}
+            <div className={`rounded-xl border overflow-hidden ${dm ? 'bg-slate-900/60 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div className={`px-4 py-2 border-b flex items-center justify-between ${dm ? 'border-slate-700' : 'border-gray-200'}`}>
+                <span className={`text-[11px] font-semibold ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Vista previa</span>
+                {title && <span className={`text-[11px] font-medium ${dm ? 'text-slate-300' : 'text-gray-700'}`}>{title}</span>}
               </div>
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Rango Eje X (etiquetas)</label>
-                <div className="flex gap-1">
-                  <input value={rangeX} onChange={(e) => setRangeX(e.target.value.toUpperCase())} placeholder="ej. A1:A10" className={inputCls} />
-                  <button className={pickBtnCls} title="Seleccionar del grid" onClick={() => onStartPick('X', (r) => setRangeX(r))}>← Grid</button>
-                </div>
-              </div>
-              <div>
-                <label className={`block text-xs font-medium mb-1 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Rango Eje Y (valores)</label>
-                <div className="flex gap-1">
-                  <input value={rangeY} onChange={(e) => setRangeY(e.target.value.toUpperCase())} placeholder="ej. B1:D10" className={inputCls} />
-                  <button className={pickBtnCls} title="Seleccionar del grid" onClick={() => onStartPick('Y', (r) => setRangeY(r))}>← Grid</button>
-                </div>
+              <div className="p-3">
+                <ChartPreview type={type} data={chartData} width={460} height={180} darkMode={dm} showTrendline={showTrendline} />
               </div>
             </div>
 
-            <div className="flex items-center gap-4 flex-wrap">
-              <label className={`flex items-center gap-2 text-[13px] cursor-pointer ${dm ? 'text-slate-300' : 'text-gray-700'}`}>
-                <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-[#188038]" />
+            {/* Title */}
+            <div>
+              <label className={`block text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>Título</label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Título de la gráfica (opcional)"
+                className={`w-full px-2.5 py-1.5 rounded-lg border text-[13px] outline-none transition-all focus:ring-2 focus:ring-[#188038]/30 focus:border-[#188038] ${dm ? 'bg-slate-700/60 border-slate-600 text-slate-100 placeholder-slate-500' : 'bg-white border-gray-200 text-gray-800 placeholder-gray-400'}`}
+              />
+            </div>
+
+            {/* Ranges */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={`block text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>
+                  Eje X — Etiquetas
+                </label>
+                <div className="flex gap-1.5">
+                  <input value={rangeX} onChange={(e) => setRangeX(e.target.value.toUpperCase())} placeholder="A1:A10" className={inp} />
+                  <button className={pickBtn} title="Seleccionar desde la hoja" onClick={() => onStartPick('X', (r) => setRangeX(r))}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className={`block text-[11px] font-semibold uppercase tracking-wide mb-1.5 ${dm ? 'text-slate-400' : 'text-gray-500'}`}>
+                  Eje Y — Valores
+                </label>
+                <div className="flex gap-1.5">
+                  <input value={rangeY} onChange={(e) => setRangeY(e.target.value.toUpperCase())} placeholder="B1:D10" className={inp} />
+                  <button className={pickBtn} title="Seleccionar desde la hoja" onClick={() => onStartPick('Y', (r) => setRangeY(r))}>
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Options */}
+            <div className={`flex items-center gap-5 flex-wrap p-3 rounded-xl ${dm ? 'bg-slate-700/30' : 'bg-gray-50'}`}>
+              <label className={`flex items-center gap-2 text-[12px] cursor-pointer select-none ${dm ? 'text-slate-300' : 'text-gray-600'}`}>
+                <input type="checkbox" checked={hasHeader} onChange={(e) => setHasHeader(e.target.checked)} className="accent-[#188038] w-3.5 h-3.5" />
                 Primera fila como encabezados
               </label>
               {canTrend && (
-                <label className={`flex items-center gap-2 text-[13px] cursor-pointer ${dm ? 'text-slate-300' : 'text-gray-700'}`}>
-                  <input type="checkbox" checked={showTrendline} onChange={(e) => setShowTrendline(e.target.checked)} className="accent-[#188038]" />
-                  Mostrar ecuación y puntos de corte
+                <label className={`flex items-center gap-2 text-[12px] cursor-pointer select-none ${dm ? 'text-slate-300' : 'text-gray-600'}`}>
+                  <input type="checkbox" checked={showTrendline} onChange={(e) => setShowTrendline(e.target.checked)} className="accent-[#188038] w-3.5 h-3.5" />
+                  Línea de tendencia con ecuación
                 </label>
               )}
             </div>
           </div>
         </div>
 
-        <div className={`flex justify-end gap-2 px-4 py-3 border-t ${dm ? 'bg-slate-900 border-slate-700' : 'bg-gray-50 border-gray-200'}`}>
-          <button onClick={onClose}
-            className={`px-5 py-1.5 rounded text-[13px] font-medium border cursor-pointer ${dm ? 'bg-slate-700 border-slate-600 text-slate-200 hover:bg-slate-600' : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-100'}`}
-          >Cancelar</button>
-          <button onClick={handleConfirm}
-            className="px-5 py-1.5 rounded text-[13px] font-medium bg-[#188038] text-white border-none cursor-pointer hover:bg-[#137033]"
-          >{isEdit ? 'Guardar cambios' : 'Insertar'}</button>
+        {/* Footer */}
+        <div className={`flex items-center justify-end gap-2.5 px-6 py-4 border-t ${dm ? 'border-slate-700 bg-slate-900/30' : 'border-gray-100 bg-gray-50/80'}`}>
+          <button
+            onClick={onClose}
+            className={`px-5 py-2 rounded-xl text-[13px] font-medium border transition-colors ${dm ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-200 text-gray-600 hover:bg-gray-100'}`}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleConfirm}
+            className="px-6 py-2 rounded-xl text-[13px] font-semibold bg-[#188038] text-white shadow-sm hover:bg-[#137033] transition-colors"
+          >
+            {isEdit ? 'Guardar cambios' : 'Insertar gráfica'}
+          </button>
         </div>
       </div>
     </div>
@@ -1182,6 +1287,562 @@ function FloatingChart({ chart, cells, darkMode, selected, onSelect, onRemove, o
   );
 }
 
+// ─── Solver ───────────────────────────────────────────────────────────────────
+
+interface SolverConstraint {
+  cell: string;
+  op: '<=' | '>=' | '=' | 'int' | 'bin'; // int/bin = type declaration (like Excel Solver)
+  value: string;
+}
+
+interface SolverConfig {
+  objective: string;
+  goal: 'max' | 'min' | 'value';
+  targetValue: string;
+  variables: string;
+  constraints: SolverConstraint[];
+}
+
+function expandCellRange(rangeStr: string): string[] {
+  const ids: string[] = [];
+  const parts = rangeStr.toUpperCase().split(',');
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes(':')) {
+      const [startStr, endStr] = trimmed.split(':');
+      const start = parseRef(startStr.trim());
+      const end = parseRef(endStr.trim());
+      if (!start || !end) continue;
+      const r1 = Math.min(start.row, end.row), r2 = Math.max(start.row, end.row);
+      const c1 = Math.min(start.col, end.col), c2 = Math.max(start.col, end.col);
+      for (let r = r1; r <= r2; r++)
+        for (let c = c1; c <= c2; c++)
+          ids.push(getCellId(r, c));
+    } else {
+      const ref = parseRef(trimmed);
+      if (ref) ids.push(getCellId(ref.row, ref.col));
+    }
+  }
+  return ids;
+}
+
+// Extract LP coefficients from a cell formula via finite differences (works for linear formulas)
+function extractLinearCoeffs(
+  cellId: string,
+  varIds: string[],
+  baseCells: Record<string, Cell>,
+): { coeffs: number[]; constant: number } {
+  const work: Record<string, Cell> = { ...baseCells };
+  const zero = (id: string) => { work[id] = { ...(work[id] || { value: '' }), value: '0', formula: null }; };
+  varIds.forEach(zero);
+  _cellsRef = null; _evalCache = new Map();
+  const f0 = parseFloat(getRaw(cellId, work)) || 0;
+  const coeffs = varIds.map((id, _i) => {
+    varIds.forEach(zero);
+    work[id] = { ...(work[id] || { value: '' }), value: '1', formula: null };
+    _cellsRef = null; _evalCache = new Map();
+    return (parseFloat(getRaw(cellId, work)) || 0) - f0;
+  });
+  return { coeffs, constant: f0 };
+}
+
+async function runSolverOptimization(
+  baseCells: Record<string, Cell>,
+  config: SolverConfig,
+): Promise<{ values: Record<string, string>; message: string }> {
+  const varIds = expandCellRange(config.variables);
+  if (!varIds.length) return { values: {}, message: 'No se especificaron celdas variables.' };
+
+  const objRef = parseRef(config.objective.toUpperCase().trim());
+  if (!objRef) return { values: {}, message: 'Celda objetivo inválida.' };
+  const objId = getCellId(objRef.row, objRef.col);
+
+  // Detect int/bin constraints (Excel Solver style: op === 'int' | 'bin')
+  const intCells = config.constraints.filter(c => c.op === 'int' && c.cell.trim()).map(c => c.cell.toUpperCase().trim());
+  const binCells = config.constraints.filter(c => c.op === 'bin' && c.cell.trim()).map(c => c.cell.toUpperCase().trim());
+  const hasMIP = intCells.length > 0 || binCells.length > 0;
+
+  // ── GLPK path: when any int/bin type constraints exist ───────────────────────
+  if (hasMIP) {
+    try {
+      const glpk = await (GLPK as any)();
+      const { coeffs: objCoeffs } = extractLinearCoeffs(objId, varIds, baseCells);
+      const varNames = varIds.map((_id, i) => `x${i}`);
+      const direction = config.goal === 'max' ? glpk.GLP_MAX : glpk.GLP_MIN;
+
+      const lp: any = {
+        name: 'Solver',
+        objective: {
+          direction,
+          name: 'obj',
+          vars: varNames.map((n, i) => ({ name: n, coef: objCoeffs[i] })),
+        },
+        subjectTo: [] as any[],
+        bounds: [] as any[],
+        generals: intCells.map(cell => { const idx = varIds.indexOf(cell); return idx >= 0 ? varNames[idx] : null; }).filter(Boolean) as string[],
+        binaries: binCells.map(cell => { const idx = varIds.indexOf(cell); return idx >= 0 ? varNames[idx] : null; }).filter(Boolean) as string[],
+      };
+
+      if (config.goal === 'value') {
+        const tgt = parseFloat(config.targetValue) || 0;
+        lp.subjectTo.push({ name: 'obj_eq', vars: varNames.map((n, i) => ({ name: n, coef: objCoeffs[i] })), bnds: { type: glpk.GLP_FX, ub: tgt, lb: tgt } });
+        lp.objective.direction = glpk.GLP_MIN;
+        lp.objective.vars = varNames.map(n => ({ name: n, coef: 0 }));
+      }
+
+      // Regular constraints only (skip int/bin type declarations)
+      config.constraints.forEach((c, ci) => {
+        if (c.op === 'int' || c.op === 'bin') return; // type declarations, not constraints
+        if (!c.cell.trim() || !c.value.trim()) return;
+        const ref = parseRef(c.cell.toUpperCase().trim());
+        if (!ref) return;
+        const cId = getCellId(ref.row, ref.col);
+        const { coeffs: cCoeffs, constant } = extractLinearCoeffs(cId, varIds, baseCells);
+        const valRef = parseRef(c.value.toUpperCase().trim());
+        const rhsNum = valRef ? (parseFloat(getRaw(getCellId(valRef.row, valRef.col), baseCells)) || 0) : (parseFloat(c.value) || 0);
+        const rhs = rhsNum - constant;
+        const btype = c.op === '<=' ? glpk.GLP_UP : c.op === '>=' ? glpk.GLP_LO : glpk.GLP_FX;
+        lp.subjectTo.push({ name: `c${ci}`, vars: varNames.map((n, i) => ({ name: n, coef: cCoeffs[i] })), bnds: { type: btype, ub: rhs, lb: rhs } });
+      });
+
+      // Free bounds for integer variables
+      lp.generals.forEach((n: string) => lp.bounds.push({ name: n, type: glpk.GLP_FR, lb: 0, ub: 0 }));
+
+      const result = await glpk.solve(lp, { msglev: glpk.GLP_MSG_OFF });
+      const st = result.result.status;
+
+      if (st === glpk.GLP_OPT || st === glpk.GLP_FEAS) {
+        const allBin = new Set(lp.binaries);
+        const vals: Record<string, string> = {};
+        varIds.forEach((id, i) => {
+          const v = result.result.vars[varNames[i]] ?? 0;
+          vals[id] = allBin.has(varNames[i]) ? String(Math.round(v)) : String(parseFloat(v.toFixed(8)));
+        });
+        const label = st === glpk.GLP_OPT ? 'Solución óptima' : 'Solución factible';
+        return { values: vals, message: `${label}. Objetivo (${config.objective.toUpperCase()}): ${result.result.z.toFixed(6)}` };
+      }
+      if (st === glpk.GLP_INFEAS || st === glpk.GLP_NOFEAS)
+        return { values: {}, message: 'Sin solución factible: las restricciones son contradictorias.' };
+      if (st === glpk.GLP_UNBND)
+        return { values: {}, message: 'Problema no acotado: el objetivo crece sin límite. Agregue restricciones.' };
+      return { values: {}, message: 'El solucionador no encontró solución (estado desconocido).' };
+    } catch (e: any) {
+      return { values: {}, message: `Error en el solucionador: ${e.message}` };
+    }
+  }
+
+  // ── Continuous path: coordinate descent ────────────────────────────────────
+  const workCells: Record<string, Cell> = { ...baseCells };
+  const varValues: number[] = varIds.map(id => parseFloat(getRaw(id, baseCells)) || 0);
+
+  const syncVars = () => {
+    varIds.forEach((id, i) => {
+      workCells[id] = { ...(workCells[id] || { value: '' }), value: String(varValues[i]), formula: null };
+    });
+    _cellsRef = null; _evalCache = new Map();
+  };
+
+  const evalObjective = (): number => {
+    syncVars();
+    const num = parseFloat(getRaw(objId, workCells));
+    return isNaN(num) ? (config.goal === 'max' ? -Infinity : Infinity) : num;
+  };
+
+  const checkConstraints = (): boolean =>
+    config.constraints.every(c => {
+      const ref = parseRef(c.cell.toUpperCase().trim());
+      if (!ref) return true;
+      syncVars();
+      const val = parseFloat(getRaw(getCellId(ref.row, ref.col), workCells));
+      const valRef2 = parseRef(c.value.toUpperCase().trim());
+      const target = valRef2 ? (parseFloat(getRaw(getCellId(valRef2.row, valRef2.col), workCells)) || 0) : parseFloat(c.value);
+      if (c.op === 'int' || c.op === 'bin') return true; // handled by GLPK, skip in continuous
+      if (isNaN(val) || isNaN(target)) return true;
+      if (c.op === '<=') return val <= target + 1e-6;
+      if (c.op === '>=') return val >= target - 1e-6;
+      return Math.abs(val - target) <= 1e-4;
+    });
+
+  const isBetter = (newObj: number, curObj: number): boolean => {
+    const tgt = parseFloat(config.targetValue) || 0;
+    if (config.goal === 'max') return newObj > curObj + 1e-10;
+    if (config.goal === 'min') return newObj < curObj - 1e-10;
+    return Math.abs(newObj - tgt) < Math.abs(curObj - tgt) - 1e-10;
+  };
+
+  // Check if feasible solution exists at all
+  syncVars();
+  if (!checkConstraints()) {
+    // Try to find a feasible starting point
+    let found = false;
+    for (let attempt = 0; attempt < 20 && !found; attempt++) {
+      varIds.forEach((_, vi) => { varValues[vi] = (Math.random() - 0.5) * 10; });
+      syncVars();
+      found = checkConstraints();
+    }
+    if (!found) {
+      return { values: {}, message: 'Sin solución factible: las restricciones son contradictorias.' };
+    }
+  }
+
+  let delta = 1.0;
+  let iter = 0;
+  const MAX_ITER = 800;
+
+  while (iter < MAX_ITER && delta >= 1e-8) {
+    let improved = false;
+    iter++;
+    for (let vi = 0; vi < varValues.length; vi++) {
+      const cur = varValues[vi];
+      const curObj = evalObjective();
+      const bad = config.goal === 'max' ? -Infinity : Infinity;
+
+      varValues[vi] = cur + delta;
+      const fwd = checkConstraints() ? evalObjective() : bad;
+      varValues[vi] = cur - delta;
+      const bwd = checkConstraints() ? evalObjective() : bad;
+
+      if (isBetter(fwd, curObj) && (!isBetter(bwd, curObj) || isBetter(fwd, bwd))) {
+        varValues[vi] = cur + delta;
+        improved = true;
+      } else if (isBetter(bwd, curObj)) {
+        varValues[vi] = cur - delta;
+        improved = true;
+      } else {
+        varValues[vi] = cur;
+      }
+    }
+    if (!improved) delta *= 0.1;
+  }
+
+  syncVars();
+  if (!checkConstraints()) {
+    return { values: {}, message: 'No se encontró solución que cumpla todas las restricciones.' };
+  }
+
+  const finalObj = parseFloat(getRaw(objId, workCells));
+  const resultValues: Record<string, string> = {};
+  varIds.forEach((id, i) => { resultValues[id] = String(parseFloat(varValues[i].toFixed(8))); });
+
+  const label = iter < MAX_ITER ? 'Solución encontrada' : 'Solución aproximada (máx. iteraciones)';
+  return {
+    values: resultValues,
+    message: `${label}. Objetivo (${config.objective.toUpperCase()}): ${isNaN(finalObj) ? 'N/A' : finalObj.toFixed(6)}`,
+  };
+}
+
+function SolverModal({ cells, darkMode, hidden, initialConfig, onClose, onApply, onRestore, onConfigChange, onStartPick }: {
+  cells: Record<string, Cell>;
+  darkMode: boolean;
+  hidden?: boolean;
+  initialConfig?: SolverConfig;
+  onClose: () => void;
+  onApply: (results: Record<string, string>) => void;
+  onRestore: (originals: Record<string, Cell>) => void;
+  onConfigChange: (cfg: SolverConfig) => void;
+  onStartPick: (field: string, cb: (range: string) => void, single?: boolean) => void;
+}) {
+  const dm = darkMode;
+  const [objective, setObjective] = useState(initialConfig?.objective ?? '');
+  const [goal, setGoal] = useState<'max' | 'min' | 'value'>(initialConfig?.goal ?? 'max');
+  const [targetValue, setTargetValue] = useState(initialConfig?.targetValue ?? '0');
+  const [variables, setVariables] = useState(initialConfig?.variables ?? '');
+  const [constraints, setConstraints] = useState<SolverConstraint[]>(initialConfig?.constraints ?? []);
+  const [running, setRunning] = useState(false);
+  const [resultMsg, setResultMsg] = useState<string | null>(null);
+  const [resultVals, setResultVals] = useState<Record<string, string> | null>(null);
+
+  // Persist config whenever any field changes
+  useEffect(() => {
+    onConfigChange({ objective, goal, targetValue, variables, constraints });
+  }, [objective, goal, targetValue, variables, constraints]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const updateConstraint = (i: number, field: keyof SolverConstraint, val: string) =>
+    setConstraints(prev => prev.map((c, idx) => idx === i ? { ...c, [field]: val } : c));
+
+  const [originalCells, setOriginalCells] = useState<Record<string, Cell> | null>(null);
+  const [hasFormulas, setHasFormulas] = useState<string[]>([]);
+
+  const handleSolve = async () => {
+    setRunning(true);
+    setResultMsg(null);
+    setResultVals(null);
+    setOriginalCells(null);
+    setHasFormulas([]);
+    try {
+      // Capture original full cell state before solving (to enable restore)
+      const varIds = expandCellRange(variables);
+      const originals: Record<string, Cell> = {};
+      const withFormulas: string[] = [];
+      varIds.forEach(id => {
+        originals[id] = cells[id] ?? { value: '' };
+        if (cells[id]?.formula) withFormulas.push(id);
+      });
+      setOriginalCells(originals);
+      if (withFormulas.length) setHasFormulas(withFormulas);
+
+      const res = await runSolverOptimization(cells, { objective, goal, targetValue, variables, constraints });
+      setResultMsg(res.message);
+      setResultVals(Object.keys(res.values).length ? res.values : null);
+    } catch (e: any) {
+      setResultMsg(`Error: ${e.message}`);
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  const border = dm ? 'border-slate-700' : 'border-gray-200';
+  const text = dm ? 'text-white' : 'text-gray-900';
+  const sub = dm ? 'text-slate-400' : 'text-gray-500';
+  const inp = `border rounded-lg px-2.5 py-1.5 text-[12px] outline-none transition-all focus:ring-2 focus:ring-purple-400/50 focus:border-purple-400
+    ${dm ? 'bg-slate-700/60 border-slate-600 text-slate-100 placeholder-slate-500' : 'bg-white border-gray-200 text-gray-800 placeholder-gray-400'}`;
+  const pickBtn = `shrink-0 flex items-center justify-center w-8 h-8 rounded-lg border cursor-pointer transition-colors
+    ${dm ? 'bg-slate-700 border-slate-600 text-purple-400 hover:bg-slate-600 hover:border-purple-500' : 'bg-purple-50 border-purple-200 text-purple-600 hover:bg-purple-100'}`;
+
+  if (hidden) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className={`w-full max-w-lg rounded-2xl shadow-2xl border overflow-hidden ${dm ? 'bg-slate-800 border-slate-700' : 'bg-white border-gray-100'}`}>
+
+        {/* Header */}
+        <div className={`px-5 py-4 border-b flex items-center justify-between ${border} ${dm ? 'bg-purple-900/20' : 'bg-purple-50/80'}`}>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center shadow-sm">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+              </svg>
+            </div>
+            <div>
+              <p className={`font-bold text-sm ${dm ? 'text-white' : 'text-gray-900'}`}>Parámetros del Solver</p>
+              <p className={`text-[11px] ${sub}`}>Optimización numérica de celdas</p>
+            </div>
+          </div>
+          <button onClick={onClose}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${dm ? 'text-slate-400 hover:bg-slate-700 hover:text-white' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700'}`}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5 max-h-[65vh] overflow-y-auto">
+
+          {/* Celda Objetivo */}
+          <div>
+            <label className={`text-[10px] font-bold uppercase tracking-widest ${sub}`}>Celda Objetivo</label>
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-1.5 flex-1">
+                <input
+                  value={objective}
+                  onChange={e => setObjective(e.target.value.toUpperCase())}
+                  placeholder="Ej: B10"
+                  className={`${inp} w-24 font-mono`}
+                />
+                <button
+                  className={pickBtn}
+                  title="Seleccionar celda desde la hoja"
+                  onClick={() => onStartPick('solver-Objetivo', r => setObjective(r.split(':')[0]), true)}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
+                  </svg>
+                </button>
+              </div>
+              <div className={`flex items-center gap-1 px-3 py-1.5 rounded-lg ${dm ? 'bg-slate-700/50' : 'bg-gray-50'}`}>
+                {(['max', 'min', 'value'] as const).map(g => (
+                  <label key={g} className={`flex items-center gap-1 text-[12px] cursor-pointer px-2 py-0.5 rounded-md transition-colors
+                    ${goal === g
+                      ? dm ? 'bg-purple-600/30 text-purple-300 font-semibold' : 'bg-purple-100 text-purple-700 font-semibold'
+                      : `${text} hover:opacity-70`}`}>
+                    <input type="radio" name="solver-goal" value={g} checked={goal === g} onChange={() => setGoal(g)} className="hidden" />
+                    {g === 'max' ? 'Máx' : g === 'min' ? 'Mín' : 'Igual a'}
+                  </label>
+                ))}
+              </div>
+              {goal === 'value' && (
+                <input value={targetValue} onChange={e => setTargetValue(e.target.value.replace(/[^0-9.\-]/g, ''))} type="text" inputMode="numeric" placeholder="0"
+                  className={`${inp} w-20`} />
+              )}
+            </div>
+          </div>
+
+          {/* Celdas Variables */}
+          <div>
+            <label className={`text-[10px] font-bold uppercase tracking-widest ${sub}`}>Celdas Variables</label>
+            <p className={`text-[11px] mt-0.5 mb-2 ${sub}`}>El Solver modificará estas celdas para alcanzar el objetivo.</p>
+            <div className="flex gap-1.5 mb-2">
+              <input
+                value={variables}
+                onChange={e => setVariables(e.target.value.toUpperCase())}
+                placeholder="Ej: B1:B5 ó B1,C2,D3"
+                className={`${inp} flex-1 font-mono`}
+              />
+              <button
+                className={pickBtn}
+                title="Seleccionar rango desde la hoja"
+                onClick={() => onStartPick('solver-Variables', r => setVariables(r))}
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Restricciones */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <label className={`text-[10px] font-bold uppercase tracking-widest ${sub}`}>Restricciones</label>
+              <button
+                onClick={() => setConstraints(p => [...p, { cell: '', op: '<=', value: '' }])}
+                className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1 rounded-lg border transition-colors
+                  ${dm ? 'border-slate-600 text-purple-400 hover:bg-slate-700' : 'border-purple-200 text-purple-600 hover:bg-purple-50'}`}
+              >
+                + Agregar
+              </button>
+            </div>
+            {constraints.length === 0 ? (
+              <p className={`text-[12px] italic ${sub}`}>Sin restricciones (opcional)</p>
+            ) : (
+              <div className="space-y-2">
+                {constraints.map((c, i) => (
+                  <div key={i} className={`flex items-center gap-1.5 px-2 py-2 rounded-xl ${dm ? 'bg-slate-700/40' : 'bg-purple-50/60 border border-purple-100'}`}>
+                    {/* Celda — clic abre picker */}
+                    <input
+                      value={c.cell}
+                      readOnly
+                      placeholder="Celda"
+                      className={`${inp} w-14 font-mono cursor-pointer shrink-0`}
+                      onClick={() => onStartPick(`solver-Celda ${i + 1}`, r => updateConstraint(i, 'cell', r.split(':')[0]))}
+                      title="Clic para seleccionar celda"
+                    />
+                    {/* Operador — siempre visibles ambos grupos */}
+                    <div className={`flex rounded-lg overflow-hidden border text-[11px] font-bold shrink-0 ${dm ? 'border-slate-600' : 'border-purple-200'}`}>
+                      {(['<=', '>=', '='] as const).map(op => (
+                        <button key={op} onClick={() => updateConstraint(i, 'op', op)}
+                          className={`px-2.5 py-1.5 transition-colors
+                            ${c.op === op ? 'bg-purple-600 text-white'
+                              : dm ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-white text-gray-400 hover:bg-purple-50'}`}>
+                          {op === '<=' ? '≤' : op === '>=' ? '≥' : '='}
+                        </button>
+                      ))}
+                    </div>
+                    <div className={`flex rounded-lg overflow-hidden border text-[11px] font-bold shrink-0 ${dm ? 'border-slate-600' : 'border-purple-200'}`}>
+                      {(['int', 'bin'] as const).map(op => (
+                        <button key={op} onClick={() => updateConstraint(i, 'op', c.op === op ? '<=' : op)}
+                          className={`px-2.5 py-1.5 transition-colors
+                            ${c.op === op
+                              ? op === 'int' ? 'bg-blue-500 text-white' : 'bg-orange-500 text-white'
+                              : dm ? 'bg-slate-700 text-slate-400 hover:bg-slate-600' : 'bg-white text-gray-400 hover:bg-purple-50'}`}>
+                          {op === 'int' ? 'ent' : 'bin'}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Valor — editable + picker (oculto si es int/bin) */}
+                    {c.op !== 'int' && c.op !== 'bin' && (
+                      <input
+                        value={c.value}
+                        onChange={e => updateConstraint(i, 'value', e.target.value)}
+                        placeholder="Valor o celda"
+                        type="text"
+                        className={`${inp} flex-1 font-mono min-w-0`}
+                      />
+                    )}
+                    {c.op !== 'int' && c.op !== 'bin' && (
+                      <button
+                        className={`${pickBtn} shrink-0`}
+                        title="Seleccionar celda para el valor"
+                        onClick={() => onStartPick(`solver-Valor ${i + 1}`, r => updateConstraint(i, 'value', r.split(':')[0]))}
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setConstraints(p => p.filter((_, j) => j !== i))}
+                      className={`text-[12px] font-semibold shrink-0 px-1.5 py-1 rounded-lg transition-colors
+                        ${dm ? 'text-red-400 hover:bg-red-900/20' : 'text-red-500 hover:bg-red-50'}`}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Resultado */}
+          {resultMsg && (
+            <div className={`p-3.5 rounded-xl border ${border} ${dm ? 'bg-slate-700/40 text-slate-300' : 'bg-gray-50 text-gray-700'}`}>
+              <p className="text-[12px] font-semibold">{resultMsg}</p>
+              {resultVals && (
+                <div className="mt-2.5 grid grid-cols-3 gap-1.5">
+                  {Object.entries(resultVals).map(([id, val]) => (
+                    <div key={id} className={`text-[11px] px-2 py-1 rounded-lg ${dm ? 'bg-slate-800/60' : 'bg-white border border-gray-100'}`}>
+                      <span className={`font-mono font-bold ${dm ? 'text-purple-400' : 'text-purple-600'}`}>{id}</span>
+                      <span className={`ml-1 ${sub}`}>= {parseFloat(val).toFixed(4)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Advertencia de fórmulas */}
+        {hasFormulas.length > 0 && resultVals && (
+          <div className={`px-5 py-2.5 border-t text-[11px] ${border} ${dm ? 'bg-yellow-900/20 text-yellow-300' : 'bg-yellow-50 text-yellow-700'}`}>
+            ⚠ Las celdas <span className="font-mono font-bold">{hasFormulas.join(', ')}</span> tienen fórmulas. Aplicar reemplazará la fórmula por el valor calculado.
+          </div>
+        )}
+
+        {/* Footer */}
+        <div className={`px-5 py-3 border-t flex items-center gap-2 flex-wrap ${border} ${dm ? 'bg-slate-900/30' : 'bg-gray-50/80'}`}>
+          {/* Restaurar — aparece solo cuando hay solución */}
+          {resultVals && originalCells && (
+            <button
+              onClick={() => { onRestore(originalCells); setResultVals(null); setResultMsg(null); setOriginalCells(null); }}
+              className={`whitespace-nowrap px-3 py-1.5 text-[11px] font-medium rounded-lg border transition-colors
+                ${dm ? 'border-slate-600 text-slate-400 hover:bg-slate-700 hover:text-slate-200' : 'border-gray-300 text-gray-500 hover:bg-gray-100'}`}>
+              ↩ Restaurar
+            </button>
+          )}
+          <div className="flex-1" />
+          <button onClick={onClose}
+            className={`whitespace-nowrap px-4 py-1.5 text-[12px] font-medium rounded-lg border transition-colors
+              ${dm ? 'border-slate-600 text-slate-300 hover:bg-slate-700' : 'border-gray-200 text-gray-600 hover:bg-gray-100'}`}>
+            Cerrar
+          </button>
+          {resultVals && (
+            <button onClick={() => { onApply(resultVals); onClose(); }}
+              className="whitespace-nowrap px-4 py-1.5 text-[12px] font-semibold rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors shadow-sm">
+              ✓ Aplicar
+            </button>
+          )}
+          <button
+            onClick={handleSolve}
+            disabled={running || !objective.trim() || !variables.trim()}
+            className={`whitespace-nowrap px-4 py-1.5 text-[12px] font-semibold rounded-lg text-white transition-colors shadow-sm
+              ${running || !objective.trim() || !variables.trim()
+                ? 'bg-purple-300 cursor-not-allowed'
+                : 'bg-purple-600 hover:bg-purple-700'}`}
+          >
+            {running ? (
+              <span className="flex items-center gap-1.5">
+                <svg className="animate-spin" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4"/>
+                </svg>
+                Resolviendo…
+              </span>
+            ) : 'Resolver'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function HojaCalculo({ darkMode, readOnly = false, initialData, onSave }: HojaCalculoProps) {
@@ -1197,6 +1858,7 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
   const [editingCell, setEditingCell] = useState<string | null>(null);
   const [editVal, setEditVal] = useState<string>('');
   const [showChartModal, setShowChartModal] = useState(false);
+  const [showSolverModal, setShowSolverModal] = useState(false);
   const [selectedChart, setSelectedChart] = useState<number | null>(null);
   const [renamingSheet, setRenamingSheet] = useState<number | null>(null);
   const [colWidths, setColWidths] = useState<Record<string, number>>(() => initialData?.colWidths ?? {});
@@ -1204,9 +1866,13 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
   const [visibleRange, setVisibleRange] = useState({ start: 0, end: 50 });
   // Chart editing
   const [editingChartId, setEditingChartId] = useState<number | null>(null);
-  // Range picking for chart modal
-  const [pickingFor, setPickingFor] = useState<'X' | 'Y' | null>(null);
+  // Range picking — shared by chart modal and solver modal
+  const [pickingFor, setPickingFor] = useState<string | null>(null);
   const chartPickCallbackRef = useRef<((range: string) => void) | null>(null);
+  // Solver config persistence per sheet
+  const [solverConfigs, setSolverConfigs] = useState<Record<number, SolverConfig>>(
+    () => initialData?.solverConfigs ?? {}
+  );
 
   const fillStartRef = useRef<{ r: number; c: number } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -1228,10 +1894,10 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
   useEffect(() => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => {
-      onSaveRef.current?.({ allCells, allCharts, sheets, activeSheet, colWidths });
+      onSaveRef.current?.({ allCells, allCharts, sheets, activeSheet, colWidths, solverConfigs });
     }, 500);
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
-  }, [allCells, allCharts, sheets, activeSheet, colWidths]);
+  }, [allCells, allCharts, sheets, activeSheet, colWidths, solverConfigs]);
 
   const getColW = (sheetId: number, col: number): number => {
     return colWidths[`${sheetId}-${col}`] ?? DEFAULT_COL_W;
@@ -1648,20 +2314,32 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
     }));
   };
 
-  const handleStartPick = useCallback((field: 'X' | 'Y', cb: (range: string) => void) => {
+  const pickingSingleRef = useRef(false);
+
+  const handleStartPick = useCallback((field: string, cb: (range: string) => void, single = false) => {
     chartPickCallbackRef.current = cb;
+    pickingSingleRef.current = single;
     setPickingFor(field);
   }, []);
 
-  const confirmPick = () => {
-    if (selRange && chartPickCallbackRef.current) {
-      const r1 = Math.min(selRange.r1, selRange.r2), r2 = Math.max(selRange.r1, selRange.r2);
-      const c1 = Math.min(selRange.c1, selRange.c2), c2 = Math.max(selRange.c1, selRange.c2);
-      chartPickCallbackRef.current(`${getCellId(r1, c1)}:${getCellId(r2, c2)}`);
+  const confirmPick = useCallback((overrideCell?: { r: number; c: number }) => {
+    if (chartPickCallbackRef.current) {
+      let range: string;
+      if (overrideCell) {
+        range = getCellId(overrideCell.r, overrideCell.c);
+      } else if (selRange) {
+        const r1 = Math.min(selRange.r1, selRange.r2), r2 = Math.max(selRange.r1, selRange.r2);
+        const c1 = Math.min(selRange.c1, selRange.c2), c2 = Math.max(selRange.c1, selRange.c2);
+        range = `${getCellId(r1, c1)}:${getCellId(r2, c2)}`;
+      } else {
+        range = getCellId(sel.r, sel.c);
+      }
+      chartPickCallbackRef.current(range);
     }
     chartPickCallbackRef.current = null;
+    pickingSingleRef.current = false;
     setPickingFor(null);
-  };
+  }, [selRange, sel]);
 
   // ── Sheets ──
   const addSheet = () => {
@@ -1786,7 +2464,7 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
         <select
           value={curCell.fontSize || 13}
           onChange={(e) => setFontSize(Number(e.target.value))}
-          className={`border rounded px-1 py-0.5 text-[12px] h-6 cursor-pointer outline-none ${dm ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-gray-300 text-gray-700'}`}
+          className={`border rounded px-1 py-0.5 text-[12px] h-6 cursor-pointer outline-none appearance-none ${dm ? 'bg-slate-700 border-slate-600 text-slate-200' : 'bg-white border-gray-300 text-gray-700'}`}
         >
           {[8, 9, 10, 11, 12, 13, 14, 16, 18, 20, 24, 28, 32].map((s) => (
             <option key={s} value={s}>{s}</option>
@@ -1883,6 +2561,18 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
             <line x1="2" y1="20" x2="22" y2="20"/>
           </svg>
           Insertar gráfica
+        </button>
+
+        {/* Solver button */}
+        <button
+          onClick={() => setShowSolverModal(true)}
+          className={`flex items-center gap-1 px-2.5 py-1 rounded text-[12px] font-medium border cursor-pointer h-6 transition-colors ${dm ? 'border-slate-600 text-purple-400 hover:bg-slate-700' : 'border-gray-300 text-purple-700 hover:bg-purple-50'}`}
+          title="Solver — Optimización"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+          </svg>
+          Solver
         </button>
 
         {/* Functions dropdown */}
@@ -1987,17 +2677,21 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                     return (
                       <th
                         key={c}
-                        className={`sticky top-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r relative cursor-pointer transition-colors
+                        className={`sticky top-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r relative cursor-pointer transition-all duration-75
                           ${dm
-                            ? isColInRange ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-                            : isColInRange ? 'bg-blue-500 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                            ? isColInRange
+                              ? 'bg-[#1a4a8a] text-white border-[#1a4a8a]'
+                              : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            : isColInRange
+                              ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
+                              : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                           }`}
                         style={{ width: getColW(activeSheet, c), height: ROW_H }}
                         onMouseDown={(e) => selectColumn(c, e)}
                       >
                         {getColumnLabel(c)}
                         <div
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize z-10 hover:bg-blue-400 transition-colors"
+                          className={`absolute right-0 top-0 h-full w-1.5 cursor-col-resize z-10 transition-colors ${dm ? 'hover:bg-blue-400' : 'hover:bg-blue-500'}`}
                           onMouseDown={(e) => startColResize(e, c)}
                           onClick={(e) => e.stopPropagation()}
                         />
@@ -2022,10 +2716,14 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                     <tr key={r} style={{ height: ROW_H }}>
                       {/* Row header */}
                       <td
-                        className={`sticky left-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r cursor-pointer transition-colors
+                        className={`sticky left-0 z-10 text-[11px] font-semibold text-center select-none border-b border-r cursor-pointer transition-all duration-75
                           ${dm
-                            ? isRowInRange ? 'bg-slate-600 text-white' : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800'
-                            : isRowInRange ? 'bg-blue-500 text-white' : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200'
+                            ? isRowInRange
+                              ? 'bg-[#1a4a8a] text-white border-[#1a4a8a]'
+                              : 'bg-slate-900 border-slate-700 text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                            : isRowInRange
+                              ? 'bg-[#1a73e8] text-white border-[#1a73e8]'
+                              : 'bg-gray-100 border-gray-300 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                           }`}
                         style={{ width: HEADER_W, height: ROW_H }}
                         onMouseDown={(e) => selectRow(r, e)}
@@ -2037,7 +2735,7 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                         const id = getCellId(r, c);
                         const cell = getCell(id);
 
-                        if (cell.hidden) return null;
+                        if (cell.hidden) return <td key={c} style={{ display: 'none' }} />;
 
                         const rawDisplay = getRaw(id, cells);
                         const isSel = sel.r === r && sel.c === c;
@@ -2060,9 +2758,10 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                         // Cell background
                         let cellBg = dm ? '#0f172a' : '#ffffff';
                         if (cell.bgColor) cellBg = cell.bgColor;
-                        else if (inRng || isSel) cellBg = dm ? '#1e3a5f' : '#e8f0fe';
+                        else if (isSel) cellBg = dm ? '#1e3a5f' : '#e8f0fe';
+                        else if (inRng) cellBg = dm ? '#172a45' : '#EEF4FF';
 
-                        // Selection range border on boundary cells
+                        // Selection range border — 2 px accent on each edge of the selection rectangle
                         let selBorder = '';
                         if (inRng) {
                           const bc = '#1a73e8';
@@ -2085,7 +2784,7 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                             id={`cell-${id}`}
                             className={`overflow-hidden whitespace-nowrap p-0 cursor-default relative
                               ${dm ? 'border-slate-800' : 'border-gray-200'} border-b border-r
-                              ${isSel ? 'outline outline-2 outline-[#1a73e8] outline-offset-[-2px] z-[5]' : ''}
+                              ${isSel ? 'z-[5]' : ''}
                             `}
                             colSpan={cell.colSpan}
                             rowSpan={cell.rowSpan}
@@ -2096,7 +2795,11 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                               fontStyle: cell.italic ? 'italic' : 'normal',
                               textDecoration: cell.underline ? 'underline' : 'none',
                               textAlign: cell.align || 'left',
-                              boxShadow: combinedShadow,
+                              boxShadow: isSel
+                                ? `0 0 0 3px ${dm ? 'rgba(26,115,232,0.2)' : 'rgba(26,115,232,0.15)'}, inset 0 0 0 2px #1a73e8`
+                                : combinedShadow,
+                              outline: isSel ? '2px solid #1a73e8' : undefined,
+                              outlineOffset: isSel ? '-2px' : undefined,
                               fontSize: `${fontSize}px`,
                               color: cell.color || (dm ? '#e2e8f0' : '#1a202c'),
                               backgroundColor: cellBg,
@@ -2131,7 +2834,7 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                                 onChange={(e) => setEditVal(e.target.value)}
                                 onKeyDown={onEditKeyDown}
                                 onBlur={() => commitEdit(id, editVal)}
-                                className="absolute inset-0 w-full border-none outline-none px-1 z-10"
+                                className="absolute inset-0 w-full border-none outline-none px-1.5 z-10"
                                 style={{
                                   height: ROW_H,
                                   fontWeight: cell.bold ? 700 : 400,
@@ -2139,9 +2842,11 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                                   textAlign: cell.align || 'left',
                                   fontSize: `${fontSize}px`,
                                   color: cell.color || (dm ? '#e2e8f0' : '#1a202c'),
-                                  backgroundColor: dm ? '#1e293b' : '#ffffff',
+                                  backgroundColor: dm ? '#1e3a5f' : '#fffde7',
                                   fontFamily: 'inherit',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                  boxShadow: dm
+                                    ? '0 0 0 2px #1a73e8, 0 4px 12px rgba(0,0,0,0.35)'
+                                    : '0 0 0 2px #1a73e8, 0 4px 12px rgba(26,115,232,0.18)',
                                 }}
                               />
                             ) : (
@@ -2163,10 +2868,10 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
                                 {displayVal}
                               </div>
                             )}
-                            {/* Fill handle — only on bottom-right of selection anchor or single selected */}
+                            {/* Fill handle */}
                             {isSel && !editing && (
                               <div
-                                className="fill-handle absolute right-0 bottom-0 w-3 h-3 bg-[#1a73e8] cursor-crosshair z-10"
+                                className="fill-handle absolute right-0 bottom-0 w-2.5 h-2.5 bg-[#1a73e8] cursor-crosshair z-10 rounded-sm ring-1 ring-white shadow-sm"
                                 style={{ transform: 'translate(50%, 50%)' }}
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
@@ -2256,8 +2961,9 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
           {!readOnly && (
             <button
               onClick={addSheet}
-              title="Nueva hoja"
-              className={`w-8 flex items-center justify-center border-none border-r shrink-0 cursor-pointer bg-transparent ${borderCls} ${subTextCls} ${hoverBtnCls}`}
+              disabled={sheets.length >= 3}
+              title={sheets.length >= 3 ? 'Máximo 3 hojas' : 'Nueva hoja'}
+              className={`w-8 flex items-center justify-center border-none border-r shrink-0 bg-transparent ${borderCls} ${subTextCls} ${sheets.length >= 3 ? 'opacity-30 cursor-not-allowed' : `cursor-pointer ${hoverBtnCls}`}`}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="12" y1="5" x2="12" y2="19"/>
@@ -2310,25 +3016,37 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
 
       {/* ── Range picking banner ── */}
       {pickingFor && (
-        <div className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2.5 bg-[#1a73e8] text-white shadow-lg">
+        <div className="fixed top-0 left-0 right-0 z-[60] flex items-center justify-between px-4 py-2.5 shadow-xl"
+          style={{ background: 'linear-gradient(90deg,#1a73e8,#1557b0)' }}>
           <div className="flex items-center gap-3">
-            <span className="text-[13px] font-semibold">Seleccionando Rango {pickingFor}:</span>
-            <span className="text-[12px] opacity-90">Arrastra sobre las celdas y luego haz clic en Confirmar</span>
-            {selRange && (
-              <span className="font-mono text-[12px] bg-white/20 px-2 py-0.5 rounded">
-                {getCellId(Math.min(selRange.r1, selRange.r2), Math.min(selRange.c1, selRange.c2))}:{getCellId(Math.max(selRange.r1, selRange.r2), Math.max(selRange.c1, selRange.c2))}
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-white/20 shrink-0">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+                <path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/>
+              </svg>
+            </div>
+            <div>
+              <span className="text-[13px] font-bold text-white">
+                {pickingFor.startsWith('solver-')
+                  ? `Seleccionando: ${pickingFor.replace('solver-', '')}`
+                  : `Rango ${pickingFor}`}
               </span>
-            )}
+              <span className="ml-3 text-[12px] text-white/75">Arrastra sobre las celdas y confirma</span>
+            </div>
+            <span className="font-mono text-[12px] bg-white/20 px-2.5 py-0.5 rounded-lg text-white font-semibold">
+              {selRange
+                ? `${getCellId(Math.min(selRange.r1, selRange.r2), Math.min(selRange.c1, selRange.c2))}:${getCellId(Math.max(selRange.r1, selRange.r2), Math.max(selRange.c1, selRange.c2))}`
+                : getCellId(sel.r, sel.c)}
+            </span>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={confirmPick}
-              className="px-4 py-1 rounded text-[13px] font-semibold bg-white text-[#1a73e8] border-none cursor-pointer hover:bg-blue-50"
-            >✓ Confirmar selección</button>
-            <button
-              onClick={() => { chartPickCallbackRef.current = null; setPickingFor(null); }}
-              className="px-3 py-1 rounded text-[13px] bg-white/20 border-none cursor-pointer hover:bg-white/30"
-            >✕ Cancelar</button>
+            <button onClick={() => confirmPick()}
+              className="px-4 py-1.5 rounded-lg text-[13px] font-bold bg-white text-[#1a73e8] cursor-pointer hover:bg-blue-50 transition-colors shadow-sm">
+              ✓ Confirmar
+            </button>
+            <button onClick={() => { chartPickCallbackRef.current = null; setPickingFor(null); }}
+              className="px-3 py-1.5 rounded-lg text-[13px] font-medium bg-white/15 text-white cursor-pointer hover:bg-white/25 transition-colors">
+              ✕ Cancelar
+            </button>
           </div>
         </div>
       )}
@@ -2344,6 +3062,31 @@ export default function HojaCalculo({ darkMode, readOnly = false, initialData, o
           onClose={() => { setShowChartModal(false); setEditingChartId(null); }}
           onInsert={insertChart}
           onUpdate={updateChart}
+          onStartPick={handleStartPick}
+        />
+      )}
+
+      {/* ── Solver modal ── */}
+      {showSolverModal && (
+        <SolverModal
+          cells={cells}
+          darkMode={dm}
+          hidden={pickingFor !== null}
+          initialConfig={solverConfigs[activeSheet]}
+          onClose={() => setShowSolverModal(false)}
+          onConfigChange={cfg => setSolverConfigs(prev => ({ ...prev, [activeSheet]: cfg }))}
+          onApply={(results) => {
+            // Apply solution: write plain numeric values, clear formulas on variable cells
+            Object.entries(results).forEach(([id, val]) => {
+              setCell(id, { value: val, formula: null });
+            });
+          }}
+          onRestore={(originals) => {
+            // Restore: put back original cell state (including formulas if any)
+            Object.entries(originals).forEach(([id, cell]) => {
+              setCell(id, cell);
+            });
+          }}
           onStartPick={handleStartPick}
         />
       )}
