@@ -616,6 +616,7 @@ export default function SecureExamPlatform() {
     sheets: state.sheets ?? [],
     activeSheet: state.activeSheet ?? 1,
     colWidths: state.colWidths ?? {},
+    solverConfigs: state.solverConfigs ?? {},
   });
 
   // Auto-save: Hoja de Cálculo
@@ -3196,7 +3197,7 @@ export default function SecureExamPlatform() {
                         <span
                           className={`text-xs font-bold uppercase tracking-wider ${darkMode ? "text-gray-400" : "text-white"}`}
                         >
-                          {panel}
+                          {panel === "excel" ? "Hoja de Cálculo" : panel === "calculadora" ? "Calculadora" : panel === "dibujo" ? "Dibujo" : panel === "answer" ? "Respuesta" : panel === "javascript" ? "JavaScript" : panel === "python" ? "Python" : panel === "java" ? "Java" : panel === "exam" ? "Examen" : panel}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
