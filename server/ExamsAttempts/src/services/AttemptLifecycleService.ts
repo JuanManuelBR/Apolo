@@ -94,39 +94,51 @@ export class AttemptLifecycleService {
 
     await attemptRepo.save(attempt);
 
-    const codigo_acceso = generateAccessCode();
-    const id_sesion = generateSessionId();
-
     const fecha_expiracion_timestamp = ExamAttemptValidator.validateTimeLimit(
       exam,
       fecha_inicio,
     );
 
-    const examInProgress = progressRepo.create({
-      codigo_acceso,
-      estado: AttemptState.ACTIVE,
-      fecha_inicio,
-      id_sesion,
-      fecha_expiracion: fecha_expiracion_timestamp
-        ? new Date(fecha_expiracion_timestamp)
-        : null,
-      intento_id: attempt.id,
-    });
-
-    await progressRepo.save(examInProgress);
+    // Retry en caso de colisión de codigo_acceso o id_sesion (unique constraint)
+    let examInProgress;
+    const MAX_RETRIES = 5;
+    for (let attempt_n = 0; attempt_n < MAX_RETRIES; attempt_n++) {
+      const codigo_acceso = generateAccessCode();
+      const id_sesion = generateSessionId();
+      try {
+        examInProgress = progressRepo.create({
+          codigo_acceso,
+          estado: AttemptState.ACTIVE,
+          fecha_inicio,
+          id_sesion,
+          fecha_expiracion: fecha_expiracion_timestamp
+            ? new Date(fecha_expiracion_timestamp)
+            : null,
+          intento_id: attempt.id,
+        });
+        await progressRepo.save(examInProgress);
+        break;
+      } catch (err: any) {
+        // Colisión de clave única en codigo_acceso o id_sesion → reintentar
+        if (err?.errno === 1062 && attempt_n < MAX_RETRIES - 1) {
+          continue;
+        }
+        throw err;
+      }
+    }
 
     const room = `attempt_${attempt.id}`;
     io.to(room).emit("attempt_started", {
       attemptId: attempt.id,
-      codigo_acceso,
-      id_sesion,
+      codigo_acceso: examInProgress!.codigo_acceso,
+      id_sesion: examInProgress!.id_sesion,
       limiteTiempo: exam.limiteTiempo,
-      fecha_expiracion: examInProgress.fecha_expiracion,
+      fecha_expiracion: examInProgress!.fecha_expiracion,
     });
 
     io.to(`exam_${exam.id}`).emit("student_started_exam", {
       attemptId: attempt.id,
-      codigo_acceso,
+      codigo_acceso: examInProgress!.codigo_acceso,
       estudiante: {
         nombre: attempt.nombre_estudiante,
         correo: attempt.correo_estudiante,

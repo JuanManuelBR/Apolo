@@ -31,7 +31,7 @@ export class SecurityEventService {
     // Guardar evento
     const event = new ExamEvent();
     event.tipo_evento = data.tipo_evento;
-    event.fecha_envio = data.fecha_envio;
+    event.fecha_envio = data.fecha_envio ?? new Date();
     event.intento_id = data.intento_id;
     event.leido = false;
 

@@ -9,8 +9,8 @@ export class CreateExamEventDto {
 
   @Type(() => Date)
   @IsDate({ message: "fecha_envio debe ser una fecha válida" })
-  @IsNotEmpty({message: "Falta la fecha de envío del evento"})
-  fecha_envio!: Date;
+  @IsOptional()
+  fecha_envio?: Date;
 
   @IsNumber({}, { message: "El ID del intento debe ser un número" })
   @IsNotEmpty({message: "Falta el ID del intento"})

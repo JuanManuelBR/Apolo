@@ -26,7 +26,10 @@ export class GradingService {
 
     try {
       // 1. Parsear la respuesta del estudiante
-      const selectedIds: number[] = JSON.parse(studentAnswer.respuesta);
+      const parsed = JSON.parse(studentAnswer.respuesta);
+      const selectedIds: number[] = Array.isArray(parsed)
+        ? parsed.map(Number)
+        : [Number(parsed)];
 
       // 2. Obtener los IDs de las opciones correctas
       const correctIds = question.options
