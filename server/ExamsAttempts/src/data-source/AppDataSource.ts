@@ -26,7 +26,7 @@ export const AppDataSource = new DataSource({
     // Mantiene las conexiones del pool vivas para evitar ECONNRESET en TiDB Cloud
     enableKeepAlive: true,
     keepAliveInitialDelay: 10000,
-    connectionLimit: 10,
+    connectionLimit: 50,
     connectTimeout: 30000,
     waitForConnections: true,
     queueLimit: 0,
