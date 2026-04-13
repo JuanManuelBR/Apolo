@@ -12,7 +12,7 @@ export const AppDataSource = new DataSource({
   password: process.env.DB_PASS,
   port: Number(process.env.DB_PORT),
   username: process.env.DB_USER,
-  synchronize: true,
+  synchronize: false,
   logging: false,
   entities: [ExamAttempt, ExamAnswer, ExamEvent, ExamInProgress],
   migrations: [],
