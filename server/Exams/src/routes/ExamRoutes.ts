@@ -4,6 +4,7 @@ import { Router } from "express";
 import { authenticateToken } from "../middlewares/auth";
 import { upload } from "../middlewares/upload";
 import { authorizeExamOwner } from "../middlewares/authorization";
+import { authenticateAny } from "../middlewares/serviceAuth";
 
 const router = Router();
 
@@ -167,7 +168,6 @@ router.post("/",authenticateToken, upload.any(), ExamsController.addExam);
  */
 router.put("/:id", authenticateToken, authorizeExamOwner, upload.any(), ExamsController.updateExam);
 
-
 /**
  * @openapi
  * /api/exams/{id}:
@@ -222,8 +222,7 @@ router.delete("/:id", authenticateToken, authorizeExamOwner, ExamsController.del
  *             schema:
  *               $ref: '#/components/schemas/Error'
  */
-router.get("/by-id/:id", authenticateToken, authorizeExamOwner, ExamsController.getExamById);
-
+router.get("/by-id/:id", authenticateAny, ExamsController.getExamById);
 /**
  * @openapi
  * /api/exams/{codigoExamen}:
@@ -495,8 +494,7 @@ router.patch("/:id/regenerate-code", authenticateToken, authorizeExamOwner, Exam
  *       404:
  *         description: Examen no encontrado
  */
-router.patch("/:id/remove-time-limit", ExamsController.removeTimeLimit);
-
+router.patch("/:id/remove-time-limit", authenticateAny, ExamsController.removeTimeLimit);
 /**
  * @openapi
  * /api/exams/{id}/share:
